@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import BottomNav from '../components/layout/BottomNav';
 
 export const metadata: Metadata = {
   title: 'EatSave',
-  description: 'Умный холодильник + умный кошелёк',
+  description: 'Smart fridge + smart wallet',
 };
 
 export default function RootLayout({
@@ -14,7 +15,8 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body className="bg-zinc-950 text-white">
-        {children}
+        <main className="pb-16">{children}</main>
+        <BottomNav />
       </body>
     </html>
   );

@@ -15,7 +15,7 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-1/2 z-50 w-full max-w-mobile -translate-x-1/2 border-t border-border bg-surface px-2 pb-safe">
+    <nav className="fixed bottom-0 left-1/2 z-50 w-full max-w-mobile -translate-x-1/2 border-t border-border bg-zinc-900 px-2 pb-safe">
       <ul className="flex items-center justify-around py-2">
         {tabs.map((tab) => {
           const isActive =

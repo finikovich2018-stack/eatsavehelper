@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { supabase } from '@/lib/supabase/client';
 import { useTelegram } from '@/components/TelegramProvider';
@@ -44,11 +44,7 @@ export default function FridgePage() {
     name: '', category: 'other', expiry_date: '', quantity: ''
   });
 
-  useEffect(() => {
-    loadItems();
-  }, []);
-
-  async function loadItems() {
+  const loadItems = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
       .from('fridge_items')
@@ -57,7 +53,11 @@ export default function FridgePage() {
       .order('expiry_date', { ascending: true });
     setItems(data || []);
     setLoading(false);
-  }
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadItems();
+  }, [loadItems]);
 
   async function addItem() {
     if (!form.name || !form.expiry_date || !user?.id) return;

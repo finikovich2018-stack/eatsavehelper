@@ -72,89 +72,133 @@ export default function HomePage() {
   const greeting = hour < 12 ? 'Добрый утро' : hour < 18 ? 'Добрый день' : 'Добрый вечер';
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white pb-24">
+    <main className="min-h-screen bg-background text-foreground pb-24">
       <TopBar title="EatSave" />
-      <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-mobile mx-auto px-4 py-8 space-y-8">
         
-        {/* Приветствие */}
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">
-            {greeting}, <span className="text-green-400">{user?.first_name || 'Друг'}</span>!
-          </h1>
-          <p className="text-zinc-400">Давайте управлять вашим холодильником и расходами</p>
+        {/* Приветствие с улучшенной визуализацией */}
+        <div className="space-y-3 pt-2">
+          <div className="flex items-baseline gap-2">
+            <h1 className="text-4xl font-bold">
+              {greeting}
+            </h1>
+            <span className="text-4xl font-bold text-accent">{user?.first_name || 'Друг'}</span>
+          </div>
+          <p className="text-muted text-base">Управляйте холодильником и контролируйте расходы</p>
         </div>
 
-        {/* Основная статистика */}
-        <div className="bg-gradient-to-br from-green-500/10 to-zinc-900 rounded-3xl p-6 border border-green-500/30">
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <div className="text-zinc-400 text-sm mb-1">Продуктов</div>
-              <div className="text-4xl font-bold text-green-400">{stats.fridgeCount}</div>
-            </div>
-            <div>
-              <div className="text-zinc-400 text-sm mb-1">Потрачено</div>
-              <div className="text-4xl font-bold text-green-400">{stats.monthlySpent.toLocaleString()}</div>
-              <div className="text-xs text-zinc-500 mt-1">в {monthName}</div>
+        {/* Основная статистика - улучшенная версия */}
+        <div className="space-y-6">
+          {/* Карточка с основными метриками */}
+          <div className="bg-gradient-to-br from-surface to-background/80 rounded-3xl p-6 border border-accent/20 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-accent/5 rounded-full -mr-20 -mt-20 pointer-events-none" />
+            <div className="relative z-10">
+              <div className="grid grid-cols-2 gap-6 mb-6">
+                <div className="space-y-2">
+                  <div className="text-muted text-sm font-medium">🥬 Продуктов</div>
+                  <div className="text-5xl font-bold text-accent">{stats.fridgeCount}</div>
+                  <div className="text-xs text-muted/60">в холодильнике</div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-muted text-sm font-medium">💰 Потрачено</div>
+                  <div className="text-4xl font-bold text-accent">{stats.monthlySpent.toLocaleString()}</div>
+                  <div className="text-xs text-muted/60">в {monthName}</div>
+                </div>
+              </div>
+              
+              {/* Предупреждение об истекающих продуктах */}
+              {stats.expiringCount > 0 && (
+                <div className="bg-yellow-500/15 border border-yellow-500/40 rounded-2xl p-4 flex items-start gap-3 backdrop-blur-sm">
+                  <span className="text-2xl flex-shrink-0">⏰</span>
+                  <div className="flex-1">
+                    <div className="font-semibold text-yellow-100 text-sm">{stats.expiringCount} продуктов скоро истекают</div>
+                    <div className="text-xs text-yellow-100/70 mt-1">Проверьте рецепты и используйте их</div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-          
-          {stats.expiringCount > 0 && (
-            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-3 flex items-center gap-3">
-              <span className="text-2xl">⏰</span>
-              <div className="flex-1">
-                <div className="font-medium text-yellow-400">{stats.expiringCount} продуктов скоро истекают</div>
-                <div className="text-xs text-zinc-400">Используйте их в рецептах</div>
-              </div>
+
+          {/* Статистика по метрикам */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-surface border border-border rounded-2xl p-4 text-center hover:border-accent/50 transition-colors">
+              <div className="text-3xl mb-2">🥬</div>
+              <div className="text-xl font-bold text-foreground">{stats.fridgeCount}</div>
+              <div className="text-xs text-muted mt-2">продуктов</div>
             </div>
-          )}
+            <div className="bg-surface border border-border rounded-2xl p-4 text-center hover:border-accent/50 transition-colors">
+              <div className="text-3xl mb-2">💸</div>
+              <div className="text-xl font-bold text-accent">{(stats.monthlySpent / 1000).toFixed(1)}K</div>
+              <div className="text-xs text-muted mt-2">рублей</div>
+            </div>
+          </div>
         </div>
 
         {/* Быстрые действия */}
-        <div>
-          <h2 className="font-semibold text-white mb-3">⚡ Быстрые действия</h2>
+        <div className="space-y-4">
+          <h2 className="font-semibold text-foreground text-lg flex items-center gap-2">
+            <span>⚡</span> Быстрые действия
+          </h2>
           <div className="grid grid-cols-2 gap-3">
             <Link
               href="/fridge"
-              className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl p-4 text-center transition-all active:scale-95"
+              className="group bg-surface hover:bg-surface/80 border border-border hover:border-accent/50 rounded-2xl p-5 text-center transition-all active:scale-95 relative overflow-hidden"
             >
-              <div className="text-4xl mb-2">🥬</div>
-              <div className="font-medium text-white text-sm">Холодильник</div>
+              <div className="absolute inset-0 bg-accent/5 scale-0 group-hover:scale-100 transition-transform duration-300" />
+              <div className="relative z-10 space-y-2">
+                <div className="text-4xl">🥬</div>
+                <div className="font-semibold text-foreground text-sm">Холодильник</div>
+              </div>
             </Link>
             <Link
               href="/budget"
-              className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl p-4 text-center transition-all active:scale-95"
+              className="group bg-surface hover:bg-surface/80 border border-border hover:border-accent/50 rounded-2xl p-5 text-center transition-all active:scale-95 relative overflow-hidden"
             >
-              <div className="text-4xl mb-2">💰</div>
-              <div className="font-medium text-white text-sm">Бюджет</div>
+              <div className="absolute inset-0 bg-accent/5 scale-0 group-hover:scale-100 transition-transform duration-300" />
+              <div className="relative z-10 space-y-2">
+                <div className="text-4xl">💰</div>
+                <div className="font-semibold text-foreground text-sm">Бюджет</div>
+              </div>
             </Link>
             <Link
               href="/recipes"
-              className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl p-4 text-center transition-all active:scale-95"
+              className="group bg-surface hover:bg-surface/80 border border-border hover:border-accent/50 rounded-2xl p-5 text-center transition-all active:scale-95 relative overflow-hidden"
             >
-              <div className="text-4xl mb-2">👨‍🍳</div>
-              <div className="font-medium text-white text-sm">Рецепты</div>
+              <div className="absolute inset-0 bg-accent/5 scale-0 group-hover:scale-100 transition-transform duration-300" />
+              <div className="relative z-10 space-y-2">
+                <div className="text-4xl">👨‍🍳</div>
+                <div className="font-semibold text-foreground text-sm">Рецепты</div>
+              </div>
             </Link>
             <Link
               href="/scan"
-              className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl p-4 text-center transition-all active:scale-95"
+              className="group bg-surface hover:bg-surface/80 border border-border hover:border-accent/50 rounded-2xl p-5 text-center transition-all active:scale-95 relative overflow-hidden"
             >
-              <div className="text-4xl mb-2">📷</div>
-              <div className="font-medium text-white text-sm">Сканер</div>
+              <div className="absolute inset-0 bg-accent/5 scale-0 group-hover:scale-100 transition-transform duration-300" />
+              <div className="relative z-10 space-y-2">
+                <div className="text-4xl">📷</div>
+                <div className="font-semibold text-foreground text-sm">Сканер</div>
+              </div>
             </Link>
           </div>
         </div>
 
-        {/* Подсказки */}
+        {/* Советы и рекомендации */}
         <div className="space-y-3">
-          <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4">
-            <p className="text-sm text-zinc-400">
-              <span className="text-green-400 font-semibold">💡 Совет:</span> Проверяйте холодильник каждый день, чтобы ничего не выбросить!
-            </p>
-          </div>
-          <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4">
-            <p className="text-sm text-zinc-400">
-              <span className="text-green-400 font-semibold">🎯 Цель:</span> Старайтесь использовать продукты до истечения срока годности.
-            </p>
+          <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+            <span>💡</span> Советы
+          </h3>
+          <div className="space-y-2">
+            <div className="bg-surface/60 border border-accent/10 rounded-2xl p-4 backdrop-blur-sm hover:border-accent/30 transition-colors">
+              <p className="text-sm text-muted">
+                Проверяйте холодильник <span className="text-accent font-semibold">каждый день</span>, чтобы не забыть про продукты.
+              </p>
+            </div>
+            <div className="bg-surface/60 border border-accent/10 rounded-2xl p-4 backdrop-blur-sm hover:border-accent/30 transition-colors">
+              <p className="text-sm text-muted">
+                Используйте <span className="text-accent font-semibold">рецепты</span> чтобы готовить из продуктов, которые вот-вот испортятся.
+              </p>
+            </div>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { supabase } from '@/lib/supabase/client';
 import { useTelegram } from '@/components/TelegramProvider';
@@ -21,11 +21,7 @@ export default function BudgetPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', amount: '' });
 
-  useEffect(() => {
-    loadExpenses();
-  }, []);
-
-  async function loadExpenses() {
+  const loadExpenses = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
       .from('expenses')
@@ -34,7 +30,11 @@ export default function BudgetPage() {
       .order('date', { ascending: false });
     setExpenses(data || []);
     setLoading(false);
-  }
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadExpenses();
+  }, [loadExpenses]);
 
   async function addExpense() {
     if (!form.name || !form.amount || !user?.id) return;

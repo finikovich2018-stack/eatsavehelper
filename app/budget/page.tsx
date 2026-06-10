@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { supabase } from '@/lib/supabase/client';
+import { useTelegram } from '@/components/TelegramProvider';
 
 type Expense = {
   id: string;
@@ -14,6 +15,7 @@ type Expense = {
 const LIMIT = 15000;
 
 export default function BudgetPage() {
+  const { user } = useTelegram();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -28,13 +30,14 @@ export default function BudgetPage() {
     const { data } = await supabase
       .from('expenses')
       .select('*')
+      .eq('telegram_user_id', user?.id)
       .order('date', { ascending: false });
     setExpenses(data || []);
     setLoading(false);
   }
 
   async function addExpense() {
-    if (!form.name || !form.amount) return;
+    if (!form.name || !form.amount || !user?.id) return;
     const { data } = await supabase
       .from('expenses')
       .insert({
@@ -42,6 +45,7 @@ export default function BudgetPage() {
         amount: Number(form.amount),
         date: new Date().toISOString().split('T')[0],
         category: '🛒',
+        telegram_user_id: user.id,
       })
       .select()
       .single();
@@ -51,7 +55,7 @@ export default function BudgetPage() {
   }
 
   async function removeExpense(id: string) {
-    await supabase.from('expenses').delete().eq('id', id);
+    await supabase.from('expenses').delete().eq('id', id).eq('telegram_user_id', user?.id);
     setExpenses(expenses.filter(e => e.id !== id));
   }
 

@@ -1,128 +1,109 @@
-'use client';
-import { useState } from 'react';
-import TopBar from '@/components/layout/TopBar';
-
-type ScannedItem = {
-  name: string;
-  category: string;
-  price: number;
-  expiry_days: number;
-  icon: string;
-};
+"use client";
+import { useState, useRef } from "react";
+import { useTelegram } from "../../components/TelegramProvider";
+import { supabase } from "../../lib/supabase/client";
 
 export default function ScanPage() {
-  const [step, setStep] = useState<'idle' | 'scanning' | 'result'>('idle');
-  const [items, setItems] = useState<ScannedItem[]>([]);
+  const { user } = useTelegram();
+  const [image, setImage] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState("image/jpeg");
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
 
-  const mockScan = () => {
-    setStep('scanning');
-    setTimeout(() => {
-      setItems([
-        { name: 'Молоко 3.2%', category: 'dairy', price: 89, expiry_days: 7, icon: '🥛' },
-        { name: 'Творог 5%', category: 'dairy', price: 120, expiry_days: 5, icon: '🧀' },
-        { name: 'Хлеб белый', category: 'grains', price: 45, expiry_days: 3, icon: '🍞' },
-        { name: 'Куриная грудка', category: 'meat', price: 380, expiry_days: 4, icon: '🍗' },
-      ]);
-      setStep('result');
-    }, 2000);
-  };
-
-  const total = items.reduce((s, i) => s + i.price, 0);
-
-  if (step === 'scanning') {
-    return (
-      <main className="min-h-screen bg-zinc-950 text-white">
-        <TopBar title="📷 Сканер чека" />
-        <div className="flex flex-col items-center justify-center h-96 gap-4">
-          <div className="text-6xl animate-bounce">📷</div>
-          <div className="text-zinc-400">Распознаю чек...</div>
-          <div className="flex gap-1">
-            {[0,1,2].map(i => (
-              <div key={i} className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"
-                style={{ animationDelay: `${i * 0.2}s` }} />
-            ))}
-          </div>
-        </div>
-      </main>
-    );
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>, type?: string) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setMediaType(file.type || "image/jpeg");
+    const reader = new FileReader();
+    reader.onload = () => setImage(reader.result as string);
+    reader.readAsDataURL(file);
+    setItems([]);
+    setSuccess(false);
   }
 
-  if (step === 'result') {
-    return (
-      <main className="min-h-screen bg-zinc-950 text-white pb-24">
-        <TopBar title="📷 Результат сканирования" />
-        <div className="max-w-xl mx-auto px-4 py-4">
+  async function parseReceipt() {
+    if (!image) return;
+    setLoading(true);
+    try {
+      const base64 = image.split(",")[1];
+      const res = await fetch("/api/ai/parse-receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64, mediaType })
+      });
+      const data = await res.json();
+      setItems(data.items || []);
+    } catch {
+      alert("������ �������������");
+    }
+    setLoading(false);
+  }
 
-          <div className="bg-emerald-900/50 border border-emerald-700 rounded-2xl p-4 mb-4">
-            <div className="text-sm text-emerald-400 font-medium">✅ Чек распознан успешно</div>
-            <div className="text-xs text-zinc-400 mt-1">Найдено {items.length} продукта на сумму {total} ₽</div>
-          </div>
-
-          <div className="space-y-3 mb-4">
-            {items.map((item, i) => (
-              <div key={i} className="bg-zinc-900 rounded-2xl p-4 flex items-center gap-3">
-                <span className="text-3xl">{item.icon}</span>
-                <div className="flex-1">
-                  <div className="font-medium">{item.name}</div>
-                  <div className="text-xs text-zinc-500 mt-0.5">
-                    Срок: ~{item.expiry_days} дн.
-                  </div>
-                </div>
-                <div className="font-bold">{item.price} ₽</div>
-              </div>
-            ))}
-          </div>
-
-          <button
-            onClick={() => setStep('idle')}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded-2xl font-medium mb-3">
-            ✅ Добавить всё в холодильник
-          </button>
-          <button
-            onClick={() => { setStep('idle'); setItems([]); }}
-            className="w-full bg-zinc-800 hover:bg-zinc-700 py-3 rounded-2xl font-medium">
-            Отмена
-          </button>
-        </div>
-      </main>
-    );
+  async function addToFridge() {
+    if (!user?.id || !items.length) return;
+    const today = new Date();
+    const rows = items.map(item => {
+      const expiry = new Date(today);
+      expiry.setDate(expiry.getDate() + (item.expiry_days || 7));
+      return {
+        name: item.name,
+        category: item.category || "other",
+        quantity: "1",
+        expiry_date: expiry.toISOString().split("T")[0],
+        icon: item.icon || "??",
+        telegram_user_id: user.id,
+        added_from: "receipt"
+      };
+    });
+    await supabase.from("fridge_items").insert(rows);
+    setSuccess(true);
+    setItems([]);
+    setImage(null);
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white pb-24">
-      <TopBar title="📷 Сканер чека" />
-      <div className="max-w-xl mx-auto px-4 py-4">
-
-        <div className="bg-zinc-900 rounded-2xl p-8 text-center mb-6">
-          <div className="text-7xl mb-4">📷</div>
-          <h2 className="text-xl font-bold mb-2">Сфотографируй чек</h2>
-          <p className="text-zinc-500 text-sm">
-            ИИ автоматически распознает продукты и добавит их в холодильник
-          </p>
-        </div>
-
-        <button onClick={mockScan}
-          className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-bold text-lg mb-3">
-          📷 Сканировать чек
+    <main className="max-w-md mx-auto px-4 py-6">
+      <h1 className="text-xl font-bold mb-4">?? ������ ����</h1>
+      <div className="flex gap-3 mb-4">
+        <button onClick={() => cameraRef.current?.click()}
+          className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-medium">
+          ?? ������
         </button>
-
-        <div className="bg-zinc-900 rounded-2xl p-4">
-          <h3 className="text-sm font-medium text-zinc-400 mb-3">Как это работает</h3>
-          <div className="space-y-2">
-            {[
-              ['📷', 'Фотографируешь чек из магазина'],
-              ['🤖', 'ИИ распознаёт все продукты'],
-              ['🥬', 'Продукты добавляются в холодильник'],
-              ['💰', 'Сумма записывается в бюджет'],
-            ].map(([icon, text]) => (
-              <div key={text} className="flex items-center gap-3 text-sm">
-                <span className="text-xl">{icon}</span>
-                <span className="text-zinc-400">{text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <button onClick={() => fileRef.current?.click()}
+          className="flex-1 bg-zinc-700 text-white py-3 rounded-xl font-medium">
+          ?? �������
+        </button>
       </div>
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} />
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+      {image && (
+        <div className="mb-4">
+          <img src={image} alt="���" className="w-full rounded-xl mb-3" />
+          <button onClick={parseReceipt} disabled={loading}
+            className="w-full bg-emerald-600 text-white py-3 rounded-xl font-medium disabled:opacity-50">
+            {loading ? "���������..." : "?? ���������� ���"}
+          </button>
+        </div>
+      )}
+      {items.length > 0 && (
+        <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+          <h2 className="font-semibold mb-3">������� ���������:</h2>
+          {items.map((item, i) => (
+            <div key={i} className="flex justify-between py-2 border-b border-zinc-800 last:border-0">
+              <span>{item.icon} {item.name}</span>
+              <span className="text-zinc-400">{item.price}?</span>
+            </div>
+          ))}
+          <button onClick={addToFridge}
+            className="w-full bg-emerald-600 text-white py-3 rounded-xl font-medium mt-3">
+            ? �������� � �����������
+          </button>
+        </div>
+      )}
+      {success && <div className="bg-emerald-900 text-emerald-300 p-4 rounded-xl text-center">? �������� ���������!</div>}
     </main>
   );
 }

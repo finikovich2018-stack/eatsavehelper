@@ -1,35 +1,54 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY!,
+});
 
 export async function POST(req: NextRequest) {
   try {
-    const { imageBase64, mediaType } = await req.json();
+    const { image } = await req.json();
 
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
+    if (!image) {
+      return NextResponse.json({ error: "РќРµС‚ РёР·РѕР±СЂР°Р¶РµРЅРёСЏ" }, { status: 400 });
+    }
+
+    const base64Data = image.includes(',') ? image.split(',')[1] : image;
+
+    const response = await anthropic.messages.create({
+     model: "claude-sonnet-4-5",
+max_tokens: 1500,
       messages: [{
         role: "user",
         content: [
           {
             type: "image",
-            source: { type: "base64", media_type: mediaType, data: imageBase64 }
+            source: {
+              type: "base64",
+              media_type: "image/jpeg",
+              data: base64Data
+            }
           },
           {
             type: "text",
-            text: "Это фото кассового чека. Извлеки список продуктов питания. Верни ТОЛЬКО JSON массив без лишнего текста: [{\"name\": \"название\", \"category\": \"dairy|meat|veg|grains|other\", \"price\": число, \"expiry_days\": число, \"icon\": \"эмодзи\"}]"
+            text: `РР·РІР»РµРєРё РІСЃРµ С‚РѕРІР°СЂС‹ СЃ С‡РµРєР°. Р’РµСЂРЅРё РўРћР›Р¬РљРћ JSON РјР°СЃСЃРёРІ:
+
+[
+  {"name": "РќР°Р·РІР°РЅРёРµ С‚РѕРІР°СЂР°", "quantity": 1, "price": 115, "expiry_days": 7, "category": "veg", "icon": "рџҐ”"}
+]`
           }
         ]
       }]
     });
 
-    const text = response.content[0].type === "text" ? response.content[0].text : "";
-    const clean = text.replace(/```json|```/g, "").trim();
-    const items = JSON.parse(clean);
+    let text = response.content[0]?.text || "";
+    text = text.replace(/```json|```/g, "").trim();
+
+    const items = JSON.parse(text);
     return NextResponse.json({ items });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to parse receipt" }, { status: 500 });
+
+  } catch (error: any) {
+    console.error("Claude error:", error.message);
+    return NextResponse.json({ error: "РћС€РёР±РєР° СЂР°СЃРїРѕР·РЅР°РІР°РЅРёСЏ" }, { status: 500 });
   }
 }

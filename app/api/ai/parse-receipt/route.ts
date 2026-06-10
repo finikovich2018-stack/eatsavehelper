@@ -41,8 +41,7 @@ max_tokens: 1500,
       }]
     });
 
-    let text = response.content[0]?.text || "";
-    text = text.replace(/```json|```/g, "").trim();
+   let text = response.content.map((b: any) => b.type === 'text' ? b.text : '').join('');
 
     const items = JSON.parse(text);
     return NextResponse.json({ items });

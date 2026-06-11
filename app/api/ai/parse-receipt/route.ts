@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
           },
           {
             type: "text",
-            text: `Извлеки все товары с чека. Верни ТОЛЬКО JSON массив без markdown:
+            text: `Извлеки ТОЛЬКО продукты питания и напитки с чека. Игнорируй бытовые товары, косметику, электронику и всё что не является едой. Верни ТОЛЬКО JSON массив без markdown:
 
 [
   {"name": "Название товара", "quantity": 1, "price": 115, "expiry_days": 7, "category": "veg", "icon": "🥔"}

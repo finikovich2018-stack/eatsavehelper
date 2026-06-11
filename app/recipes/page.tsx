@@ -63,11 +63,41 @@ export default function RecipesPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [showAI, setShowAI] = useState(false);
+  const [aiRecipes, setAiRecipes] = useState<any[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const getAIRecipes = async () => {
+    setShowAI(true);
+    setAiLoading(true);
+    try {
+      const { data } = await supabase
+        .from('fridge_items')
+        .select('name')
+        .eq('telegram_user_id', user?.id);
+
+      const ingredients = (data || []).map((i: any) => i.name);
+      if (ingredients.length === 0) {
+        setAiLoading(false);
+        return;
+      }
+
+      const res = await fetch('/api/ai/suggest-recipes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ingredients }),
+      });
+      const json = await res.json();
+      setAiRecipes(json.recipes || []);
+    } catch {
+      // ошибка
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const loadExpiringItems = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
-
     try {
       const { data } = await supabase
         .from('fridge_items')
@@ -120,7 +150,9 @@ export default function RecipesPage() {
 
           <div className="bg-zinc-900/50 rounded-2xl p-5 mb-6 border border-zinc-800/50">
             <p className="text-sm text-zinc-400 leading-relaxed">
-              💡 Рецепт готовится за <span className="text-green-400 font-semibold">{selected.time}</span>. Попробуйте приготовить это блюдо из продуктов в вашем холодильнике!
+              💡 Рецепт готовится за{' '}
+              <span className="text-green-400 font-semibold">{selected.time}</span>.
+              Попробуйте приготовить это блюдо из продуктов в вашем холодильнике!
             </p>
           </div>
 
@@ -139,10 +171,10 @@ export default function RecipesPage() {
     <main className="min-h-screen bg-zinc-950 text-white pb-24">
       <TopBar title="👨‍🍳 Рецепты" />
       <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
-        
+
         {/* Кнопка AI рецептов */}
         <button
-          onClick={() => setShowAI(true)}
+          onClick={getAIRecipes}
           className="w-full bg-gradient-to-r from-green-500/30 to-green-500/10 hover:from-green-500/40 hover:to-green-500/20 border border-green-500 rounded-2xl p-5 text-left transition-all"
         >
           <div className="flex items-center justify-between">
@@ -157,20 +189,47 @@ export default function RecipesPage() {
         {/* Модальное окно AI */}
         {showAI && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-zinc-900 rounded-3xl p-6 max-w-sm w-full border border-zinc-800">
-              <div className="text-center">
-                <div className="text-5xl mb-4">🚀</div>
-                <h2 className="text-2xl font-bold text-white mb-2">AI Рецепты</h2>
-                <p className="text-zinc-400 mb-6">
-                  Скоро здесь будут персональные рецепты на основе ваших продуктов, подготовленные искусственным интеллектом!
-                </p>
-                <button
-                  onClick={() => setShowAI(false)}
-                  className="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-3 rounded-2xl transition-all"
-                >
-                  Закрыть
-                </button>
-              </div>
+            <div className="bg-zinc-900 rounded-3xl p-6 max-w-sm w-full border border-zinc-800 max-h-[80vh] overflow-y-auto">
+              {aiLoading ? (
+                <div className="text-center py-8">
+                  <div className="text-5xl mb-4">🤖</div>
+                  <p className="text-zinc-400">Подбираю рецепты...</p>
+                </div>
+              ) : aiRecipes.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-5xl mb-4">🥬</div>
+                  <p className="text-zinc-400">Добавьте продукты в холодильник</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <h2 className="text-xl font-bold text-white">✨ Рецепты для вас</h2>
+                  {aiRecipes.map((r, i) => (
+                    <div key={i} className="bg-zinc-800 rounded-2xl p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-3xl">{r.icon}</span>
+                        <div>
+                          <div className="font-semibold text-white">{r.name}</div>
+                          <div className="text-xs text-green-400">⏱ {r.time}</div>
+                        </div>
+                      </div>
+                      <p className="text-sm text-zinc-400 mb-2">{r.steps}</p>
+                      <div className="flex flex-wrap gap-1">
+                        {r.usesFromFridge?.map((ing: string, j: number) => (
+                          <span key={j} className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
+                            {ing}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => setShowAI(false)}
+                className="w-full mt-4 bg-zinc-800 text-white py-3 rounded-2xl"
+              >
+                Закрыть
+              </button>
             </div>
           </div>
         )}
@@ -228,6 +287,7 @@ export default function RecipesPage() {
             💡 <span className="text-white">Совет:</span> используйте продукты которые скоро истекают, чтобы ничего не выбросить!
           </p>
         </div>
+
       </div>
     </main>
   );

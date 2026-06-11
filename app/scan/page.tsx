@@ -65,6 +65,18 @@ export default function ScanPage() {
       const { error } = await supabase.from('fridge_items').insert(rows);
       if (error) throw error;
       setSaved(true);
+
+// Записать сумму чека в бюджет
+const totalAmount = items.reduce((sum: number, item: any) => sum + (item.price || 0), 0);
+if (totalAmount > 0) {
+  await supabase.from('expenses').insert({
+    name: '🛒 Покупка по чеку',
+    amount: totalAmount,
+    date: new Date().toISOString().split('T')[0],
+    category: '🛒',
+    telegram_user_id: user.id,
+  });
+}
       setItems([]);
       setImage(null);
     } catch {

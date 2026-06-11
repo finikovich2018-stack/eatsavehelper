@@ -62,10 +62,6 @@ export default function ScanPage() {
       <h1 className="text-2xl font-bold mb-6">📷 Сканер чека</h1>
 
       <div className="space-y-4">
-        <button onClick={openCamera}
-          className="w-full bg-emerald-600 hover:bg-emerald-700 py-5 rounded-3xl text-lg font-medium">
-          📸 Сфотографировать чек
-        </button>
         <button onClick={openGallery}
           className="w-full bg-zinc-700 hover:bg-zinc-600 py-5 rounded-3xl text-lg font-medium">
           🖼 Выбрать из галереи

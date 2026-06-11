@@ -84,4 +84,36 @@ export default function ScanPage() {
       </button>
 
       {saved && (
-        <div className="mt-6 bg-emerald-900 rounded-2xl p-4 text-center
+        <div className="mt-6 bg-emerald-900 rounded-2xl p-4 text-center text-emerald-300 font-medium">
+          ✅ Продукты добавлены в холодильник!
+        </div>
+      )}
+
+      {image && (
+        <div className="mt-6">
+          <img src={image} className="w-full rounded-2xl mb-4" alt="чек" />
+          <button onClick={parseReceipt} disabled={loading}
+            className="w-full bg-emerald-600 py-4 rounded-3xl font-medium text-lg disabled:bg-zinc-700">
+            {loading ? "🤖 Распознаю..." : "🔍 Распознать чек"}
+          </button>
+        </div>
+      )}
+
+      {items.length > 0 && (
+        <div className="mt-6 bg-zinc-900 rounded-3xl p-5">
+          <h2 className="font-semibold mb-4">✅ Найдено товаров: {items.length}</h2>
+          {items.map((item, i) => (
+            <div key={i} className="py-2 border-b border-zinc-700 last:border-0 flex justify-between">
+              <span>{item.icon} {item.name}</span>
+              <span className="text-zinc-400">{item.price} ₽</span>
+            </div>
+          ))}
+          <button onClick={addToFridge} disabled={saving}
+            className="w-full mt-4 bg-emerald-600 py-4 rounded-2xl font-medium text-lg disabled:bg-zinc-700">
+            {saving ? "Сохраняю..." : "✅ Добавить всё в холодильник"}
+          </button>
+        </div>
+      )}
+    </main>
+  );
+}

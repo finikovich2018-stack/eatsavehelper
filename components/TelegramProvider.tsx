@@ -17,24 +17,31 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   const [initData, setInitData] = useState("");
 
   useEffect(() => {
+  const init = () => {
     try {
       const tg = (window as any).Telegram?.WebApp;
-      if (tg) {
+      if (tg && tg.initDataUnsafe?.user) {
         tg.ready();
         tg.expand();
         setInitData(tg.initData || "");
-        if (tg.initDataUnsafe?.user) {
-          setUser(tg.initDataUnsafe.user);
-        }
+        setUser(tg.initDataUnsafe.user);
       } else {
-        setUser({ id: 999999, first_name: "Dev User", username: "devuser" });
+        // повторить через 500ms
+        setTimeout(() => {
+          const tg2 = (window as any).Telegram?.WebApp;
+          if (tg2 && tg2.initDataUnsafe?.user) {
+            tg2.ready();
+            tg2.expand();
+            setInitData(tg2.initData || "");
+            setUser(tg2.initDataUnsafe.user);
+          } else {
+            setUser({ id: 999999, first_name: "Dev User", username: "devuser" });
+          }
+        }, 500);
       }
     } catch {
       setUser({ id: 999999, first_name: "Dev User", username: "devuser" });
     }
-  }, []);
-
-  return <TgCtx.Provider value={{ user, initData }}>{children}</TgCtx.Provider>;
-}
-
-export const useTelegram = () => useContext(TgCtx);
+  };
+  init();
+}, []);

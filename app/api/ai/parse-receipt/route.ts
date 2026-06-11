@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
     const base64Data = image.includes(',') ? image.split(',')[1] : image;
 
     const response = await anthropic.messages.create({
-     model: "claude-sonnet-4-5",
-max_tokens: 1500,
+      model: "claude-sonnet-4-5",
+      max_tokens: 1500,
       messages: [{
         role: "user",
         content: [
@@ -31,7 +31,7 @@ max_tokens: 1500,
           },
           {
             type: "text",
-            text: `Извлеки все товары с чека. Верни ТОЛЬКО JSON массив:
+            text: `Извлеки все товары с чека. Верни ТОЛЬКО JSON массив без markdown:
 
 [
   {"name": "Название товара", "quantity": 1, "price": 115, "expiry_days": 7, "category": "veg", "icon": "🥔"}
@@ -41,9 +41,11 @@ max_tokens: 1500,
       }]
     });
 
-   let text = response.content.map((b: any) => b.type === 'text' ? b.text : '').join('');
-
-    const items = JSON.parse(text);
+    let text = response.content.map((b: any) => b.type === 'text' ? b.text : '').join('');
+    text = text.replace(/```json|```/g, "").trim();
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error("No JSON array found");
+    const items = JSON.parse(match[0]);
     return NextResponse.json({ items });
 
   } catch (error: any) {

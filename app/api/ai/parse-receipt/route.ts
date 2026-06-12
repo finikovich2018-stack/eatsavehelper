@@ -16,8 +16,9 @@ export async function POST(req: NextRequest) {
     const base64Data = image.includes(',') ? image.split(',')[1] : image;
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
+      model: "claude-3-5-sonnet-20240620",
       max_tokens: 1500,
+      temperature: 0,
       messages: [{
         role: "user",
         content: [
@@ -31,25 +32,44 @@ export async function POST(req: NextRequest) {
           },
           {
             type: "text",
-            text: `Извлеки ТОЛЬКО продукты питания и напитки с чека. Игнорируй бытовые товары, косметику, электронику и всё что не является едой. Верни ТОЛЬКО JSON массив без markdown:
+            text: `Проанализируй фото чека и извлеки все товары.
+
+Определи валюту чека (RUB, EUR, USD, и т.д.).
+
+Верни ТОЛЬКО чистый JSON массив без лишнего текста:
 
 [
-  {"name": "Название товара", "quantity": 1, "price": 115, "expiry_days": 7, "category": "veg", "icon": "🥔"}
-]`
+  {
+    "name": "Название товара",
+    "quantity": 1,
+    "price": 115.00,
+    "currency": "RUB",
+    "expiry_days": 7,
+    "category": "veg",
+    "icon": "🥔"
+  }
+]
+`
           }
         ]
       }]
     });
 
-    let text = response.content.map((b: any) => b.type === 'text' ? b.text : '').join('');
+    const textBlock = response.content.find(
+      (block): block is Anthropic.TextBlock => block.type === "text"
+    );
+
+    let text = textBlock?.text || "";
     text = text.replace(/```json|```/g, "").trim();
-    const match = text.match(/\[[\s\S]*\]/);
-    if (!match) throw new Error("No JSON array found");
-    const items = JSON.parse(match[0]);
+
+    const items = JSON.parse(text);
     return NextResponse.json({ items });
 
-  } catch (error: any) {
-    console.error("Claude error:", error.message);
-    return NextResponse.json({ error: "Ошибка распознавания" }, { status: 500 });
+    } catch (error: any) {
+    console.error("=== CLAUDE ERROR ===");
+    console.error(error);
+    return NextResponse.json({ 
+      error: "Ошибка распознавания", 
+      details: error.message || "Unknown error"
+    }, { status: 500 });
   }
-}

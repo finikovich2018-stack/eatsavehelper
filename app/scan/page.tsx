@@ -4,10 +4,15 @@ import { useState } from "react";
 import { useTelegram } from '@/components/TelegramProvider';
 import { supabase } from '@/lib/supabase/client';
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  RUB: '₽', USD: '$', EUR: '€', GBP: '£', UAH: '₴', KZT: '₸',
+};
+
 export default function ScanPage() {
   const { user } = useTelegram();
   const [image, setImage] = useState<string | null>(null);
   const [items, setItems] = useState<any[]>([]);
+  const [currency, setCurrency] = useState<string>('RUB');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -38,7 +43,12 @@ export default function ScanPage() {
         body: JSON.stringify({ image }),
       });
       const data = await res.json();
-      setItems(data.items || []);
+      const parsedItems = data.items || [];
+      setItems(parsedItems);
+      // Берём валюту из первого товара
+      if (parsedItems.length > 0 && parsedItems[0].currency) {
+        setCurrency(parsedItems[0].currency);
+      }
     } catch {
       alert("Ошибка при распознавании.");
     } finally {
@@ -66,8 +76,9 @@ export default function ScanPage() {
       if (error) throw error;
 
       const totalAmount = items.reduce((sum: number, item: any) => sum + (parseFloat(item.price) || 0), 0);
+      const currencySymbol = CURRENCY_SYMBOLS[currency] || currency;
       await supabase.from('expenses').insert({
-        name: '🛒 Покупка по чеку',
+        name: `🛒 Покупка по чеку (${currencySymbol})`,
         amount: totalAmount,
         date: new Date().toISOString().split('T')[0],
         category: '🛒',
@@ -83,6 +94,8 @@ export default function ScanPage() {
       setSaving(false);
     }
   };
+
+  const currencySymbol = CURRENCY_SYMBOLS[currency] || currency;
 
   return (
     <main className="max-w-md mx-auto px-4 py-6 bg-zinc-950 min-h-screen text-white">
@@ -111,11 +124,13 @@ export default function ScanPage() {
 
       {items.length > 0 && (
         <div className="mt-6 bg-zinc-900 rounded-3xl p-5">
-          <h2 className="font-semibold mb-4">✅ Найдено товаров: {items.length}</h2>
+          <h2 className="font-semibold mb-4">
+            ✅ Найдено товаров: {items.length} · <span className="text-emerald-400">{currency}</span>
+          </h2>
           {items.map((item, i) => (
             <div key={i} className="py-2 border-b border-zinc-700 last:border-0 flex justify-between">
               <span>{item.icon} {item.name}</span>
-              <span className="text-zinc-400">{item.price} ₽</span>
+              <span className="text-zinc-400">{item.price} {currencySymbol}</span>
             </div>
           ))}
           <button onClick={addToFridge} disabled={saving}

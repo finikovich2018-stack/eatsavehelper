@@ -16,11 +16,9 @@ export async function POST(req: NextRequest) {
     const base64Data = image.includes(',') ? image.split(',')[1] : image;
 
     const response = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20240620",
+      model: "claude-3-5-sonnet-20241022",   // ← рабочая модель
       max_tokens: 1500,
-      model: "claude-3-5-sonnet-20240620",
-      max_tokens: 1500,
-      messages: [{
+      temperature: 0,
       messages: [{
         role: "user",
         content: [
@@ -34,15 +32,25 @@ export async function POST(req: NextRequest) {
           },
           {
             type: "text",
-            text: `Извлеки ТОЛЬКО продукты питания и напитки с чека. Игнорируй бытовые товары, косметику, электронику. Определи валюту чека (USD, EUR, RUB и т.д.). Верни ТОЛЬКО JSON объект без markdown:
+            text: `Извлеки ТОЛЬКО продукты питания и напитки с чека. Игнорируй бытовые товары.
+
+Определи валюту чека (USD, EUR, RUB и т.д.).
+
+Верни ТОЛЬКО чистый JSON без markdown:
 
 {
   "currency": "USD",
   "items": [
-    {"name": "Название товара", "quantity": 1, "price": 1.49, "expiry_days": 7, "category": "grain", "icon": "🌾"}
+    {
+      "name": "Название товара",
+      "quantity": 1,
+      "price": 1.49,
+      "expiry_days": 7,
+      "category": "veg",
+      "icon": "🥬"
+    }
   ]
 }`
-
           }
         ]
       }]
@@ -55,18 +63,22 @@ export async function POST(req: NextRequest) {
     let text = textBlock?.text || "";
     text = text.replace(/```json|```/g, "").trim();
 
+    // Ищем JSON объект
     const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("No JSON found");
+    if (!match) throw new Error("JSON не найден в ответе Claude");
+
     const parsed = JSON.parse(match[0]);
-    const items = parsed.items || [];
-    const currency = parsed.currency || 'RUB';
-    return NextResponse.json({ items, currency });
+
+    return NextResponse.json({
+      items: parsed.items || [],
+      currency: parsed.currency || "RUB"
+    });
 
   } catch (error: any) {
     console.error("=== CLAUDE ERROR ===");
     console.error(error);
-    return NextResponse.json({ 
-      error: "Ошибка распознавания", 
+    return NextResponse.json({
+      error: "Ошибка распознавания",
       details: error.message || "Unknown error"
     }, { status: 500 });
   }

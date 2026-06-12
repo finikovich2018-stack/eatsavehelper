@@ -30,6 +30,7 @@ export default function ScanPage() {
       reader.readAsDataURL(file);
       setItems([]);
       setSaved(false);
+      setCurrency('RUB');
     };
     input.click();
   };
@@ -46,9 +47,8 @@ export default function ScanPage() {
       const data = await res.json();
       const parsedItems = data.items || [];
       setItems(parsedItems);
-      // Берём валюту из первого товара
-      if (parsedItems.length > 0 && parsedItems[0].currency) {
-        setCurrency(parsedItems[0].currency);
+      if (data.currency) {
+        setCurrency(data.currency);
       }
     } catch {
       alert("Ошибка при распознавании.");

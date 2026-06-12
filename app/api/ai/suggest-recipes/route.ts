@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     const base64Data = image.includes(',') ? image.split(',')[1] : image;
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
+      model: "claude-3-7-sonnet-20250219",
       max_tokens: 1500,
       messages: [{
         role: "user",

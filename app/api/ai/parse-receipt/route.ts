@@ -32,24 +32,15 @@ export async function POST(req: NextRequest) {
           },
           {
             type: "text",
-            text: `Проанализируй фото чека и извлеки все товары.
+            text: `Извлеки ТОЛЬКО продукты питания и напитки с чека. Игнорируй бытовые товары, косметику, электронику. Определи валюту чека (USD, EUR, RUB и т.д.). Верни ТОЛЬКО JSON объект без markdown:
 
-Определи валюту чека (RUB, EUR, USD, и т.д.).
+{
+  "currency": "USD",
+  "items": [
+    {"name": "Название товара", "quantity": 1, "price": 1.49, "expiry_days": 7, "category": "grain", "icon": "🌾"}
+  ]
+}`
 
-Верни ТОЛЬКО чистый JSON массив без лишнего текста:
-
-[
-  {
-    "name": "Название товара",
-    "quantity": 1,
-    "price": 115.00,
-    "currency": "RUB",
-    "expiry_days": 7,
-    "category": "veg",
-    "icon": "🥔"
-  }
-]
-`
           }
         ]
       }]
@@ -62,10 +53,14 @@ export async function POST(req: NextRequest) {
     let text = textBlock?.text || "";
     text = text.replace(/```json|```/g, "").trim();
 
-    const items = JSON.parse(text);
-    return NextResponse.json({ items });
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("No JSON found");
+    const parsed = JSON.parse(match[0]);
+    const items = parsed.items || [];
+    const currency = parsed.currency || 'RUB';
+    return NextResponse.json({ items, currency });
 
-    } catch (error: any) {
+  } catch (error: any) {
     console.error("=== CLAUDE ERROR ===");
     console.error(error);
     return NextResponse.json({ 
@@ -73,3 +68,4 @@ export async function POST(req: NextRequest) {
       details: error.message || "Unknown error"
     }, { status: 500 });
   }
+}

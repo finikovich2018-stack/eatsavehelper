@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     const base64Data = image.includes(',') ? image.split(',')[1] : image;
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",   // ← рабочая модель
+      model: "claude-3-7-sonnet-20250219",
       max_tokens: 1500,
       temperature: 0,
       messages: [{
@@ -63,7 +63,6 @@ export async function POST(req: NextRequest) {
     let text = textBlock?.text || "";
     text = text.replace(/```json|```/g, "").trim();
 
-    // Ищем JSON объект
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) throw new Error("JSON не найден в ответе Claude");
 

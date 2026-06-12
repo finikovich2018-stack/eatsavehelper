@@ -16,9 +16,8 @@ export async function POST(req: NextRequest) {
     const base64Data = image.includes(',') ? image.split(',')[1] : image;
 
     const response = await anthropic.messages.create({
-      model: "claude-3-7-sonnet-20250219",
+      model: "claude-sonnet-4-5",
       max_tokens: 1500,
-      temperature: 0,
       messages: [{
         role: "user",
         content: [
@@ -32,23 +31,12 @@ export async function POST(req: NextRequest) {
           },
           {
             type: "text",
-            text: `Извлеки ТОЛЬКО продукты питания и напитки с чека. Игнорируй бытовые товары.
-
-Определи валюту чека (USD, EUR, RUB и т.д.).
-
-Верни ТОЛЬКО чистый JSON без markdown:
+            text: `Извлеки ТОЛЬКО продукты питания и напитки с чека. Игнорируй бытовые товары. Определи валюту чека (USD, EUR, RUB и т.д.). Верни ТОЛЬКО чистый JSON без markdown:
 
 {
   "currency": "USD",
   "items": [
-    {
-      "name": "Название товара",
-      "quantity": 1,
-      "price": 1.49,
-      "expiry_days": 7,
-      "category": "veg",
-      "icon": "🥬"
-    }
+    {"name": "Название товара", "quantity": 1, "price": 1.49, "expiry_days": 7, "category": "veg", "icon": "🥬"}
   ]
 }`
           }
@@ -64,7 +52,7 @@ export async function POST(req: NextRequest) {
     text = text.replace(/```json|```/g, "").trim();
 
     const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("JSON не найден в ответе Claude");
+    if (!match) throw new Error("JSON не найден");
 
     const parsed = JSON.parse(match[0]);
 
@@ -74,8 +62,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error("=== CLAUDE ERROR ===");
-    console.error(error);
+    console.error("CLAUDE ERROR:", error);
     return NextResponse.json({
       error: "Ошибка распознавания",
       details: error.message || "Unknown error"

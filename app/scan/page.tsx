@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase/client';
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   RUB: '₽', USD: '$', EUR: '€', GBP: '£', UAH: '₴', KZT: '₸',
+  AUD: 'A$', CAD: 'C$', CHF: 'Fr', CNY: '¥', JPY: '¥', INR: '₹',
 };
 
 export default function ScanPage() {

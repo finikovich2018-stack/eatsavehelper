@@ -10,6 +10,11 @@ type Expense = {
   amount: number;
   date: string;
   category: string;
+  currency: string;
+};
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  RUB: '₽', USD: '$', EUR: '€', GBP: '£', UAH: '₴', KZT: '₸',
 };
 
 const LIMIT = 15000;
@@ -19,7 +24,7 @@ export default function BudgetPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', amount: '' });
+  const [form, setForm] = useState({ name: '', amount: '', currency: 'RUB' });
 
   const loadExpenses = useCallback(async () => {
     setLoading(true);
@@ -45,12 +50,13 @@ export default function BudgetPage() {
         amount: Number(form.amount),
         date: new Date().toISOString().split('T')[0],
         category: '🛒',
+        currency: form.currency,
         telegram_user_id: user.id,
       })
       .select()
       .single();
     if (data) setExpenses([data, ...expenses]);
-    setForm({ name: '', amount: '' });
+    setForm({ name: '', amount: '', currency: 'RUB' });
     setShowForm(false);
   }
 
@@ -59,21 +65,23 @@ export default function BudgetPage() {
     setExpenses(expenses.filter(e => e.id !== id));
   }
 
-  const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
-  const percent = Math.min((total / LIMIT) * 100, 100);
-  const remaining = LIMIT - total;
+  // Считаем только рубли для лимита
+  const totalRub = expenses
+    .filter(e => !e.currency || e.currency === 'RUB')
+    .reduce((s, e) => s + Number(e.amount), 0);
+  const percent = Math.min((totalRub / LIMIT) * 100, 100);
+  const remaining = LIMIT - totalRub;
 
   return (
     <main className="min-h-screen bg-zinc-950 text-white pb-24">
       <TopBar title="💰 Бюджет" />
       <div className="max-w-xl mx-auto px-4 py-4">
 
-        {/* Карточка бюджета */}
         <div className="bg-gradient-to-br from-emerald-900 to-zinc-900 rounded-2xl p-5 mb-4">
           <div className="flex justify-between items-start mb-4">
             <div>
               <div className="text-xs text-zinc-400">Потрачено в июне</div>
-              <div className="text-3xl font-bold mt-1">{total.toLocaleString()} ₽</div>
+              <div className="text-3xl font-bold mt-1">{totalRub.toLocaleString()} ₽</div>
             </div>
             <div className="text-right">
               <div className="text-xs text-zinc-400">Лимит</div>
@@ -104,9 +112,19 @@ export default function BudgetPage() {
             <input placeholder="Название (магазин, продукт...)"
               className="w-full bg-zinc-800 rounded-xl px-4 py-3 placeholder-zinc-500 outline-none"
               value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-            <input type="number" placeholder="Сумма в рублях"
+            <input type="number" placeholder="Сумма"
               className="w-full bg-zinc-800 rounded-xl px-4 py-3 placeholder-zinc-500 outline-none"
               value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
+            <select
+              className="w-full bg-zinc-800 rounded-xl px-4 py-3 outline-none"
+              value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value })}>
+              <option value="RUB">₽ Рубль</option>
+              <option value="USD">$ Доллар</option>
+              <option value="EUR">€ Евро</option>
+              <option value="GBP">£ Фунт</option>
+              <option value="UAH">₴ Гривна</option>
+              <option value="KZT">₸ Тенге</option>
+            </select>
             <button onClick={addExpense}
               className="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded-xl font-medium">
               Сохранить
@@ -125,18 +143,21 @@ export default function BudgetPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {expenses.map(exp => (
-              <div key={exp.id} className="bg-zinc-900 rounded-2xl p-4 flex items-center gap-3">
-                <span className="text-2xl">{exp.category}</span>
-                <div className="flex-1">
-                  <div className="font-medium">{exp.name}</div>
-                  <div className="text-xs text-zinc-500 mt-0.5">{exp.date}</div>
+            {expenses.map(exp => {
+              const symbol = CURRENCY_SYMBOLS[exp.currency] || exp.currency || '₽';
+              return (
+                <div key={exp.id} className="bg-zinc-900 rounded-2xl p-4 flex items-center gap-3">
+                  <span className="text-2xl">{exp.category}</span>
+                  <div className="flex-1">
+                    <div className="font-medium">{exp.name}</div>
+                    <div className="text-xs text-zinc-500 mt-0.5">{exp.date}</div>
+                  </div>
+                  <div className="font-bold">{Number(exp.amount).toLocaleString()} {symbol}</div>
+                  <button onClick={() => removeExpense(exp.id)}
+                    className="text-zinc-600 hover:text-red-400 text-xl px-1">✕</button>
                 </div>
-                <div className="font-bold">{Number(exp.amount).toLocaleString()} ₽</div>
-                <button onClick={() => removeExpense(exp.id)}
-                  className="text-zinc-600 hover:text-red-400 text-xl px-1">✕</button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

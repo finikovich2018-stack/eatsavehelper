@@ -82,6 +82,7 @@ export default function ScanPage() {
         amount: totalAmount,
         date: new Date().toISOString().split('T')[0],
         category: '🛒',
+        currency: currency,
         telegram_user_id: user.id,
       });
 

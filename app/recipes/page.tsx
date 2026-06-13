@@ -23,34 +23,10 @@ type FridgeItem = {
 };
 
 const RECIPES: Recipe[] = [
-  {
-    id: '1',
-    name: 'Борщ украинский',
-    icon: '🍲',
-    time: '45 мин',
-    ingredients: ['Свёкла', 'Капуста', 'Морковь', 'Говядина', 'Сметана'],
-  },
-  {
-    id: '2',
-    name: 'Омлет с сыром',
-    icon: '🍳',
-    time: '15 мин',
-    ingredients: ['Яйца', 'Молоко', 'Сыр', 'Масло', 'Соль'],
-  },
-  {
-    id: '3',
-    name: 'Овощной салат',
-    icon: '🥗',
-    time: '10 мин',
-    ingredients: ['Помидоры', 'Огурцы', 'Салат', 'Масло', 'Уксус'],
-  },
-  {
-    id: '4',
-    name: 'Паста Карбонара',
-    icon: '🍝',
-    time: '20 мин',
-    ingredients: ['Паста', 'Бекон', 'Яйца', 'Пармезан', 'Чёрный перец'],
-  },
+  { id: '1', name: 'Борщ украинский', icon: '🍲', time: '45 мин', ingredients: ['Свёкла', 'Капуста', 'Морковь', 'Говядина', 'Сметана'] },
+  { id: '2', name: 'Омлет с сыром', icon: '🍳', time: '15 мин', ingredients: ['Яйца', 'Молоко', 'Сыр', 'Масло', 'Соль'] },
+  { id: '3', name: 'Овощной салат', icon: '🥗', time: '10 мин', ingredients: ['Помидоры', 'Огурцы', 'Салат', 'Масло', 'Уксус'] },
+  { id: '4', name: 'Паста Карбонара', icon: '🍝', time: '20 мин', ingredients: ['Паста', 'Бекон', 'Яйца', 'Пармезан', 'Чёрный перец'] },
 ];
 
 function daysLeft(date: string) {
@@ -65,8 +41,23 @@ export default function RecipesPage() {
   const [showAI, setShowAI] = useState(false);
   const [aiRecipes, setAiRecipes] = useState<any[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetch('/api/user/get-or-create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegram_user_id: user.id }),
+      }).then(r => r.json()).then(d => setUserProfile(d.user));
+    }
+  }, [user?.id]);
 
   const getAIRecipes = async () => {
+    if (!userProfile?.is_premium && (userProfile?.ai_recipes_this_month || 0) >= 2) {
+      alert('Бесплатный лимит: 2 AI рецепта/месяц. Купите Premium!');
+      return;
+    }
     setShowAI(true);
     setAiLoading(true);
     try {
@@ -76,20 +67,23 @@ export default function RecipesPage() {
         .eq('telegram_user_id', user?.id);
 
       const ingredients = (data || []).map((i: any) => i.name);
-      if (ingredients.length === 0) {
-        setAiLoading(false);
-        return;
-      }
+      if (ingredients.length === 0) { setAiLoading(false); return; }
 
       const res = await fetch('/api/ai/suggest-recipes', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ ingredients, telegram_user_id: user?.id }),
-});
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ingredients, telegram_user_id: user?.id }),
+      });
       const json = await res.json();
       setAiRecipes(json.recipes || []);
+
+      await fetch('/api/user/increment-recipes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegram_user_id: user?.id }),
+      });
+      setUserProfile((prev: any) => prev ? { ...prev, ai_recipes_this_month: (prev.ai_recipes_this_month || 0) + 1 } : prev);
     } catch {
-      // ошибка
     } finally {
       setAiLoading(false);
     }
@@ -104,24 +98,19 @@ export default function RecipesPage() {
         .select('*')
         .eq('telegram_user_id', user.id)
         .order('expiry_date', { ascending: true });
-
       if (data) {
-        const expiring = data.filter(item => {
-          const days = daysLeft(item.expiry_date);
-          return days <= 3 && days > 0;
-        });
-        setExpiringItems(expiring);
+        setExpiringItems(data.filter(item => { const d = daysLeft(item.expiry_date); return d <= 3 && d > 0; }));
       }
     } catch (error) {
-      console.error('Ошибка загрузки продуктов:', error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
   }, [user?.id]);
 
-  useEffect(() => {
-    loadExpiringItems();
-  }, [loadExpiringItems]);
+  useEffect(() => { loadExpiringItems(); }, [loadExpiringItems]);
+
+  const aiLeft = userProfile?.is_premium ? '∞' : Math.max(0, 2 - (userProfile?.ai_recipes_this_month || 0));
 
   if (selected) {
     return (
@@ -131,11 +120,8 @@ export default function RecipesPage() {
           <div className="text-center py-8">
             <div className="text-7xl mb-4">{selected.icon}</div>
             <h1 className="text-2xl font-bold mb-2">{selected.name}</h1>
-            <span className="inline-block bg-green-500/20 text-green-400 px-4 py-2 rounded-full text-sm font-medium">
-              ⏱ {selected.time}
-            </span>
+            <span className="inline-block bg-green-500/20 text-green-400 px-4 py-2 rounded-full text-sm font-medium">⏱ {selected.time}</span>
           </div>
-
           <div className="bg-zinc-900 rounded-2xl p-5 mb-4 border border-zinc-800">
             <h2 className="font-semibold text-green-400 mb-4">📝 Ингредиенты</h2>
             <ul className="space-y-2">
@@ -147,19 +133,7 @@ export default function RecipesPage() {
               ))}
             </ul>
           </div>
-
-          <div className="bg-zinc-900/50 rounded-2xl p-5 mb-6 border border-zinc-800/50">
-            <p className="text-sm text-zinc-400 leading-relaxed">
-              💡 Рецепт готовится за{' '}
-              <span className="text-green-400 font-semibold">{selected.time}</span>.
-              Попробуйте приготовить это блюдо из продуктов в вашем холодильнике!
-            </p>
-          </div>
-
-          <button
-            onClick={() => setSelected(null)}
-            className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-white font-medium py-3 rounded-2xl transition-all"
-          >
+          <button onClick={() => setSelected(null)} className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-white font-medium py-3 rounded-2xl">
             ← Назад к рецептам
           </button>
         </div>
@@ -172,34 +146,26 @@ export default function RecipesPage() {
       <TopBar title="👨‍🍳 Рецепты" />
       <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
 
-        {/* Кнопка AI рецептов */}
-        <button
-          onClick={getAIRecipes}
-          className="w-full bg-gradient-to-r from-green-500/30 to-green-500/10 hover:from-green-500/40 hover:to-green-500/20 border border-green-500 rounded-2xl p-5 text-left transition-all"
-        >
+        <button onClick={getAIRecipes}
+          className="w-full bg-gradient-to-r from-green-500/30 to-green-500/10 hover:from-green-500/40 hover:to-green-500/20 border border-green-500 rounded-2xl p-5 text-left transition-all">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold text-white mb-1">✨ Что приготовить?</h3>
-              <p className="text-sm text-zinc-400">Получи рецепты подходящие твоим продуктам</p>
+              <p className="text-sm text-zinc-400">
+                {userProfile?.is_premium ? '⭐ Premium — безлимитно' : `Осталось: ${aiLeft}/2 в месяц`}
+              </p>
             </div>
             <span className="text-2xl">→</span>
           </div>
         </button>
 
-        {/* Модальное окно AI */}
         {showAI && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-zinc-900 rounded-3xl p-6 max-w-sm w-full border border-zinc-800 max-h-[80vh] overflow-y-auto">
               {aiLoading ? (
-                <div className="text-center py-8">
-                  <div className="text-5xl mb-4">🤖</div>
-                  <p className="text-zinc-400">Подбираю рецепты...</p>
-                </div>
+                <div className="text-center py-8"><div className="text-5xl mb-4">🤖</div><p className="text-zinc-400">Подбираю рецепты...</p></div>
               ) : aiRecipes.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="text-5xl mb-4">🥬</div>
-                  <p className="text-zinc-400">Добавьте продукты в холодильник</p>
-                </div>
+                <div className="text-center py-8"><div className="text-5xl mb-4">🥬</div><p className="text-zinc-400">Добавьте продукты в холодильник</p></div>
               ) : (
                 <div className="space-y-4">
                   <h2 className="text-xl font-bold text-white">✨ Рецепты для вас</h2>
@@ -215,26 +181,18 @@ export default function RecipesPage() {
                       <p className="text-sm text-zinc-400 mb-2">{r.steps}</p>
                       <div className="flex flex-wrap gap-1">
                         {r.usesFromFridge?.map((ing: string, j: number) => (
-                          <span key={j} className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
-                            {ing}
-                          </span>
+                          <span key={j} className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">{ing}</span>
                         ))}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-              <button
-                onClick={() => setShowAI(false)}
-                className="w-full mt-4 bg-zinc-800 text-white py-3 rounded-2xl"
-              >
-                Закрыть
-              </button>
+              <button onClick={() => setShowAI(false)} className="w-full mt-4 bg-zinc-800 text-white py-3 rounded-2xl">Закрыть</button>
             </div>
           </div>
         )}
 
-        {/* Продукты которые скоро истекают */}
         {expiringItems.length > 0 && (
           <div className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800">
             <h3 className="font-semibold text-white mb-4">⏰ Скоро истекают</h3>
@@ -246,34 +204,24 @@ export default function RecipesPage() {
                     <div className="text-sm font-medium text-white">{item.name}</div>
                     <div className="text-xs text-zinc-400">{item.quantity}</div>
                   </div>
-                  <span className="text-xs font-semibold text-yellow-400">
-                    {daysLeft(item.expiry_date)} дн.
-                  </span>
+                  <span className="text-xs font-semibold text-yellow-400">{daysLeft(item.expiry_date)} дн.</span>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Список рецептов */}
         <div>
           <h3 className="font-semibold text-white mb-4">🥘 Популярные рецепты</h3>
           <div className="space-y-3">
             {RECIPES.map(recipe => (
-              <button
-                key={recipe.id}
-                onClick={() => setSelected(recipe)}
-                className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl p-4 flex items-center gap-4 text-left transition-all active:scale-95"
-              >
+              <button key={recipe.id} onClick={() => setSelected(recipe)}
+                className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl p-4 flex items-center gap-4 text-left transition-all active:scale-95">
                 <span className="text-5xl">{recipe.icon}</span>
                 <div className="flex-1">
                   <div className="font-semibold text-white">{recipe.name}</div>
-                  <div className="text-xs text-zinc-400 mt-1">
-                    {recipe.ingredients.slice(0, 3).join(', ')}
-                  </div>
-                  <div className="flex gap-3 mt-2 text-xs text-green-400">
-                    <span>⏱ {recipe.time}</span>
-                  </div>
+                  <div className="text-xs text-zinc-400 mt-1">{recipe.ingredients.slice(0, 3).join(', ')}</div>
+                  <div className="flex gap-3 mt-2 text-xs text-green-400"><span>⏱ {recipe.time}</span></div>
                 </div>
                 <span className="text-white/50">›</span>
               </button>
@@ -281,7 +229,6 @@ export default function RecipesPage() {
           </div>
         </div>
 
-        {/* Подсказка */}
         <div className="bg-zinc-900/50 rounded-2xl p-4 border border-zinc-800/50">
           <p className="text-xs text-zinc-400 leading-relaxed">
             💡 <span className="text-white">Совет:</span> используйте продукты которые скоро истекают, чтобы ничего не выбросить!

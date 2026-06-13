@@ -82,10 +82,10 @@ export default function RecipesPage() {
       }
 
       const res = await fetch('/api/ai/suggest-recipes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ingredients }),
-      });
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ ingredients, telegram_user_id: user?.id }),
+});
       const json = await res.json();
       setAiRecipes(json.recipes || []);
     } catch {

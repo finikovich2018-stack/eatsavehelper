@@ -12,36 +12,56 @@ export async function POST(req: NextRequest) {
     if (!telegram_user_id) return NextResponse.json({ error: 'No user id' }, { status: 400 });
 
     const currentMonth = new Date().toISOString().slice(0, 7);
+    const userId = Number(telegram_user_id);
 
-    // Получаем или создаём пользователя
-    let { data: user } = await supabase
+    // Пробуем получить пользователя
+    const { data: existing } = await supabase
       .from('users')
       .select('*')
-      .eq('telegram_user_id', telegram_user_id)
-      .single();
+      .eq('telegram_user_id', userId)
+      .maybeSingle();
 
-    if (!user) {
-      const { data: newUser } = await supabase
-        .from('users')
-        .insert({ telegram_user_id, scans_month: currentMonth, ai_recipes_month: currentMonth })
-        .select()
-        .single();
-      user = newUser;
+    if (existing) {
+      // Сбрасываем счётчики если новый месяц
+      if (existing.scans_month !== currentMonth) {
+        const { data: updated } = await supabase
+          .from('users')
+          .update({
+            scans_this_month: 0,
+            scans_month: currentMonth,
+            ai_recipes_this_month: 0,
+            ai_recipes_month: currentMonth
+          })
+          .eq('telegram_user_id', userId)
+          .select()
+          .maybeSingle();
+        return NextResponse.json({ user: updated });
+      }
+      return NextResponse.json({ user: existing });
     }
 
-    // Сбрасываем счётчики если новый месяц
-    if (user && user.scans_month !== currentMonth) {
-      const { data: updated } = await supabase
-        .from('users')
-        .update({ scans_this_month: 0, scans_month: currentMonth, ai_recipes_this_month: 0, ai_recipes_month: currentMonth })
-        .eq('telegram_user_id', telegram_user_id)
-        .select()
-        .single();
-      user = updated;
+    // Создаём нового пользователя
+    const { data: newUser, error } = await supabase
+      .from('users')
+      .insert({
+        telegram_user_id: userId,
+        is_premium: false,
+        scans_this_month: 0,
+        scans_month: currentMonth,
+        ai_recipes_this_month: 0,
+        ai_recipes_month: currentMonth,
+      })
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error('Insert error:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ user });
+    return NextResponse.json({ user: newUser });
   } catch (error: any) {
+    console.error('Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

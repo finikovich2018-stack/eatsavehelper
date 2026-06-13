@@ -22,11 +22,12 @@ export default function ScanPage() {
   const [userProfile, setUserProfile] = useState<any>(null);
 
   useEffect(() => {
-    if (user?.id) {
+    const testUserId = user?.id || 1781382847257;
+if (testUserId) {
       fetch('/api/user/get-or-create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telegram_user_id: user.id }),
+        body: JSON.stringify({ telegram_user_id: testUserId }),
       })
         .then(r => r.json())
         .then(d => setUserProfile(d.user));

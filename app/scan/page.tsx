@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTelegram } from '@/components/TelegramProvider';
 import { supabase } from '@/lib/supabase/client';
 
@@ -8,6 +8,8 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   RUB: '₽', USD: '$', EUR: '€', GBP: '£', UAH: '₴', KZT: '₸',
   AUD: 'A$', CAD: 'C$', CHF: 'Fr', CNY: '¥', JPY: '¥', INR: '₹',
 };
+
+const FREE_SCAN_LIMIT = 3;
 
 export default function ScanPage() {
   const { user } = useTelegram();
@@ -17,8 +19,30 @@ export default function ScanPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetch('/api/user/get-or-create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegram_user_id: user.id }),
+      })
+        .then(r => r.json())
+        .then(d => setUserProfile(d.user));
+    }
+  }, [user?.id]);
+
+  const scansLeft = userProfile?.is_premium
+    ? '∞'
+    : Math.max(0, FREE_SCAN_LIMIT - (userProfile?.scans_this_month || 0));
+  const canScan = userProfile?.is_premium || (userProfile?.scans_this_month || 0) < FREE_SCAN_LIMIT;
 
   const openGallery = () => {
+    if (!canScan) {
+      alert(`Бесплатный лимит: ${FREE_SCAN_LIMIT} скана/месяц. Купите Premium для безлимитных сканов!`);
+      return;
+    }
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -47,9 +71,15 @@ export default function ScanPage() {
       const data = await res.json();
       const parsedItems = data.items || [];
       setItems(parsedItems);
-      if (data.currency) {
-        setCurrency(data.currency);
-      }
+      if (data.currency) setCurrency(data.currency);
+
+      // Увеличиваем счётчик сканов
+      await fetch('/api/user/increment-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegram_user_id: user?.id }),
+      });
+      setUserProfile((prev: any) => prev ? { ...prev, scans_this_month: (prev.scans_this_month || 0) + 1 } : prev);
     } catch {
       alert("Ошибка при распознавании.");
     } finally {
@@ -101,11 +131,20 @@ export default function ScanPage() {
 
   return (
     <main className="max-w-md mx-auto px-4 py-6 bg-zinc-950 min-h-screen text-white">
-      <h1 className="text-2xl font-bold mb-6">📷 Сканер чека</h1>
+      <h1 className="text-2xl font-bold mb-2">📷 Сканер чека</h1>
+
+      {/* Счётчик сканов */}
+      <div className="mb-4 text-sm text-zinc-400">
+        {userProfile?.is_premium ? (
+          <span className="text-yellow-400">⭐ Premium — безлимитные сканы</span>
+        ) : (
+          <span>Осталось сканов: <span className={Number(scansLeft) === 0 ? 'text-red-400' : 'text-emerald-400'}>{scansLeft}/{FREE_SCAN_LIMIT}</span></span>
+        )}
+      </div>
 
       <button onClick={openGallery}
-        className="w-full bg-zinc-700 hover:bg-zinc-600 py-5 rounded-3xl text-lg font-medium">
-        🖼 Выбрать из галереи
+        className={`w-full py-5 rounded-3xl text-lg font-medium ${canScan ? 'bg-zinc-700 hover:bg-zinc-600' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}>
+        {canScan ? '🖼 Выбрать из галереи' : '🔒 Лимит исчерпан — нужен Premium'}
       </button>
 
       {saved && (

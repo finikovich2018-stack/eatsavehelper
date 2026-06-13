@@ -5,14 +5,18 @@ import TopBar from '@/components/layout/TopBar';
 import { supabase } from '@/lib/supabase/client';
 import { useTelegram } from '@/components/TelegramProvider';
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  RUB: '₽', USD: '$', EUR: '€', GBP: '£', UAH: '₴', KZT: '₸', AUD: 'A$', CAD: 'C$',
+};
+
 type Stats = {
   fridgeCount: number;
-  monthlySpent: number;
+  byCurrency: Record<string, number>;
 };
 
 export default function ProfilePage() {
   const { user } = useTelegram();
-  const [stats, setStats] = useState<Stats>({ fridgeCount: 0, monthlySpent: 0 });
+  const [stats, setStats] = useState<Stats>({ fridgeCount: 0, byCurrency: {} });
   const [loading, setLoading] = useState(true);
 
   const loadStats = useCallback(async () => {
@@ -20,28 +24,31 @@ export default function ProfilePage() {
     setLoading(true);
 
     try {
-      // Загружаем количество продуктов в холодильнике
-      const { data: fridgeData, count: fridgeCount } = await supabase
+      const { count: fridgeCount } = await supabase
         .from('fridge_items')
         .select('*', { count: 'exact', head: true })
         .eq('telegram_user_id', user.id);
 
-      // Загружаем траты за текущий месяц
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
         .toISOString()
         .split('T')[0];
+
       const { data: expensesData } = await supabase
         .from('expenses')
-        .select('amount')
+        .select('amount, currency')
         .eq('telegram_user_id', user.id)
         .gte('date', monthStart);
 
-      const totalSpent = expensesData?.reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || 0;
+      const byCurrency: Record<string, number> = {};
+      expensesData?.forEach(e => {
+        const cur = (e as any).currency || 'RUB';
+        byCurrency[cur] = (byCurrency[cur] || 0) + (Number(e.amount) || 0);
+      });
 
       setStats({
         fridgeCount: fridgeCount || 0,
-        monthlySpent: totalSpent,
+        byCurrency,
       });
     } catch (error) {
       console.error('Ошибка загрузки статистики:', error);
@@ -60,6 +67,7 @@ export default function ProfilePage() {
     <main className="min-h-screen bg-background text-foreground pb-24">
       <TopBar title="👤 Профиль" />
       <div className="max-w-mobile mx-auto px-4 py-8 space-y-8">
+
         {/* Карточка профиля */}
         <div className="bg-gradient-to-br from-surface/80 to-background border border-accent/20 rounded-3xl p-8 overflow-hidden relative">
           <div className="absolute top-0 right-0 w-48 h-48 bg-accent/5 rounded-full -mr-24 -mt-24 pointer-events-none" />
@@ -81,7 +89,7 @@ export default function ProfilePage() {
                     <span className="text-xs text-muted mt-1 block">активен</span>
                   </div>
                 ) : (
-                  <div className="bg-surface border border-border rounded-2xl px-5 py-3 text-center hover:border-accent/30 transition-colors">
+                  <div className="bg-surface border border-border rounded-2xl px-5 py-3 text-center">
                     <span className="text-muted text-sm block font-medium">Стандартный</span>
                     <span className="text-xs text-muted/70 mt-1 block">план</span>
                   </div>
@@ -106,14 +114,27 @@ export default function ProfilePage() {
             </div>
             <div className="bg-surface border border-border rounded-2xl p-5 text-center hover:border-accent/50 transition-colors group">
               <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">💰</div>
-              <div className="text-3xl font-bold text-accent mb-1">{(stats.monthlySpent / 1000).toFixed(1)}K</div>
-              <div className="text-sm text-muted">потрачено</div>
-              <div className="text-xs text-muted/60 mt-2">в {monthName}</div>
+              {Object.keys(stats.byCurrency).length === 0 ? (
+                <div className="text-3xl font-bold text-accent mb-1">0 ₽</div>
+              ) : (
+                <div className="space-y-1">
+                  {Object.entries(stats.byCurrency).map(([cur, amount]) => {
+                    const sym = CURRENCY_SYMBOLS[cur] || cur;
+                    return (
+                      <div key={cur} className="text-xl font-bold text-accent">
+                        {cur === 'RUB' ? amount.toLocaleString() : amount.toFixed(2)} {sym}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="text-sm text-muted mt-1">потрачено</div>
+              <div className="text-xs text-muted/60 mt-1">в {monthName}</div>
             </div>
           </div>
         </div>
 
-        {/* Детальная информация */}
+        {/* Информация */}
         <div className="space-y-4">
           <h3 className="font-semibold text-foreground text-lg flex items-center gap-2">
             <span>ℹ️</span> Информация
@@ -134,7 +155,7 @@ export default function ProfilePage() {
         {!user?.is_premium && (
           <button
             onClick={() => alert('🚀 Функция Premium скоро будет доступна!')}
-            className="w-full bg-gradient-to-r from-accent to-accent/90 hover:from-accent/90 hover:to-accent/80 text-background font-bold py-4 rounded-2xl transition-all duration-200 active:scale-95 shadow-lg hover:shadow-xl shadow-accent/30"
+            className="w-full bg-gradient-to-r from-accent to-accent/90 hover:from-accent/90 hover:to-accent/80 text-background font-bold py-4 rounded-2xl transition-all duration-200 active:scale-95 shadow-lg shadow-accent/30"
           >
             <span className="flex items-center justify-center gap-2">
               <span>⭐</span> Перейти в Premium
@@ -142,22 +163,16 @@ export default function ProfilePage() {
           </button>
         )}
 
-        {/* Описание приложения */}
-        <div className="bg-surface/60 border border-accent/10 rounded-2xl p-5 backdrop-blur-sm hover:border-accent/30 transition-colors space-y-3">
+        {/* Описание */}
+        <div className="bg-surface/60 border border-accent/10 rounded-2xl p-5 space-y-3">
           <p className="text-sm text-muted leading-relaxed">
             <span className="text-accent font-semibold">🎯 Что такое EatSave?</span>
           </p>
           <p className="text-sm text-muted/80 leading-relaxed">
-            EatSave помогает вам эффективно управлять холодильником, отслеживать сроки годности продуктов и контролировать расходы на продукты. Добавляйте покупки, получайте напоминания об истекающих продуктах и планируйте блюда на основе того, что у вас есть.
+            EatSave помогает вам эффективно управлять холодильником, отслеживать сроки годности продуктов и контролировать расходы на продукты.
           </p>
         </div>
 
-        {/* Подсказка */}
-        <div className="bg-surface/40 border border-border/50 rounded-2xl p-4">
-          <p className="text-xs text-muted text-center leading-relaxed">
-            💡 Нажмите на «Холодильник» чтобы начать добавлять свои продукты
-          </p>
-        </div>
       </div>
     </main>
   );

@@ -154,7 +154,9 @@ export default function ProfilePage() {
         {/* Кнопка Premium */}
         {!user?.is_premium && (
           <button
-            onClick={() => alert('🚀 Функция Premium скоро будет доступна!')}
+            onClick={() => {
+  alert('⭐ Для активации Premium:\n\n1. Напишите боту @EatSavehelper_bot\n2. Отправьте команду /premium\n3. Оплатите 100 Telegram Stars\n4. Premium активируется автоматически');
+}}
             className="w-full bg-gradient-to-r from-accent to-accent/90 hover:from-accent/90 hover:to-accent/80 text-background font-bold py-4 rounded-2xl transition-all duration-200 active:scale-95 shadow-lg shadow-accent/30"
           >
             <span className="flex items-center justify-center gap-2">

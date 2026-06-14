@@ -1,12 +1,12 @@
-п»ї'use client';
+'use client';
 
 import { useState, useEffect } from "react";
 import { useTelegram } from '@/components/TelegramProvider';
 import { supabase } from '@/lib/supabase/client';
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
-  RUB: 'в‚Ѕ', USD: '$', EUR: 'в‚¬', GBP: 'ВЈ', UAH: 'в‚ґ', KZT: 'в‚ё',
-  AUD: 'A$', CAD: 'C$', CHF: 'Fr', CNY: 'ВҐ', JPY: 'ВҐ', INR: 'в‚№',
+  RUB: '?', USD: '$', EUR: '€', GBP: '?', UAH: '?', KZT: '?',
+  AUD: 'A$', CAD: 'C$', CHF: 'Fr', CNY: '?', JPY: '?', INR: '?',
 };
 
 const FREE_SCAN_LIMIT = 3;
@@ -35,13 +35,13 @@ if (testUserId) {
   }, [user?.id]);
 
   const scansLeft = userProfile?.is_premium
-    ? 'в€ћ'
+    ? '?'
     : Math.max(0, FREE_SCAN_LIMIT - (userProfile?.scans_this_month || 0));
   const canScan = userProfile?.is_premium || (userProfile?.scans_this_month || 0) < FREE_SCAN_LIMIT;
 
   const openGallery = () => {
     if (!canScan) {
-      alert(`Р‘РµСЃРїР»Р°С‚РЅС‹Р№ Р»РёРјРёС‚: ${FREE_SCAN_LIMIT} СЃРєР°РЅР°/РјРµСЃСЏС†. РљСѓРїРёС‚Рµ Premium РґР»СЏ Р±РµР·Р»РёРјРёС‚РЅС‹С… СЃРєР°РЅРѕРІ!`);
+      alert(`Бесплатный лимит: ${FREE_SCAN_LIMIT} скана/месяц. Купите Premium для безлимитных сканов!`);
       return;
     }
     const input = document.createElement('input');
@@ -74,7 +74,7 @@ if (testUserId) {
       setItems(parsedItems);
       if (data.currency) setCurrency(data.currency);
 
-      // РЈРІРµР»РёС‡РёРІР°РµРј СЃС‡С‘С‚С‡РёРє СЃРєР°РЅРѕРІ
+      // Увеличиваем счётчик сканов
       await fetch('/api/user/increment-scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -82,7 +82,7 @@ if (testUserId) {
       });
       setUserProfile((prev: any) => prev ? { ...prev, scans_this_month: (prev.scans_this_month || 0) + 1 } : prev);
     } catch {
-      alert("РћС€РёР±РєР° РїСЂРё СЂР°СЃРїРѕР·РЅР°РІР°РЅРёРё.");
+      alert("Ошибка при распознавании.");
     } finally {
       setLoading(false);
     }
@@ -98,10 +98,10 @@ if (testUserId) {
         return {
           name: item.name,
           category: item.category || 'other',
-          quantity: `${item.quantity || 1} С€С‚.`,
+          quantity: `${item.quantity || 1} шт.`,
           expiry_date: expiryDate.toISOString().split('T')[0],
-          icon: item.icon || 'рџ“¦',
-          telegram_user_id: user.id,
+          icon: item.icon || '??',
+          telegram_user_id: testUserId,
         };
       });
       const { error } = await supabase.from('fridge_items').insert(rows);
@@ -110,19 +110,19 @@ if (testUserId) {
       const totalAmount = items.reduce((sum: number, item: any) => sum + (parseFloat(item.price) || 0), 0);
       const currencySymbol = CURRENCY_SYMBOLS[currency] || currency;
       await supabase.from('expenses').insert({
-        name: `рџ›’ РџРѕРєСѓРїРєР° РїРѕ С‡РµРєСѓ (${currencySymbol})`,
+        name: `?? Покупка по чеку (${currencySymbol})`,
         amount: totalAmount,
         date: new Date().toISOString().split('T')[0],
-        category: 'рџ›’',
+        category: '??',
         currency: currency,
-        telegram_user_id: user.id,
+        telegram_user_id: testUserId,
       });
 
       setSaved(true);
       setItems([]);
       setImage(null);
     } catch {
-      alert("РћС€РёР±РєР° РїСЂРё СЃРѕС…СЂР°РЅРµРЅРёРё.");
+      alert("Ошибка при сохранении.");
     } finally {
       setSaving(false);
     }
@@ -132,34 +132,34 @@ if (testUserId) {
 
   return (
     <main className="max-w-md mx-auto px-4 py-6 bg-zinc-950 min-h-screen text-white">
-      <h1 className="text-2xl font-bold mb-2">рџ“· РЎРєР°РЅРµСЂ С‡РµРєР°</h1>
+      <h1 className="text-2xl font-bold mb-2">?? Сканер чека</h1>
 
-      {/* РЎС‡С‘С‚С‡РёРє СЃРєР°РЅРѕРІ */}
+      {/* Счётчик сканов */}
       <div className="mb-4 text-sm text-zinc-400">
         {userProfile?.is_premium ? (
-          <span className="text-yellow-400">в­ђ Premium вЂ” Р±РµР·Р»РёРјРёС‚РЅС‹Рµ СЃРєР°РЅС‹</span>
+          <span className="text-yellow-400">? Premium — безлимитные сканы</span>
         ) : (
-          <span>РћСЃС‚Р°Р»РѕСЃСЊ СЃРєР°РЅРѕРІ: <span className={Number(scansLeft) === 0 ? 'text-red-400' : 'text-emerald-400'}>{scansLeft}/{FREE_SCAN_LIMIT}</span></span>
+          <span>Осталось сканов: <span className={Number(scansLeft) === 0 ? 'text-red-400' : 'text-emerald-400'}>{scansLeft}/{FREE_SCAN_LIMIT}</span></span>
         )}
       </div>
 
       <button onClick={openGallery}
         className={`w-full py-5 rounded-3xl text-lg font-medium ${canScan ? 'bg-zinc-700 hover:bg-zinc-600' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}>
-        {canScan ? 'рџ–ј Р’С‹Р±СЂР°С‚СЊ РёР· РіР°Р»РµСЂРµРё' : 'рџ”’ Р›РёРјРёС‚ РёСЃС‡РµСЂРїР°РЅ вЂ” РЅСѓР¶РµРЅ Premium'}
+        {canScan ? '?? Выбрать из галереи' : '?? Лимит исчерпан — нужен Premium'}
       </button>
 
       {saved && (
         <div className="mt-6 bg-emerald-900 rounded-2xl p-4 text-center text-emerald-300 font-medium">
-          вњ… РџСЂРѕРґСѓРєС‚С‹ РґРѕР±Р°РІР»РµРЅС‹ РІ С…РѕР»РѕРґРёР»СЊРЅРёРє!
+          ? Продукты добавлены в холодильник!
         </div>
       )}
 
       {image && (
         <div className="mt-6">
-          <img src={image} className="w-full rounded-2xl mb-4" alt="С‡РµРє" />
+          <img src={image} className="w-full rounded-2xl mb-4" alt="чек" />
           <button onClick={parseReceipt} disabled={loading}
             className="w-full bg-emerald-600 py-4 rounded-3xl font-medium text-lg disabled:bg-zinc-700">
-            {loading ? "рџ¤– Р Р°СЃРїРѕР·РЅР°СЋ..." : "рџ”Ќ Р Р°СЃРїРѕР·РЅР°С‚СЊ С‡РµРє"}
+            {loading ? "?? Распознаю..." : "?? Распознать чек"}
           </button>
         </div>
       )}
@@ -167,7 +167,7 @@ if (testUserId) {
       {items.length > 0 && (
         <div className="mt-6 bg-zinc-900 rounded-3xl p-5">
           <h2 className="font-semibold mb-4">
-            вњ… РќР°Р№РґРµРЅРѕ С‚РѕРІР°СЂРѕРІ: {items.length} В· <span className="text-emerald-400">{currency}</span>
+            ? Найдено товаров: {items.length} · <span className="text-emerald-400">{currency}</span>
           </h2>
           {items.map((item, i) => (
             <div key={i} className="py-2 border-b border-zinc-700 last:border-0 flex justify-between">
@@ -177,10 +177,11 @@ if (testUserId) {
           ))}
           <button onClick={addToFridge} disabled={saving}
             className="w-full mt-4 bg-emerald-600 py-4 rounded-2xl font-medium text-lg disabled:bg-zinc-700">
-            {saving ? "РЎРѕС…СЂР°РЅСЏСЋ..." : "вњ… Р”РѕР±Р°РІРёС‚СЊ РІСЃС‘ РІ С…РѕР»РѕРґРёР»СЊРЅРёРє"}
+            {saving ? "Сохраняю..." : "? Добавить всё в холодильник"}
           </button>
         </div>
       )}
     </main>
   );
 }
+

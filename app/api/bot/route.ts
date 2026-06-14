@@ -30,6 +30,10 @@ function getBotToken() {
   return process.env.TELEGRAM_BOT_TOKEN!;
 }
 
+export async function GET() {
+  return NextResponse.json({ ok: true, message: 'EatSave bot webhook is live' });
+}
+
 export async function POST(req: NextRequest) {
   const supabase = getSupabase();
   const BOT_TOKEN = getBotToken();

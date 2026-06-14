@@ -9,7 +9,12 @@ export const dynamic = 'force-dynamic';
 const TELEGRAM_API = 'https://api.telegram.org/bot';
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 
-// Vercel Cron configuration — runs every day at 09:00 UTC
+interface UserItem {
+  name: string;
+  first_name: string;
+  chat_id: number;
+}
+
 export async function GET(req: NextRequest) {
   // Security: verify the cron secret
   const authHeader = req.headers.get('authorization');
@@ -26,7 +31,7 @@ export async function GET(req: NextRequest) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-    // Get items expiring tomorrow
+    // Get items expiring tomorrow with user info
     const expiringRes = await fetch(
       `${supabaseUrl}/rest/v1/fridge_items?expiry_date=eq.${targetDate}&select=*,users(telegram_user_id,telegram_chat_id,first_name,notifications_enabled)`,
       {
@@ -45,15 +50,14 @@ export async function GET(req: NextRequest) {
 
     const items: any[] = await expiringRes.json();
 
-    // Group by user
-    const byUser = new Map<number, { name: string; first_name: string; chat_id: number }[]>();
+    // Group by user using plain object (avoids Map TS issues)
+    const byUser: Record<number, UserItem[]> = {};
     for (const item of items) {
       const user = item.users;
       if (!user?.notifications_enabled || !user?.telegram_chat_id) continue;
-      if (!byUser.has(user.telegram_user_id)) {
-        byUser.set(user.telegram_user_id, []);
-      }
-      byUser.get(user.telegram_user_id)!.push({
+      const uid = user.telegram_user_id;
+      if (!byUser[uid]) byUser[uid] = [];
+      byUser[uid].push({
         name: item.name,
         first_name: user.first_name || 'друг',
         chat_id: user.telegram_chat_id,
@@ -62,9 +66,11 @@ export async function GET(req: NextRequest) {
 
     // Send Telegram messages
     let sent = 0;
-    for (const [, userItems] of byUser) {
+    for (const userIdStr in byUser) {
+      const userId = Number(userIdStr);
+      const userItems = byUser[userId];
       const first = userItems[0];
-      const itemList = userItems.map(i => `• ${i.name}`).join('\n');
+      const itemList = userItems.map((i: UserItem) => `• ${i.name}`).join('\n');
       const text =
         `⏰ *Напоминание от EatSave*\n\n` +
         `Привет, ${first.first_name}! Завтра истекает срок годности у:\n\n` +

@@ -78,7 +78,7 @@ if (testUserId) {
       await fetch('/api/user/increment-scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telegram_user_id: user?.id }),
+        body: JSON.stringify({ telegram_user_id: testUserId }),
       });
       setUserProfile((prev: any) => prev ? { ...prev, scans_this_month: (prev.scans_this_month || 0) + 1 } : prev);
     } catch {
@@ -184,4 +184,5 @@ if (testUserId) {
     </main>
   );
 }
+
 

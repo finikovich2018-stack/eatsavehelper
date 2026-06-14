@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 {
   "currency": "USD",
   "items": [
-    {"name": "Название товара", "quantity": 1, "price": 1.49, "expiry_days": 7, "category": "veg", "icon": "🥬"}
+    {"name": "Название товара", "quantity": 1, "price": 1.49, "expiry_days": 7, "category": "veg", "icon": "❄️"}
   ]
 }`
           }

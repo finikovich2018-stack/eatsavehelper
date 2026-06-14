@@ -133,7 +133,7 @@ export default function ProfilePage() {
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-surface border border-border rounded-2xl p-5 text-center hover:border-accent/50 transition-colors group">
-                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">🥬</div>
+                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">❄️</div>
                 <div className="text-3xl font-bold text-accent mb-1">{stats.fridgeCount}</div>
                 <div className="text-sm text-muted">продуктов</div>
                 <div className="text-xs text-muted/60 mt-2">в холодильнике</div>

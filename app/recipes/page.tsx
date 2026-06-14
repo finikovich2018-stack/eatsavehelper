@@ -165,7 +165,7 @@ export default function RecipesPage() {
               {aiLoading ? (
                 <div className="text-center py-8"><div className="text-5xl mb-4">🤖</div><p className="text-zinc-400">Подбираю рецепты...</p></div>
               ) : aiRecipes.length === 0 ? (
-                <div className="text-center py-8"><div className="text-5xl mb-4">🥬</div><p className="text-zinc-400">Добавьте продукты в холодильник</p></div>
+                <div className="text-center py-8"><div className="text-5xl mb-4">❄️</div><p className="text-zinc-400">Добавьте продукты в холодильник</p></div>
               ) : (
                 <div className="space-y-4">
                   <h2 className="text-xl font-bold text-white">✨ Рецепты для вас</h2>

@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 
@@ -22,6 +21,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
   const today = new Date();
   const in3days = new Date(today);
   in3days.setDate(today.getDate() + 3);
@@ -31,7 +34,7 @@ export async function GET(req: Request) {
 
   const { data: items } = await supabase
     .from('fridge_items')
-    .select('*, telegram_user_id')
+    .select('*')
     .gte('expiry_date', todayStr)
     .lte('expiry_date', dateStr);
 
@@ -39,7 +42,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: 'No expiring items' });
   }
 
-  // Группируем по пользователю
+  // Group by user
   const byUser: Record<number, typeof items> = {};
   for (const item of items) {
     if (!byUser[item.telegram_user_id]) byUser[item.telegram_user_id] = [];

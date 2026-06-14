@@ -85,7 +85,7 @@ export default function FridgePage() {
 
   return (
     <main className="min-h-screen bg-zinc-950 text-white pb-24">
-      <TopBar title="🥬 Холодильник" />
+      <TopBar title="?? �����������" />
       <div className="max-w-xl mx-auto px-4 py-4">
 
         <button onClick={() => setShowForm(!showForm)}
@@ -140,7 +140,7 @@ export default function FridgePage() {
           <div className="text-center text-zinc-500 py-10">Загрузка...</div>
         ) : items.length === 0 ? (
           <div className="text-center text-zinc-600 py-20">
-            <div className="text-5xl mb-4">🥬</div>
+              <div className="text-5xl mb-4">??</div>
             <div>Холодильник пуст</div>
             <div className="text-sm mt-2">Нажмите кнопку выше</div>
           </div>

@@ -74,12 +74,14 @@ export default function ScanPage() {
       setItems(parsedItems);
       if (data.currency) setCurrency(data.currency);
 
-      await fetch('/api/user/increment-scan', {
+      const incRes = await fetch('/api/user/increment-scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ telegram_user_id: testUserId }),
       });
-      setUserProfile((prev: any) => prev ? { ...prev, scans_this_month: (prev.scans_this_month || 0) + 1 } : prev);
+      const incData = await incRes.json();
+      console.log('Increment scan result:', incData);
+      setUserProfile((prev: any) => prev ? { ...prev, scans_this_month: (incData.scans_this_month || (prev.scans_this_month || 0) + 1) } : prev);
     } catch {
       alert("Ошибка при распознавании.");
     } finally {

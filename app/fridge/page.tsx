@@ -85,7 +85,7 @@ export default function FridgePage() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white pb-24">
+      <TopBar title="❄️ Холодильник" />
       <TopBar title="?? �����������" />
       <div className="max-w-xl mx-auto px-4 py-4">
 

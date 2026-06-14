@@ -3,11 +3,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 interface TelegramUpdate {
   message?: {
@@ -21,7 +19,21 @@ interface TelegramUpdate {
   };
 }
 
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
+
+function getBotToken() {
+  return process.env.TELEGRAM_BOT_TOKEN!;
+}
+
 export async function POST(req: NextRequest) {
+  const supabase = getSupabase();
+  const BOT_TOKEN = getBotToken();
+
   try {
     const body = await req.json() as TelegramUpdate;
 
@@ -31,10 +43,6 @@ export async function POST(req: NextRequest) {
       const chatId = from.id;
       const firstName = from.first_name || '';
       const username = from.username;
-
-      // Extract referral code from /start command if any (for future use)
-      const parts = body.message.text.split(' ');
-      const refCode = parts[1] || null;
 
       await supabase.from('users').upsert(
         {
@@ -48,7 +56,6 @@ export async function POST(req: NextRequest) {
         { onConflict: 'telegram_user_id' }
       );
 
-      // Send welcome message
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

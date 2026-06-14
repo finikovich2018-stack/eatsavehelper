@@ -2,20 +2,30 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
-const supabase = createClient(
-  'https://dyxksakpvdupgutwswlm.supabase.co',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5eGtzYWtwdmR1cGd1dHdzd2xtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NDAyMzAsImV4cCI6MjA5NjMxNjIzMH0.Zq26AkcECmNQxTNF3cmC1cS4T8-_TQCEDUzKMT1xcaA'
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dyxksakpvdupgutwswlm.supabase.co',
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
+
+function getAnthropic() {
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+}
 
 export async function POST(req: NextRequest) {
+  const supabase = getSupabase();
+  const anthropic = getAnthropic();
+
   try {
     const { ingredients, telegram_user_id } = await req.json();
 
     let finalIngredients = ingredients;
 
-    // Если ingredients не переданы — берём из холодильника
     if (!finalIngredients || finalIngredients.length === 0) {
       if (telegram_user_id) {
         const { data } = await supabase
@@ -35,20 +45,9 @@ export async function POST(req: NextRequest) {
       max_tokens: 1500,
       messages: [{
         role: "user",
-        content: `У меня в холодильнике есть: ${finalIngredients.join(', ')}.
+        content: `У меня в холодильнике есть: ${finalIngredients.join(', ')}. Предложи 3 рецепта которые можно приготовить. Верни ТОЛЬКО JSON массив без markdown:
 
-Предложи 3 рецепта которые можно приготовить. Верни ТОЛЬКО JSON массив без markdown:
-
-[
-  {
-    "name": "Название блюда",
-    "icon": "🍳",
-    "time": "20 мин",
-    "ingredients": ["ингредиент1", "ингредиент2"],
-    "steps": "Краткое описание приготовления в 2-3 предложения",
-    "usesFromFridge": ["продукт из холодильника который используется"]
-  }
-]`
+[{"name":"Название","icon":"🍳","time":"20 мин","ingredients":[],"steps":"","usesFromFridge":[]}]`
       }]
     });
 

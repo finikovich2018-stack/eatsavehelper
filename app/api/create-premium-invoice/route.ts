@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PREMIUM_PRICE_STARS, PREMIUM_SUBSCRIPTION_PERIOD } from '@/lib/constants';
 
+export const dynamic = 'force-dynamic';
+
 function getBotToken() {
   return process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN;
 }

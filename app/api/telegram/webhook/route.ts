@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { activatePremium } from '@/lib/premium';
 
+export const dynamic = 'force-dynamic';
+
 function getBotToken() {
   return process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN;
 }

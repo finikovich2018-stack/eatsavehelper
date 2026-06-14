@@ -1,11 +1,16 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-});
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
+function getAnthropic() {
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+}
 
 export async function POST(req: NextRequest) {
+  const anthropic = getAnthropic();
   try {
     const { image } = await req.json();
 

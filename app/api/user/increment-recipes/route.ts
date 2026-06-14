@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  'https://dyxksakpvdupgutwswlm.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5eGtzYWtwdmR1cGd1dHdzd2xtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NDAyMzAsImV4cCI6MjA5NjMxNjIzMH0.Zq26AkcECmNQxTNF3cmC1cS4T8-_TQCEDUzKMT1xcaA'
-);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dyxksakpvdupgutwswlm.supabase.co',
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export async function POST(req: NextRequest) {
+  const supabase = getSupabase();
+
   try {
     const { telegram_user_id } = await req.json();
     

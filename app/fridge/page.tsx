@@ -37,7 +37,7 @@ const ICONS: Record<string, string> = {
 
 export default function FridgePage() {
   const { user } = useTelegram();
-  const testUserId = testUserId || 1781433798546;
+  const testUserId = testUserId || 173129302;
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -172,6 +172,7 @@ export default function FridgePage() {
     </main>
   );
 }
+
 
 
 

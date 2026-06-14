@@ -27,7 +27,7 @@ export default function HomePage() {
             </a>
             {/* Заменил Link на a для всех кнопок ниже */}
             <a href="/fridge" className="bg-zinc-800 hover:bg-zinc-700 rounded-2xl p-5 text-center active:scale-[0.98] transition">
-          <div className="text-3xl mb-1">??</div>
+          <div className="text-3xl mb-1">❄️</div>
               <div className="font-medium">Холодильник</div>
             </a>
             <a href="/recipes" className="bg-zinc-800 hover:bg-zinc-700 rounded-2xl p-5 text-center active:scale-[0.98] transition">

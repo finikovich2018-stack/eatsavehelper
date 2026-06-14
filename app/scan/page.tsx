@@ -1,11 +1,11 @@
-'use client';
+п»ї'use client';
 
 import { useState, useEffect } from "react";
 import { useTelegram } from '@/components/TelegramProvider';
 import { supabase } from '@/lib/supabase/client';
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
-  RUB: '?', USD: '$', EUR: '€', GBP: '?', UAH: '?', KZT: '?',
+  RUB: '?', USD: '$', EUR: 'пїЅ', GBP: '?', UAH: '?', KZT: '?',
   AUD: 'A$', CAD: 'C$', CHF: 'Fr', CNY: '?', JPY: '?', INR: '?',
 };
 
@@ -41,7 +41,7 @@ if (testUserId) {
 
   const openGallery = () => {
     if (!canScan) {
-      alert(`Бесплатный лимит: ${FREE_SCAN_LIMIT} скана/месяц. Купите Premium для безлимитных сканов!`);
+      alert(`пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ: ${FREE_SCAN_LIMIT} пїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅ Premium пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ!`);
       return;
     }
     const input = document.createElement('input');
@@ -74,7 +74,7 @@ if (testUserId) {
       setItems(parsedItems);
       if (data.currency) setCurrency(data.currency);
 
-      // Увеличиваем счётчик сканов
+      // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
       await fetch('/api/user/increment-scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -82,7 +82,7 @@ if (testUserId) {
       });
       setUserProfile((prev: any) => prev ? { ...prev, scans_this_month: (prev.scans_this_month || 0) + 1 } : prev);
     } catch {
-      alert("Ошибка при распознавании.");
+      alert("пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.");
     } finally {
       setLoading(false);
     }
@@ -98,7 +98,7 @@ if (testUserId) {
         return {
           name: item.name,
           category: item.category || 'other',
-          quantity: `${item.quantity || 1} шт.`,
+          quantity: `${item.quantity || 1} пїЅпїЅ.`,
           expiry_date: expiryDate.toISOString().split('T')[0],
           icon: item.icon || '??',
           telegram_user_id: testUserId,
@@ -110,7 +110,7 @@ if (testUserId) {
       const totalAmount = items.reduce((sum: number, item: any) => sum + (parseFloat(item.price) || 0), 0);
       const currencySymbol = CURRENCY_SYMBOLS[currency] || currency;
       await supabase.from('expenses').insert({
-        name: `?? Покупка по чеку (${currencySymbol})`,
+        name: `?? пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ (${currencySymbol})`,
         amount: totalAmount,
         date: new Date().toISOString().split('T')[0],
         category: '??',
@@ -122,7 +122,7 @@ if (testUserId) {
       setItems([]);
       setImage(null);
     } catch {
-      alert("Ошибка при сохранении.");
+      alert("пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.");
     } finally {
       setSaving(false);
     }
@@ -132,34 +132,34 @@ if (testUserId) {
 
   return (
     <main className="max-w-md mx-auto px-4 py-6 bg-zinc-950 min-h-screen text-white">
-      <h1 className="text-2xl font-bold mb-2">?? Сканер чека</h1>
+      <h1 className="text-2xl font-bold mb-2">?? пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ</h1>
 
-      {/* Счётчик сканов */}
+      {/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ */}
       <div className="mb-4 text-sm text-zinc-400">
         {userProfile?.is_premium ? (
-          <span className="text-yellow-400">? Premium — безлимитные сканы</span>
+          <span className="text-yellow-400">? Premium пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ</span>
         ) : (
-          <span>Осталось сканов: <span className={Number(scansLeft) === 0 ? 'text-red-400' : 'text-emerald-400'}>{scansLeft}/{FREE_SCAN_LIMIT}</span></span>
+          <span>пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: <span className={Number(scansLeft) === 0 ? 'text-red-400' : 'text-emerald-400'}>{scansLeft}/{FREE_SCAN_LIMIT}</span></span>
         )}
       </div>
 
       <button onClick={openGallery}
         className={`w-full py-5 rounded-3xl text-lg font-medium ${canScan ? 'bg-zinc-700 hover:bg-zinc-600' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}>
-        {canScan ? '?? Выбрать из галереи' : '?? Лимит исчерпан — нужен Premium'}
+        {canScan ? '?? пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ' : '?? пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ Premium'}
       </button>
 
       {saved && (
         <div className="mt-6 bg-emerald-900 rounded-2xl p-4 text-center text-emerald-300 font-medium">
-          ? Продукты добавлены в холодильник!
+          ? пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ!
         </div>
       )}
 
       {image && (
         <div className="mt-6">
-          <img src={image} className="w-full rounded-2xl mb-4" alt="чек" />
+          <img src={image} className="w-full rounded-2xl mb-4" alt="пїЅпїЅпїЅ" />
           <button onClick={parseReceipt} disabled={loading}
             className="w-full bg-emerald-600 py-4 rounded-3xl font-medium text-lg disabled:bg-zinc-700">
-            {loading ? "?? Распознаю..." : "?? Распознать чек"}
+            {loading ? "?? пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ..." : "?? пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ"}
           </button>
         </div>
       )}
@@ -167,7 +167,7 @@ if (testUserId) {
       {items.length > 0 && (
         <div className="mt-6 bg-zinc-900 rounded-3xl p-5">
           <h2 className="font-semibold mb-4">
-            ? Найдено товаров: {items.length} · <span className="text-emerald-400">{currency}</span>
+            ? пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ: {items.length} пїЅ <span className="text-emerald-400">{currency}</span>
           </h2>
           {items.map((item, i) => (
             <div key={i} className="py-2 border-b border-zinc-700 last:border-0 flex justify-between">
@@ -177,7 +177,7 @@ if (testUserId) {
           ))}
           <button onClick={addToFridge} disabled={saving}
             className="w-full mt-4 bg-emerald-600 py-4 rounded-2xl font-medium text-lg disabled:bg-zinc-700">
-            {saving ? "Сохраняю..." : "? Добавить всё в холодильник"}
+            {saving ? "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ..." : "? пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ"}
           </button>
         </div>
       )}

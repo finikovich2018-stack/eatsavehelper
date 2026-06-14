@@ -1,71 +1,34 @@
-'use client';
+﻿"use client";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
-import { useState, useEffect, useCallback } from 'react';
-import TopBar from '@/components/layout/TopBar';
-import { supabase } from '@/lib/supabase/client';
-import { useTelegram } from '@/components/TelegramProvider';
+const tabs = [
+  { href: "/home", icon: "??", label: "�������" },
+  { href: "/fridge", icon: "??", label: "�����������" },
+  { href: "/scan", icon: "??", label: "������" },
+  { href: "/budget", icon: "??", label: "������" },
+  { href: "/profile", icon: "??", label: "�������" },
+];
 
-// ... (оставь свои типы и функцию daysLeft без изменений)
-
-export default function HomePage() {
-  // ... (весь твой код до блока return)
-
+export default function BottomNav() {
+  const pathname = usePathname();
   return (
-    <main className="min-h-screen bg-zinc-950 text-white pb-24">
-      <TopBar title="EatSave" />
-      <div className="max-w-md mx-auto px-4 py-6 space-y-8">
-        
-        {/* ... (Приветствие и Статистика - оставь как есть) */}
-
-        {/* Быстрые действия */}
-        <div>
-          <h2 className="font-semibold mb-3 text-lg">Быстрые действия</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <a href="/scan" className="bg-emerald-600 hover:bg-emerald-700 rounded-2xl p-5 text-center active:scale-[0.98] transition">
-              <div className="text-3xl mb-1">📷</div>
-              <div className="font-medium">Сканировать чек</div>
-            </a>
-            {/* Заменил Link на a для всех кнопок ниже */}
-            <a href="/fridge" className="bg-zinc-800 hover:bg-zinc-700 rounded-2xl p-5 text-center active:scale-[0.98] transition">
-          <div className="text-3xl mb-1">❄️</div>
-              <div className="font-medium">Холодильник</div>
-            </a>
-            <a href="/recipes" className="bg-zinc-800 hover:bg-zinc-700 rounded-2xl p-5 text-center active:scale-[0.98] transition">
-              <div className="text-3xl mb-1">👨‍🍳</div>
-              <div className="font-medium">Рецепты</div>
-            </a>
-            <a href="/budget" className="bg-zinc-800 hover:bg-zinc-700 rounded-2xl p-5 text-center active:scale-[0.98] transition">
-              <div className="text-3xl mb-1">💰</div>
-              <div className="font-medium">Бюджет</div>
-            </a>
-          </div>
-        </div>
-
-        {/* Полезные советы */}
-        <div>
-          <h2 className="font-semibold mb-3 text-lg">💡 Полезные советы</h2>
-          <div className="space-y-3">
-            <a href="/fridge" className="block bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-3xl p-5 active:scale-[0.985] transition">
-              <div className="flex items-start gap-4">
-                <div className="text-3xl">🥶</div>
-                <div>
-                  <div className="font-semibold">Проверяйте холодильник каждый день</div>
-                  <div className="text-sm text-zinc-400 mt-1">Чтобы не забыть про продукты.</div>
-                </div>
-              </div>
-            </a>
-            <a href="/recipes" className="block bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-3xl p-5 active:scale-[0.985] transition">
-              <div className="flex items-start gap-4">
-                <div className="text-3xl">📖</div>
-                <div>
-                  <div className="font-semibold">Используйте рецепты</div>
-                  <div className="text-sm text-zinc-400 mt-1">Чтобы готовить из продуктов.</div>
-                </div>
-              </div>
-            </a>
-          </div>
-        </div>
-      </div>
-    </main>
+    <nav className="fixed bottom-0 left-1/2 z-50 w-full max-w-mobile -translate-x-1/2 border-t border-zinc-800 bg-zinc-900 px-2 pb-safe">
+      <ul className="flex items-center justify-around py-2">
+        {tabs.map((tab) => {
+          const isActive = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+          return (
+            <li key={tab.href}>
+              <Link href={tab.href} className={`flex min-h-[44px] min-w-[44px] flex-col items-center justify-center gap-0.5 px-2 text-xs transition-opacity ${isActive ? "text-green-400 opacity-100" : "text-zinc-400 opacity-60"}`}>
+                <span className="text-lg">{tab.icon}</span>
+                <span>{tab.label}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }
+
+

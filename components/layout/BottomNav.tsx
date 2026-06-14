@@ -1,13 +1,13 @@
-п»ї"use client";
+"use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
-  { href: "/home", icon: "рџЏ ", label: "Р“Р»Р°РІРЅР°СЏ" },
-  { href: "/fridge", icon: "рџҐ¬", label: "РҐРѕР»РѕРґРёР»СЊРЅРёРє" },
-  { href: "/scan", icon: "рџ“·", label: "РЎРєР°РЅРµСЂ" },
-  { href: "/budget", icon: "рџ’°", label: "Р‘СЋРґР¶РµС‚" },
-  { href: "/profile", icon: "рџ‘¤", label: "РџСЂРѕС„РёР»СЊ" },
+  { href: "/home", icon: "??", label: "Главная" },
+  { href: "/fridge", icon: "??", label: "Холодильник" },
+  { href: "/scan", icon: "??", label: "Сканер" },
+  { href: "/budget", icon: "??", label: "Бюджет" },
+  { href: "/profile", icon: "??", label: "Профиль" },
 ];
 
 export default function BottomNav() {
@@ -30,3 +30,4 @@ export default function BottomNav() {
     </nav>
   );
 }
+

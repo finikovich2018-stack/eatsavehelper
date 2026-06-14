@@ -37,6 +37,7 @@ const ICONS: Record<string, string> = {
 
 export default function FridgePage() {
   const { user } = useTelegram();
+  const testUserId = testUserId || 1781433798546;
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -49,18 +50,18 @@ export default function FridgePage() {
     const { data } = await supabase
       .from('fridge_items')
       .select('*')
-      .eq('telegram_user_id', user?.id)
+      .eq('telegram_user_id', testUserId)
       .order('expiry_date', { ascending: true });
     setItems(data || []);
     setLoading(false);
-  }, [user?.id]);
+  }, [testUserId]);
 
   useEffect(() => {
     loadItems();
   }, [loadItems]);
 
   async function addItem() {
-    if (!form.name || !form.expiry_date || !user?.id) return;
+    if (!form.name || !form.expiry_date || !testUserId) return;
     const { data } = await supabase
       .from('fridge_items')
       .insert({
@@ -69,7 +70,7 @@ export default function FridgePage() {
         quantity: form.quantity,
         expiry_date: form.expiry_date,
         icon: ICONS[form.category] || '📦',
-        telegram_user_id: user.id,
+        telegram_user_id: testUserId,
       })
       .select()
       .single();
@@ -79,7 +80,7 @@ export default function FridgePage() {
   }
 
   async function removeItem(id: string) {
-    await supabase.from('fridge_items').delete().eq('id', id).eq('telegram_user_id', user?.id);
+    await supabase.from('fridge_items').delete().eq('id', id).eq('telegram_user_id', testUserId);
     setItems(items.filter(i => i.id !== id));
   }
 
@@ -171,3 +172,6 @@ export default function FridgePage() {
     </main>
   );
 }
+
+
+

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PREMIUM_PRICE_STARS, PREMIUM_SUBSCRIPTION_PERIOD } from '@/lib/constants';
+import { PREMIUM_PRICE_STARS } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +29,6 @@ export async function POST(req: NextRequest) {
         payload: `premium_${userId}`,
         provider_token: '',
         currency: 'XTR',
-        subscription_period: PREMIUM_SUBSCRIPTION_PERIOD,
         prices: [{ label: 'Premium (1 месяц)', amount: PREMIUM_PRICE_STARS }],
       }),
     });

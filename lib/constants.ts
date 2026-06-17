@@ -1,8 +1,9 @@
 export const PREMIUM_PRICE_STARS = 100;
 export const PREMIUM_SUBSCRIPTION_PERIOD = 2_592_000; // 30 дней в секундах
 
-/** Claude model with vision support (receipt scanning) */
-export const CLAUDE_MODEL = 'claude-3-5-sonnet-20241022';
+/** Claude model with vision — override via ANTHROPIC_MODEL env */
+export const CLAUDE_MODEL =
+  process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
 
 /** Free tier limits */
 export const FREE_FRIDGE_ITEMS = 30;

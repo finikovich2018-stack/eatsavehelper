@@ -185,8 +185,12 @@ export async function POST(req: NextRequest) {
         await activatePremium(chatId);
         await sendMessage(chatId, '⭐ Premium активирован на 30 дней!');
       } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Unknown error';
         console.error('Manual activate failed:', e);
-        await sendMessage(chatId, '⚠️ Не удалось активировать Premium. Откройте Mini App → Профиль.');
+        await sendMessage(
+          chatId,
+          `⚠️ Не удалось активировать Premium.\n\nПричина: ${msg.slice(0, 180)}\n\nЕсли видите "column" — выполните supabase/patch_premium.sql в Supabase.`
+        );
       }
       return NextResponse.json({ ok: true });
     }

@@ -84,7 +84,7 @@ export default function ScanPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Ошибка');
+      if (!res.ok) throw new Error(data.details || data.error || 'Ошибка');
       setItems(data.items || []);
       if (data.currency) setCurrency(data.currency);
 
@@ -97,8 +97,9 @@ export default function ScanPage() {
       setUserProfile((prev: any) =>
         prev ? { ...prev, scans_this_month: incData.scans_this_month || (prev.scans_this_month || 0) + 1 } : prev
       );
-    } catch {
-      alert('Ошибка при распознавании.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Ошибка';
+      alert(`Ошибка при распознавании: ${message}`);
     } finally {
       setLoading(false);
     }

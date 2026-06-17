@@ -4,9 +4,11 @@ export interface Env {
   RATE_LIMIT: KVNamespace;
 }
 
+import { CLAUDE_MODEL } from '@/lib/constants';
+
 const FREE_DAILY_LIMIT = 10;
 const PREMIUM_DAILY_LIMIT = 200;
-const MODEL = 'claude-sonnet-4-20250514';
+const MODEL = CLAUDE_MODEL;
 
 function corsHeaders(origin: string, allowedOrigin: string) {
   const allowOrigin = origin === allowedOrigin ? origin : allowedOrigin;

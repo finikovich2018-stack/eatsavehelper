@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { callClaudeViaWorker } from '@/lib/ai';
+import { CLAUDE_MODEL } from '@/lib/constants';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
     } else {
       const anthropic = getAnthropic();
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: CLAUDE_MODEL,
         max_tokens: 1500,
         messages: [{ role: 'user', content: RECIPE_PROMPT(finalIngredients) }],
       });

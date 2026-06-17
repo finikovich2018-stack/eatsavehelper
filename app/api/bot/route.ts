@@ -1,23 +1,27 @@
-// POST /api/bot
-// Telegram Bot webhook — receives updates and captures chat_id for notifications
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { activatePremium } from '@/lib/premium';
+import { getAppHomeUrl } from '@/lib/app-url';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-interface TelegramUpdate {
+type TelegramUpdate = {
   message?: {
     from: { id: number; first_name?: string; username?: string };
     text?: string;
+    successful_payment?: {
+      invoice_payload: string;
+      currency: string;
+      total_amount: number;
+    };
   };
-  pre_checkout_query?: { from: { id: number }; id: string };
-  successful_payment?: {
-    from: { id: number };
-    telegram_payment_charge_id: string;
+  pre_checkout_query?: {
+    id: string;
+    invoice_payload: string;
   };
-}
+};
 
 function getSupabase() {
   return createClient(
@@ -27,7 +31,45 @@ function getSupabase() {
 }
 
 function getBotToken() {
-  return process.env.TELEGRAM_BOT_TOKEN!;
+  return process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN || '';
+}
+
+function checkWebhookSecret(req: NextRequest): boolean {
+  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (!secret) return true;
+  return req.headers.get('x-telegram-bot-api-secret-token') === secret;
+}
+
+async function sendMessage(chatId: number, text: string, extra?: Record<string, unknown>) {
+  const botToken = getBotToken();
+  if (!botToken) return;
+
+  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text, ...extra }),
+  });
+}
+
+async function answerPreCheckout(queryId: string, ok: boolean, errorMessage?: string) {
+  const botToken = getBotToken();
+  if (!botToken) return;
+
+  await fetch(`https://api.telegram.org/bot${botToken}/answerPreCheckoutQuery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      pre_checkout_query_id: queryId,
+      ok,
+      error_message: errorMessage,
+    }),
+  });
+}
+
+function parsePremiumUserId(payload: string): number | null {
+  if (!payload.startsWith('premium_')) return null;
+  const id = Number(payload.replace('premium_', ''));
+  return Number.isFinite(id) ? id : null;
 }
 
 export async function GET() {
@@ -35,13 +77,43 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  if (!checkWebhookSecret(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const supabase = getSupabase();
   const BOT_TOKEN = getBotToken();
 
-  try {
-    const body = await req.json() as TelegramUpdate;
+  if (!BOT_TOKEN) {
+    return NextResponse.json({ error: 'TELEGRAM_BOT_TOKEN not configured' }, { status: 500 });
+  }
 
-    // 1. Capture /start and /subscribe — save user's chat_id
+  try {
+    const body = (await req.json()) as TelegramUpdate;
+
+    if (body.pre_checkout_query) {
+      const { id, invoice_payload } = body.pre_checkout_query;
+      const userId = parsePremiumUserId(invoice_payload);
+
+      if (!userId) {
+        await answerPreCheckout(id, false, 'Некорректный платёж');
+        return NextResponse.json({ ok: true });
+      }
+
+      await answerPreCheckout(id, true);
+      return NextResponse.json({ ok: true });
+    }
+
+    const payment = body.message?.successful_payment;
+    if (payment) {
+      const userId = parsePremiumUserId(payment.invoice_payload);
+      if (userId && payment.currency === 'XTR') {
+        await activatePremium(userId);
+        await sendMessage(userId, '⭐ Premium активирован на 30 дней! Спасибо за поддержку EatSave.');
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     if (body.message?.text?.startsWith('/start')) {
       const from = body.message.from;
       const chatId = from.id;
@@ -53,31 +125,26 @@ export async function POST(req: NextRequest) {
           telegram_user_id: chatId,
           telegram_chat_id: chatId,
           first_name: firstName,
-          username: username,
+          username: username || null,
           notifications_enabled: true,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'telegram_user_id' }
       );
 
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: `Привет, ${firstName}! 👋\n\nЯ EatSave бот. Откройте приложение, чтобы начать отслеживать продукты и получать напоминания о сроках годности.`,
+      await sendMessage(
+        chatId,
+        `Привет, ${firstName}! 👋\n\nЯ EatSave бот. Откройте приложение, чтобы отслеживать продукты и получать напоминания о сроках годности.`,
+        {
           reply_markup: {
-            inline_keyboard: [[
-              { text: '📱 Открыть EatSave', url: 'https://eatsavehelper-m6hl.vercel.app/home' },
-            ]],
+            inline_keyboard: [[{ text: '📱 Открыть EatSave', web_app: { url: getAppHomeUrl() } }]],
           },
-        }),
-      });
+        }
+      );
 
       return NextResponse.json({ ok: true });
     }
 
-    // 2. Handle /subscribe — re-enable notifications
     if (body.message?.text === '/subscribe') {
       const chatId = body.message.from.id;
       await supabase
@@ -85,18 +152,10 @@ export async function POST(req: NextRequest) {
         .update({ notifications_enabled: true, telegram_chat_id: chatId, updated_at: new Date().toISOString() })
         .eq('telegram_user_id', chatId);
 
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: '✅ Уведомления включены! Буду напоминать вам о продуктах с истекающим сроком годности.',
-        }),
-      });
+      await sendMessage(chatId, '✅ Уведомления включены!');
       return NextResponse.json({ ok: true });
     }
 
-    // 3. Handle /unsubscribe
     if (body.message?.text === '/unsubscribe') {
       const chatId = body.message.from.id;
       await supabase
@@ -104,18 +163,10 @@ export async function POST(req: NextRequest) {
         .update({ notifications_enabled: false, updated_at: new Date().toISOString() })
         .eq('telegram_user_id', chatId);
 
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: '🔕 Уведомления выключены. Напишите /subscribe чтобы включить обратно.',
-        }),
-      });
+      await sendMessage(chatId, '🔕 Уведомления выключены. Напишите /subscribe чтобы включить обратно.');
       return NextResponse.json({ ok: true });
     }
 
-    // 4. Handle /status
     if (body.message?.text === '/status') {
       const chatId = body.message.from.id;
       const { data } = await supabase
@@ -127,15 +178,7 @@ export async function POST(req: NextRequest) {
       const premium = data?.is_premium ? '✅ Premium' : '❌ Free';
       const notifs = data?.notifications_enabled ? '✅' : '❌';
 
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: `📊 *Ваш статус*\n\nПодписка: ${premium}\nУведомления: ${notifs}`,
-          parse_mode: 'Markdown',
-        }),
-      });
+      await sendMessage(chatId, `📊 Ваш статус\n\nПодписка: ${premium}\nУведомления: ${notifs}`);
       return NextResponse.json({ ok: true });
     }
 

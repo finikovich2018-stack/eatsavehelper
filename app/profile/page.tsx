@@ -18,12 +18,21 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 type Stats = {
   fridgeCount: number;
   byCurrency: Record<string, number>;
+  receiptCount: number;
+  recipeCount: number;
+  daysUnderBudget: number;
 };
 
 export default function ProfilePage() {
   const { user } = useTelegram();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [stats, setStats] = useState<Stats>({ fridgeCount: 0, byCurrency: {} });
+  const [stats, setStats] = useState<Stats>({
+    fridgeCount: 0,
+    byCurrency: {},
+    receiptCount: 0,
+    recipeCount: 0,
+    daysUnderBudget: 0,
+  });
   const [loading, setLoading] = useState(true);
 
   const loadUserProfile = useCallback(async () => {
@@ -49,6 +58,16 @@ export default function ProfilePage() {
         .select('*', { count: 'exact', head: true })
         .eq('telegram_user_id', user.id);
 
+      const { count: receiptCount } = await supabase
+        .from('receipts')
+        .select('*', { count: 'exact', head: true })
+        .eq('telegram_user_id', user.id);
+
+      const { count: recipeCount } = await supabase
+        .from('saved_recipes')
+        .select('*', { count: 'exact', head: true })
+        .eq('telegram_user_id', user.id);
+
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
         .toISOString()
@@ -56,19 +75,35 @@ export default function ProfilePage() {
 
       const { data: expensesData } = await supabase
         .from('expenses')
-        .select('amount, currency')
+        .select('amount, currency, date')
         .eq('telegram_user_id', user.id)
         .gte('date', monthStart);
 
       const byCurrency: Record<string, number> = {};
-      expensesData?.forEach(e => {
+      expensesData?.forEach((e) => {
         const cur = (e as { currency?: string }).currency || 'RUB';
         byCurrency[cur] = (byCurrency[cur] || 0) + (Number(e.amount) || 0);
       });
 
+      const { data: budgetRow } = await supabase
+        .from('budgets')
+        .select('amount')
+        .eq('telegram_user_id', user.id)
+        .eq('month', monthStart)
+        .eq('currency', 'RUB')
+        .maybeSingle();
+
+      const limit = Number(budgetRow?.amount || 15000);
+      const spent = byCurrency['RUB'] || 0;
+      const daysInMonth = now.getDate();
+      const daysUnderBudget = spent <= limit ? daysInMonth : 0;
+
       setStats({
         fridgeCount: fridgeCount || 0,
         byCurrency,
+        receiptCount: receiptCount || 0,
+        recipeCount: recipeCount || 0,
+        daysUnderBudget,
       });
     } catch (error) {
       console.error('Ошибка загрузки статистики:', error);
@@ -85,6 +120,33 @@ export default function ProfilePage() {
   const isPremium = Boolean(userProfile?.is_premium);
 
   const monthName = new Date().toLocaleString('ru-RU', { month: 'long' });
+
+  const achievements = [
+    {
+      icon: '💰',
+      title: 'Без перерасхода',
+      desc: '7 дней в бюджете',
+      unlocked: stats.daysUnderBudget >= 7,
+    },
+    {
+      icon: '🧾',
+      title: 'Первый чек',
+      desc: 'Отсканировать чек',
+      unlocked: stats.receiptCount >= 1,
+    },
+    {
+      icon: '👨‍🍳',
+      title: 'Шеф-повар',
+      desc: '10 AI рецептов',
+      unlocked: stats.recipeCount >= 10,
+    },
+    {
+      icon: '🌱',
+      title: 'Экономист',
+      desc: 'Сэкономить 2000₽',
+      unlocked: (15000 - (stats.byCurrency['RUB'] || 0)) >= 2000,
+    },
+  ];
 
   return (
     <main className="min-h-screen bg-background text-foreground pb-24">
@@ -159,6 +221,32 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Достижения */}
+        <div className="space-y-4">
+          <h2 className="font-semibold text-foreground text-lg flex items-center gap-2">
+            <span>🏆</span> Достижения
+          </h2>
+          <div className="grid grid-cols-2 gap-3">
+            {achievements.map((a) => (
+              <div
+                key={a.title}
+                className={`rounded-2xl p-4 border text-center transition ${
+                  a.unlocked
+                    ? 'bg-accent/10 border-accent/40'
+                    : 'bg-surface border-border opacity-50'
+                }`}
+              >
+                <div className="text-3xl mb-2">{a.icon}</div>
+                <div className="text-sm font-semibold">{a.title}</div>
+                <div className="text-xs text-muted mt-1">{a.desc}</div>
+                {a.unlocked && (
+                  <span className="inline-block mt-2 text-xs text-accent font-medium">✓ Получено</span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Информация */}

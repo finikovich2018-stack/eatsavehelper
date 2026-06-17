@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAppBaseUrl } from '@/lib/app-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -6,6 +7,7 @@ function getBotToken() {
   return process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN;
 }
 
+/** @deprecated Use POST /api/setup instead */
 export async function POST(req: NextRequest) {
   try {
     const botToken = getBotToken();
@@ -14,21 +16,21 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const appUrl = body.appUrl || process.env.NEXT_PUBLIC_APP_URL;
+    const appUrl = body.appUrl || getAppBaseUrl();
 
     if (!appUrl) {
       return NextResponse.json(
-        { error: 'Укажите NEXT_PUBLIC_APP_URL в .env.local или передайте appUrl в теле запроса' },
+        { error: 'Укажите NEXT_PUBLIC_APP_URL в .env.local (без /home)' },
         { status: 400 }
       );
     }
 
-    const webhookUrl = `${appUrl.replace(/\/$/, '')}/api/telegram/webhook`;
+    const webhookUrl = `${appUrl.replace(/\/$/, '')}/api/bot`;
     const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
 
     const payload: Record<string, unknown> = {
       url: webhookUrl,
-      allowed_updates: ['pre_checkout_query', 'message'],
+      allowed_updates: ['message', 'pre_checkout_query'],
     };
 
     if (secret) {

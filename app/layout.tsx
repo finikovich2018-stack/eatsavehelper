@@ -14,7 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script async src="https://telegram.org/js/telegram-web-app.js" />
       </head>
-      <body className="bg-zinc-950 text-white">
+      <body className="bg-background text-foreground">
         <TelegramProvider>
           <main className="pb-16">{children}</main>
           <BottomNav />

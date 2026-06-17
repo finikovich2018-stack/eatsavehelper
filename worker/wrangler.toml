@@ -1,0 +1,13 @@
+name = "eatsave-claude-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://eatsave.vercel.app"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[env.production.vars]
+ALLOWED_ORIGIN = "https://eatsave.vercel.app"

@@ -1,21 +1,30 @@
 ﻿'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
+import TopBar from '@/components/layout/TopBar';
 import { useTelegram } from '@/components/TelegramProvider';
 import { supabase } from '@/lib/supabase/client';
+import { FREE_SCANS_PER_MONTH } from '@/lib/constants';
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   RUB: '₽', USD: '$', EUR: '€', GBP: '£', UAH: '₴', KZT: '₸',
   AUD: 'A$', CAD: 'C$', CHF: 'Fr', CNY: '¥', JPY: '¥', INR: '₹',
 };
 
-const FREE_SCAN_LIMIT = 3;
+type ParsedItem = {
+  name: string;
+  quantity?: number;
+  price?: number;
+  expiry_days?: number;
+  category?: string;
+  icon?: string;
+};
 
 export default function ScanPage() {
   const { user } = useTelegram();
-  const testUserId = user?.id || 173129302;
+  const testUserId = user?.id;
   const [image, setImage] = useState<string | null>(null);
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<ParsedItem[]>([]);
   const [currency, setCurrency] = useState<string>('RUB');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -29,26 +38,27 @@ export default function ScanPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ telegram_user_id: testUserId }),
       })
-        .then(r => r.json())
-        .then(d => setUserProfile(d.user));
+        .then((r) => r.json())
+        .then((d) => setUserProfile(d.user));
     }
   }, [testUserId]);
 
   const scansLeft = userProfile?.is_premium
     ? '∞'
-    : Math.max(0, FREE_SCAN_LIMIT - (userProfile?.scans_this_month || 0));
-  const canScan = userProfile?.is_premium || (userProfile?.scans_this_month || 0) < FREE_SCAN_LIMIT;
+    : Math.max(0, FREE_SCANS_PER_MONTH - (userProfile?.scans_this_month || 0));
+  const canScan =
+    userProfile?.is_premium || (userProfile?.scans_this_month || 0) < FREE_SCANS_PER_MONTH;
 
   const openGallery = () => {
     if (!canScan) {
-      alert(`Бесплатный лимит: ${FREE_SCAN_LIMIT} скана/месяц. Купите Premium для безлимитных сканов!`);
+      alert(`Бесплатный лимит: ${FREE_SCANS_PER_MONTH} скана/месяц. Купите Premium!`);
       return;
     }
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.onchange = (e: any) => {
-      const file = e.target.files?.[0];
+    input.onchange = (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => setImage(reader.result as string);
@@ -64,14 +74,18 @@ export default function ScanPage() {
     if (!image) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/ai/parse-receipt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image }),
+      const res = await fetch('/api/ai/parse-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image,
+          telegram_user_id: testUserId,
+          is_premium: userProfile?.is_premium,
+        }),
       });
       const data = await res.json();
-      const parsedItems = data.items || [];
-      setItems(parsedItems);
+      if (!res.ok) throw new Error(data.error || 'Ошибка');
+      setItems(data.items || []);
       if (data.currency) setCurrency(data.currency);
 
       const incRes = await fetch('/api/user/increment-scan', {
@@ -80,20 +94,29 @@ export default function ScanPage() {
         body: JSON.stringify({ telegram_user_id: testUserId }),
       });
       const incData = await incRes.json();
-      console.log('Increment scan result:', incData);
-      setUserProfile((prev: any) => prev ? { ...prev, scans_this_month: (incData.scans_this_month || (prev.scans_this_month || 0) + 1) } : prev);
+      setUserProfile((prev: any) =>
+        prev ? { ...prev, scans_this_month: incData.scans_this_month || (prev.scans_this_month || 0) + 1 } : prev
+      );
     } catch {
-      alert("Ошибка при распознавании.");
+      alert('Ошибка при распознавании.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const updateItem = (index: number, field: keyof ParsedItem, value: string | number) => {
+    setItems((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
+  };
+
+  const removeItem = (index: number) => {
+    setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
   const addToFridge = async () => {
     if (!testUserId || items.length === 0) return;
     setSaving(true);
     try {
-      const rows = items.map(item => {
+      const rows = items.map((item) => {
         const expiryDate = new Date();
         expiryDate.setDate(expiryDate.getDate() + (item.expiry_days || 7));
         return {
@@ -108,14 +131,22 @@ export default function ScanPage() {
       const { error } = await supabase.from('fridge_items').insert(rows);
       if (error) throw error;
 
-      const totalAmount = items.reduce((sum: number, item: any) => sum + (parseFloat(item.price) || 0), 0);
+      const totalAmount = items.reduce((sum, item) => sum + (parseFloat(String(item.price)) || 0), 0);
       const currencySymbol = CURRENCY_SYMBOLS[currency] || currency;
+
+      await supabase.from('receipts').insert({
+        telegram_user_id: testUserId,
+        total_amount: totalAmount,
+        currency,
+        store_name: `Чек ${new Date().toLocaleDateString('ru-RU')}`,
+      });
+
       await supabase.from('expenses').insert({
         name: `🧾 Покупка по чеку (${currencySymbol})`,
         amount: totalAmount,
         date: new Date().toISOString().split('T')[0],
         category: '🛒',
-        currency: currency,
+        currency,
         telegram_user_id: testUserId,
       });
 
@@ -123,7 +154,7 @@ export default function ScanPage() {
       setItems([]);
       setImage(null);
     } catch {
-      alert("Ошибка при сохранении.");
+      alert('Ошибка при сохранении.');
     } finally {
       setSaving(false);
     }
@@ -132,55 +163,98 @@ export default function ScanPage() {
   const currencySymbol = CURRENCY_SYMBOLS[currency] || currency;
 
   return (
-    <main className="max-w-md mx-auto px-4 py-6 bg-zinc-950 min-h-screen text-white">
-      <h1 className="text-2xl font-bold mb-2">📷 Сканер чека</h1>
+    <main className="min-h-screen bg-background text-foreground pb-24">
+      <TopBar title="📷 Сканер чека" />
+      <div className="max-w-mobile mx-auto px-4 py-4">
+        <div className="mb-4 text-sm text-muted">
+          {userProfile?.is_premium ? (
+            <span className="text-accent">✨ Premium — безлимитные сканы</span>
+          ) : (
+            <span>
+              Осталось сканов:{' '}
+              <span className={Number(scansLeft) === 0 ? 'text-red-400' : 'text-accent'}>
+                {scansLeft}/{FREE_SCANS_PER_MONTH}
+              </span>
+            </span>
+          )}
+        </div>
 
-      <div className="mb-4 text-sm text-zinc-400">
-        {userProfile?.is_premium ? (
-          <span className="text-yellow-400">✨ Premium — безлимитные сканы</span>
-        ) : (
-          <span>Осталось сканов: <span className={Number(scansLeft) === 0 ? 'text-red-400' : 'text-emerald-400'}>{scansLeft}/{FREE_SCAN_LIMIT}</span></span>
+        <button
+          onClick={openGallery}
+          className={`w-full py-5 rounded-3xl text-lg font-medium transition ${
+            canScan
+              ? 'bg-surface border border-border hover:border-accent/50'
+              : 'bg-surface border border-border text-muted cursor-not-allowed'
+          }`}
+        >
+          {canScan ? '🖼 Выбрать из галереи' : '🔒 Лимит исчерпан — купите Premium'}
+        </button>
+
+        {saved && (
+          <div className="mt-6 bg-accent/10 border border-accent/30 rounded-2xl p-4 text-center text-accent font-medium">
+            ✅ Продукты добавлены в холодильник!
+          </div>
+        )}
+
+        {image && (
+          <div className="mt-6">
+            <img src={image} className="w-full rounded-2xl mb-4 border border-border" alt="чек" />
+            <button
+              onClick={parseReceipt}
+              disabled={loading}
+              className="w-full bg-accent text-background py-4 rounded-3xl font-medium text-lg disabled:opacity-50"
+            >
+              {loading ? '🔍 Анализирую...' : '🔍 Распознать чек'}
+            </button>
+          </div>
+        )}
+
+        {items.length > 0 && (
+          <div className="mt-6 bg-surface border border-border rounded-3xl p-5">
+            <h2 className="font-semibold mb-4">
+              ✅ Найдено: {items.length} · <span className="text-accent">{currency}</span>
+            </h2>
+            <p className="text-xs text-muted mb-4">Проверьте и отредактируйте перед сохранением</p>
+            <div className="space-y-3 mb-4">
+              {items.map((item, i) => (
+                <div key={i} className="bg-background border border-border rounded-xl p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="flex-1 bg-surface border border-border rounded-lg px-3 py-2 text-sm outline-none"
+                      value={item.name}
+                      onChange={(e) => updateItem(i, 'name', e.target.value)}
+                    />
+                    <button onClick={() => removeItem(i)} className="text-muted hover:text-red-400 px-2">✕</button>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      placeholder="Цена"
+                      className="w-1/2 bg-surface border border-border rounded-lg px-3 py-2 text-sm outline-none"
+                      value={item.price ?? ''}
+                      onChange={(e) => updateItem(i, 'price', parseFloat(e.target.value) || 0)}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Дней годности"
+                      className="w-1/2 bg-surface border border-border rounded-lg px-3 py-2 text-sm outline-none"
+                      value={item.expiry_days ?? 7}
+                      onChange={(e) => updateItem(i, 'expiry_days', parseInt(e.target.value, 10) || 7)}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={addToFridge}
+              disabled={saving}
+              className="w-full bg-accent text-background py-4 rounded-2xl font-medium text-lg disabled:opacity-50"
+            >
+              {saving ? 'Сохраняем...' : '➕ Добавить всё в холодильник'}
+            </button>
+          </div>
         )}
       </div>
-
-      <button onClick={openGallery}
-        className={`w-full py-5 rounded-3xl text-lg font-medium ${canScan ? 'bg-zinc-700 hover:bg-zinc-600' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}>
-        {canScan ? '🖼 Выбрать из галереи' : '🔒 Лимит исчерпан — купите Premium'}
-      </button>
-
-      {saved && (
-        <div className="mt-6 bg-emerald-900 rounded-2xl p-4 text-center text-emerald-300 font-medium">
-          ✅ Продукты добавлены в холодильник!
-        </div>
-      )}
-
-      {image && (
-        <div className="mt-6">
-          <img src={image} className="w-full rounded-2xl mb-4" alt="чек" />
-          <button onClick={parseReceipt} disabled={loading}
-            className="w-full bg-emerald-600 py-4 rounded-3xl font-medium text-lg disabled:bg-zinc-700">
-            {loading ? "🔍 Анализирую..." : "🔍 Распознать чек"}
-          </button>
-        </div>
-      )}
-
-      {items.length > 0 && (
-        <div className="mt-6 bg-zinc-900 rounded-3xl p-5">
-          <h2 className="font-semibold mb-4">
-            ✅ Найдено товаров: {items.length} в <span className="text-emerald-400">{currency}</span>
-          </h2>
-          {items.map((item, i) => (
-            <div key={i} className="py-2 border-b border-zinc-700 last:border-0 flex justify-between">
-              <span>{item.icon} {item.name}</span>
-              <span className="text-zinc-400">{item.price} {currencySymbol}</span>
-            </div>
-          ))}
-          <button onClick={addToFridge} disabled={saving}
-            className="w-full mt-4 bg-emerald-600 py-4 rounded-2xl font-medium text-lg disabled:bg-zinc-700">
-            {saving ? "Сохраняем..." : "➕ Добавить всё в холодильник"}
-          </button>
-        </div>
-      )}
     </main>
   );
 }

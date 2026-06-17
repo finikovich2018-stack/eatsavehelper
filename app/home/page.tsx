@@ -1,52 +1,235 @@
 ﻿'use client';
+
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import TopBar from '@/components/layout/TopBar';
+import { supabase } from '@/lib/supabase/client';
+import { useTelegram } from '@/components/TelegramProvider';
+
+type FridgeItem = {
+  id: string;
+  name: string;
+  icon: string;
+  expiry_date: string;
+  quantity: string;
+};
+
+type BudgetSummary = {
+  spent: number;
+  limit: number;
+  currency: string;
+};
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  RUB: '₽', USD: '$', EUR: '€', GBP: '£', UAH: '₴', KZT: '₸',
+};
+
+function daysLeft(date: string) {
+  return Math.ceil((new Date(date).getTime() - Date.now()) / 86400000);
+}
+
+function getMonthStart() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+}
 
 export default function HomePage() {
-  return (
-    <main className="max-w-md mx-auto px-4 py-6 text-white min-h-screen bg-zinc-950">
-      <h2 className="text-xl font-bold mb-4">Быстрые действия</h2>
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <Link href="/scan" className="bg-emerald-600 hover:bg-emerald-500 rounded-2xl p-5 text-center active:scale-[0.98] transition">
-          <div className="text-3xl mb-1">📷</div>
-          <div className="font-medium">Сканировать чек</div>
-        </Link>
-        <Link href="/fridge" className="bg-zinc-800 hover:bg-zinc-700 rounded-2xl p-5 text-center active:scale-[0.98] transition">
-          <div className="text-3xl mb-1">❄️</div>
-          <div className="font-medium">Холодильник</div>
-        </Link>
-        <Link href="/recipes" className="bg-zinc-800 hover:bg-zinc-700 rounded-2xl p-5 text-center active:scale-[0.98] transition">
-          <div className="text-3xl mb-1">👨‍🍳</div>
-          <div className="font-medium">Рецепты</div>
-        </Link>
-        <Link href="/budget" className="bg-zinc-800 hover:bg-zinc-700 rounded-2xl p-5 text-center active:scale-[0.98] transition">
-          <div className="text-3xl mb-1">💰</div>
-          <div className="font-medium">Бюджет</div>
-        </Link>
-      </div>
+  const { user } = useTelegram();
+  const [expiring, setExpiring] = useState<FridgeItem[]>([]);
+  const [budget, setBudget] = useState<BudgetSummary>({ spent: 0, limit: 15000, currency: 'RUB' });
+  const [stats, setStats] = useState({ products: 0, expiringSoon: 0, recipes: 0 });
+  const [loading, setLoading] = useState(true);
 
-      <h2 className="font-semibold mb-3 text-lg">💡 Полезные советы</h2>
-      <div className="space-y-3">
-        <Link href="/fridge" className="block bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-3xl p-5 active:scale-[0.985] transition">
-          <div className="flex items-start gap-4">
-            <div className="text-3xl">🧊</div>
+  const loadData = useCallback(async () => {
+    if (!user?.id) return;
+    setLoading(true);
+
+    try {
+      const { data: items } = await supabase
+        .from('fridge_items')
+        .select('id, name, icon, expiry_date, quantity')
+        .eq('telegram_user_id', user.id)
+        .order('expiry_date', { ascending: true });
+
+      const allItems = items || [];
+      const soon = allItems.filter((item) => {
+        const days = daysLeft(item.expiry_date);
+        return days >= 0 && days <= 5;
+      });
+
+      setExpiring(soon.slice(0, 5));
+      setStats({
+        products: allItems.length,
+        expiringSoon: allItems.filter((item) => {
+          const days = daysLeft(item.expiry_date);
+          return days >= 0 && days <= 3;
+        }).length,
+        recipes: 0,
+      });
+
+      const monthStart = getMonthStart();
+      const { data: expenses } = await supabase
+        .from('expenses')
+        .select('amount, currency')
+        .eq('telegram_user_id', user.id)
+        .gte('date', monthStart);
+
+      const spent = (expenses || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+      const currency = expenses?.[0]?.currency || 'RUB';
+
+      const { data: budgetRow } = await supabase
+        .from('budgets')
+        .select('amount, currency')
+        .eq('telegram_user_id', user.id)
+        .eq('month', monthStart)
+        .maybeSingle();
+
+      setBudget({
+        spent,
+        limit: Number(budgetRow?.amount || 15000),
+        currency: budgetRow?.currency || currency,
+      });
+
+      const { count: recipeCount } = await supabase
+        .from('saved_recipes')
+        .select('*', { count: 'exact', head: true })
+        .eq('telegram_user_id', user.id);
+
+      setStats((prev) => ({ ...prev, recipes: recipeCount || 0 }));
+    } catch (error) {
+      console.error('Home load error:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('home-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'fridge_items' },
+        () => loadData()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'expenses' },
+        () => loadData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, loadData]);
+
+  const symbol = CURRENCY_SYMBOLS[budget.currency] || budget.currency;
+  const percent = budget.limit > 0 ? Math.min((budget.spent / budget.limit) * 100, 100) : 0;
+  const remaining = budget.limit - budget.spent;
+
+  return (
+    <main className="min-h-screen bg-background text-foreground pb-24">
+      <TopBar title="🏠 Главная" />
+      <div className="max-w-mobile mx-auto px-4 py-4 space-y-6">
+
+        <div className="bg-gradient-to-br from-surface to-background border border-border rounded-3xl p-5">
+          <div className="flex justify-between items-start mb-3">
             <div>
-              <div className="font-semibold">Проверяйте холодильник каждый день</div>
-              <div className="text-sm text-zinc-400 mt-1">Чтобы не забыть про продукты.</div>
+              <div className="text-xs text-muted">Бюджет на {new Date().toLocaleString('ru-RU', { month: 'long' })}</div>
+              <div className="text-2xl font-bold mt-1">
+                {budget.spent.toLocaleString()} / {budget.limit.toLocaleString()} {symbol}
+              </div>
             </div>
+            <Link href="/budget" className="text-xs text-accent font-medium">Изменить →</Link>
           </div>
-        </Link>
-        <Link href="/recipes" className="block bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-3xl p-5 active:scale-[0.985] transition">
-          <div className="flex items-start gap-4">
-            <div className="text-3xl">📖</div>
-            <div>
-              <div className="font-semibold">Используйте рецепты</div>
-              <div className="text-sm text-zinc-400 mt-1">Чтобы готовить из продуктов.</div>
+          <div className="bg-background/60 rounded-full h-3 mb-2">
+            <div
+              className={`h-3 rounded-full transition-all ${percent > 80 ? 'bg-red-500' : percent > 60 ? 'bg-yellow-500' : 'bg-accent'}`}
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+          <div className="text-xs text-muted">
+            {remaining >= 0
+              ? `Осталось ${remaining.toLocaleString()} ${symbol}`
+              : `Перерасход ${Math.abs(remaining).toLocaleString()} ${symbol}`}
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold">⏰ Скоро истекают</h2>
+            <Link href="/fridge" className="text-xs text-accent">Все →</Link>
+          </div>
+          {loading ? (
+            <p className="text-sm text-muted">Загрузка...</p>
+          ) : expiring.length === 0 ? (
+            <div className="bg-surface border border-border rounded-2xl p-5 text-center text-muted text-sm">
+              Нет продуктов с истекающим сроком 🎉
             </div>
+          ) : (
+            <div className="space-y-2">
+              {expiring.map((item) => {
+                const days = daysLeft(item.expiry_date);
+                return (
+                  <div key={item.id} className="bg-surface border border-border rounded-2xl p-4 flex items-center gap-3">
+                    <span className="text-2xl">{item.icon}</span>
+                    <div className="flex-1">
+                      <div className="font-medium">{item.name}</div>
+                      <div className="text-xs text-muted">{item.quantity}</div>
+                    </div>
+                    <span className={`text-xs font-semibold ${days <= 1 ? 'text-red-400' : days <= 3 ? 'text-yellow-400' : 'text-accent'}`}>
+                      {days <= 0 ? 'Сегодня' : `${days} дн.`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h2 className="font-semibold mb-3">⚡ Быстрые действия</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <Link href="/scan" className="bg-accent text-background rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition">
+              <div className="text-2xl mb-1">📷</div>
+              Сканировать чек
+            </Link>
+            <Link href="/fridge" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition">
+              <div className="text-2xl mb-1">➕</div>
+              Добавить продукт
+            </Link>
+            <Link href="/recipes" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition">
+              <div className="text-2xl mb-1">👨‍🍳</div>
+              Рецепты
+            </Link>
+            <Link href="/profile" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition">
+              <div className="text-2xl mb-1">📊</div>
+              Статистика
+            </Link>
           </div>
-        </Link>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-surface border border-border rounded-2xl p-3 text-center">
+            <div className="text-xl font-bold text-accent">{stats.products}</div>
+            <div className="text-xs text-muted mt-1">продуктов</div>
+          </div>
+          <div className="bg-surface border border-border rounded-2xl p-3 text-center">
+            <div className="text-xl font-bold text-yellow-400">{stats.expiringSoon}</div>
+            <div className="text-xs text-muted mt-1">скоро истекают</div>
+          </div>
+          <div className="bg-surface border border-border rounded-2xl p-3 text-center">
+            <div className="text-xl font-bold text-accent">{stats.recipes}</div>
+            <div className="text-xs text-muted mt-1">рецептов</div>
+          </div>
+        </div>
       </div>
     </main>
   );
 }
-
-

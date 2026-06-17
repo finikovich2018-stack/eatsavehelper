@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { supabase } from '@/lib/supabase/client';
 import { useTelegram } from '@/components/TelegramProvider';
+import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { PREMIUM_PRICE_STARS } from '@/lib/constants';
+import type { TranslationKey } from '@/lib/i18n/translations';
 
 type UserProfile = {
   is_premium?: boolean;
@@ -26,6 +28,7 @@ type Stats = {
 
 export default function ProfilePage() {
   const { user, initData } = useTelegram();
+  const { t, locale, setLocale, dateLocale } = useI18n();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [premiumBusy, setPremiumBusy] = useState(false);
   const [notificationsBusy, setNotificationsBusy] = useState(false);
@@ -109,7 +112,7 @@ export default function ProfilePage() {
         daysUnderBudget,
       });
     } catch (error) {
-      console.error('Ошибка загрузки статистики:', error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -134,7 +137,7 @@ export default function ProfilePage() {
 
   const activatePremiumOnServer = useCallback(async () => {
     if (!initData) {
-      alert('Откройте приложение через Telegram');
+      alert(t('profile.openInTelegram'));
       return false;
     }
 
@@ -151,12 +154,12 @@ export default function ProfilePage() {
     }
 
     return false;
-  }, [initData]);
+  }, [initData, t]);
 
   const handlePremiumActivated = useCallback(() => {
-    alert('✅ Premium активирован!');
+    alert(t('profile.premiumActivated'));
     window.location.reload();
-  }, []);
+  }, [t]);
 
   const recoverPremium = useCallback(async () => {
     setPremiumBusy(true);
@@ -166,11 +169,11 @@ export default function ProfilePage() {
         handlePremiumActivated();
         return;
       }
-      alert('Не удалось активировать. Напишите боту /activate');
+      alert(t('profile.activateFail'));
     } finally {
       setPremiumBusy(false);
     }
-  }, [activatePremiumOnServer, handlePremiumActivated]);
+  }, [activatePremiumOnServer, handlePremiumActivated, t]);
 
   const toggleNotifications = async () => {
     if (!user?.id || notificationsBusy) return;
@@ -202,7 +205,7 @@ export default function ProfilePage() {
         setUserProfile((prev) =>
           prev ? { ...prev, notifications_enabled: !nextEnabled } : prev
         );
-        alert(data.error || 'Не удалось сохранить настройку');
+        alert(data.error || t('profile.notifySaveError'));
         return;
       }
 
@@ -218,47 +221,49 @@ export default function ProfilePage() {
       setUserProfile((prev) =>
         prev ? { ...prev, notifications_enabled: !nextEnabled } : prev
       );
-      alert('Ошибка сети. Попробуйте ещё раз.');
+      alert(t('common.networkError'));
     } finally {
       setNotificationsBusy(false);
     }
   };
 
-  const monthName = new Date().toLocaleString('ru-RU', { month: 'long' });
+  const monthName = new Date().toLocaleString(dateLocale, { month: 'long' });
 
-  const achievements = [
-    {
-      icon: '💰',
-      title: 'Без перерасхода',
-      desc: '7 дней в бюджете',
-      unlocked: stats.daysUnderBudget >= 7,
-    },
-    {
-      icon: '🧾',
-      title: 'Первый чек',
-      desc: 'Отсканировать чек',
-      unlocked: stats.receiptCount >= 1,
-    },
-    {
-      icon: '👨‍🍳',
-      title: 'Шеф-повар',
-      desc: '10 AI рецептов',
-      unlocked: stats.recipeCount >= 10,
-    },
-    {
-      icon: '🌱',
-      title: 'Экономист',
-      desc: 'Сэкономить 2000₽',
-      unlocked: (15000 - (stats.byCurrency['RUB'] || 0)) >= 2000,
-    },
-  ];
+  const achievements = useMemo(
+    () => [
+      {
+        icon: '💰',
+        titleKey: 'ach.budget.title' as TranslationKey,
+        descKey: 'ach.budget.desc' as TranslationKey,
+        unlocked: stats.daysUnderBudget >= 7,
+      },
+      {
+        icon: '🧾',
+        titleKey: 'ach.receipt.title' as TranslationKey,
+        descKey: 'ach.receipt.desc' as TranslationKey,
+        unlocked: stats.receiptCount >= 1,
+      },
+      {
+        icon: '👨‍🍳',
+        titleKey: 'ach.chef.title' as TranslationKey,
+        descKey: 'ach.chef.desc' as TranslationKey,
+        unlocked: stats.recipeCount >= 10,
+      },
+      {
+        icon: '🌱',
+        titleKey: 'ach.saver.title' as TranslationKey,
+        descKey: 'ach.saver.desc' as TranslationKey,
+        unlocked: (15000 - (stats.byCurrency['RUB'] || 0)) >= 2000,
+      },
+    ],
+    [stats]
+  );
 
   return (
     <main className="min-h-screen bg-background text-foreground pb-24">
-      <TopBar title="👤 Профиль" />
+      <TopBar title={t('profile.title')} />
       <div className="max-w-mobile mx-auto px-4 py-8 space-y-8">
 
-        {/* Карточка профиля */}
         <div className="bg-gradient-to-br from-surface/80 to-background border border-accent/20 rounded-3xl p-8 overflow-hidden relative">
           <div className="absolute top-0 right-0 w-48 h-48 bg-accent/5 rounded-full -mr-24 -mt-24 pointer-events-none" />
           <div className="relative z-10 space-y-6">
@@ -266,7 +271,9 @@ export default function ProfilePage() {
               <div className="flex-1 space-y-3">
                 <div className="text-6xl">👤</div>
                 <div>
-                  <h1 className="text-3xl font-bold text-foreground leading-tight">{user?.first_name || 'Пользователь'}</h1>
+                  <h1 className="text-3xl font-bold text-foreground leading-tight">
+                    {user?.first_name || t('profile.user')}
+                  </h1>
                   {user?.username && (
                     <p className="text-accent font-medium mt-1">@{user.username}</p>
                   )}
@@ -275,13 +282,13 @@ export default function ProfilePage() {
               <div className="flex-shrink-0">
                 {isPremium ? (
                   <div className="bg-accent/20 rounded-2xl px-5 py-3 border border-accent/50 text-center">
-                    <span className="text-accent font-bold text-sm block">⭐ Premium</span>
-                    <span className="text-xs text-muted mt-1 block">активен</span>
+                    <span className="text-accent font-bold text-sm block">{t('profile.premiumActive')}</span>
+                    <span className="text-xs text-muted mt-1 block">{t('profile.premiumOn')}</span>
                   </div>
                 ) : (
                   <div className="bg-surface border border-border rounded-2xl px-5 py-3 text-center">
-                    <span className="text-muted text-sm block font-medium">Стандартный</span>
-                    <span className="text-xs text-muted/70 mt-1 block">план</span>
+                    <span className="text-muted text-sm block font-medium">{t('profile.standard')}</span>
+                    <span className="text-xs text-muted/70 mt-1 block">{t('profile.plan')}</span>
                   </div>
                 )}
               </div>
@@ -290,20 +297,19 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Статистика */}
         <div className="space-y-4">
-          <h2 className="font-semibold text-foreground text-lg flex items-center gap-2">
-            <span>📊</span> Статистика
+          <h2 className="font-semibold text-foreground text-lg">
+            {t('profile.stats')}
           </h2>
           {loading ? (
-            <p className="text-muted text-sm">Загрузка...</p>
+            <p className="text-muted text-sm">{t('common.loading')}</p>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-surface border border-border rounded-2xl p-5 text-center hover:border-accent/50 transition-colors group">
                 <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">❄️</div>
                 <div className="text-3xl font-bold text-accent mb-1">{stats.fridgeCount}</div>
-                <div className="text-sm text-muted">продуктов</div>
-                <div className="text-xs text-muted/60 mt-2">в холодильнике</div>
+                <div className="text-sm text-muted">{t('profile.products')}</div>
+                <div className="text-xs text-muted/60 mt-2">{t('profile.inFridge')}</div>
               </div>
               <div className="bg-surface border border-border rounded-2xl p-5 text-center hover:border-accent/50 transition-colors group">
                 <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">💰</div>
@@ -321,22 +327,21 @@ export default function ProfilePage() {
                     })}
                   </div>
                 )}
-                <div className="text-sm text-muted mt-1">потрачено</div>
-                <div className="text-xs text-muted/60 mt-1">в {monthName}</div>
+                <div className="text-sm text-muted mt-1">{t('profile.spent')}</div>
+                <div className="text-xs text-muted/60 mt-1">{t('profile.inMonth', { month: monthName })}</div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Достижения */}
         <div className="space-y-4">
-          <h2 className="font-semibold text-foreground text-lg flex items-center gap-2">
-            <span>🏆</span> Достижения
+          <h2 className="font-semibold text-foreground text-lg">
+            {t('profile.achievements')}
           </h2>
           <div className="grid grid-cols-2 gap-3">
             {achievements.map((a) => (
               <div
-                key={a.title}
+                key={a.titleKey}
                 className={`rounded-2xl p-4 border text-center transition ${
                   a.unlocked
                     ? 'bg-accent/10 border-accent/40'
@@ -344,27 +349,59 @@ export default function ProfilePage() {
                 }`}
               >
                 <div className="text-3xl mb-2">{a.icon}</div>
-                <div className="text-sm font-semibold">{a.title}</div>
-                <div className="text-xs text-muted mt-1">{a.desc}</div>
+                <div className="text-sm font-semibold">{t(a.titleKey)}</div>
+                <div className="text-xs text-muted mt-1">{t(a.descKey)}</div>
                 {a.unlocked && (
-                  <span className="inline-block mt-2 text-xs text-accent font-medium">✓ Получено</span>
+                  <span className="inline-block mt-2 text-xs text-accent font-medium">{t('ach.unlocked')}</span>
                 )}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Настройки */}
         <div className="space-y-4">
-          <h2 className="font-semibold text-foreground text-lg flex items-center gap-2">
-            <span>⚙️</span> Настройки
+          <h2 className="font-semibold text-foreground text-lg">
+            {t('profile.settings')}
           </h2>
+
           <div className="bg-surface border border-border rounded-2xl p-5">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="font-medium text-foreground">Push-уведомления</p>
+                <p className="font-medium text-foreground">{t('profile.language')}</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setLocale('ru')}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                    locale === 'ru'
+                      ? 'bg-accent text-background'
+                      : 'bg-background border border-border text-muted'
+                  }`}
+                >
+                  {t('profile.langRu')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLocale('en')}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                    locale === 'en'
+                      ? 'bg-accent text-background'
+                      : 'bg-background border border-border text-muted'
+                  }`}
+                >
+                  {t('profile.langEn')}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-surface border border-border rounded-2xl p-5">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-medium text-foreground">{t('profile.push')}</p>
                 <p className="text-sm text-muted mt-1">
-                  Напоминания о продуктах, которые скоро испортятся
+                  {t('profile.pushDesc')}
                 </p>
               </div>
               <button
@@ -374,7 +411,7 @@ export default function ProfilePage() {
                 className={`relative w-14 h-8 rounded-full transition-colors disabled:opacity-60 ${
                   notificationsEnabled ? 'bg-accent' : 'bg-border'
                 }`}
-                aria-label={notificationsEnabled ? 'Выключить уведомления' : 'Включить уведомления'}
+                aria-label={notificationsEnabled ? t('profile.notifyDisable') : t('profile.notifyEnable')}
               >
                 <span
                   className={`absolute top-1 w-6 h-6 rounded-full bg-background transition-transform ${
@@ -386,24 +423,22 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Информация */}
         <div className="space-y-4">
-          <h3 className="font-semibold text-foreground text-lg flex items-center gap-2">
-            <span>ℹ️</span> Информация
+          <h3 className="font-semibold text-foreground text-lg">
+            {t('profile.info')}
           </h3>
           <div className="bg-surface border border-border rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between py-3 border-b border-border/50">
-              <span className="text-muted">ID Telegram</span>
+              <span className="text-muted">{t('profile.telegramId')}</span>
               <span className="font-mono text-sm text-accent font-semibold">{user?.id}</span>
             </div>
             <div className="flex items-center justify-between py-3">
-              <span className="text-muted">Версия EatSave</span>
+              <span className="text-muted">{t('profile.version')}</span>
               <span className="text-sm text-foreground font-medium">v1.0.0</span>
             </div>
           </div>
         </div>
 
-        {/* Кнопка Premium */}
         {!isPremium && (
           <div className="space-y-3">
           <button
@@ -423,7 +458,7 @@ export default function ProfilePage() {
                 const data = await res.json();
 
                 if (!data.invoiceLink) {
-                  alert(data.error || 'Ошибка при создании счёта');
+                  alert(data.error || t('profile.invoiceError'));
                   return;
                 }
 
@@ -436,7 +471,7 @@ export default function ProfilePage() {
                 }).Telegram?.WebApp;
 
                 if (!tg?.openInvoice) {
-                  alert('Оплата доступна только в Telegram');
+                  alert(t('profile.payTelegramOnly'));
                   return;
                 }
 
@@ -464,15 +499,13 @@ export default function ProfilePage() {
                   }
 
                   if (status === 'cancelled') {
-                    alert(
-                      'Если Stars уже списались — нажмите «Активировать Premium» ниже или напишите боту /activate'
-                    );
+                    alert(t('profile.payCancelled'));
                   } else if (status === 'failed') {
-                    alert('Ошибка оплаты. Попробуйте ещё раз.');
+                    alert(t('profile.payFail'));
                   }
                 });
               } catch {
-                alert('Не удалось создать счёт');
+                alert(t('profile.invoiceCreateFail'));
               } finally {
                 button.disabled = false;
                 setPremiumBusy(false);
@@ -481,7 +514,7 @@ export default function ProfilePage() {
             className="w-full bg-gradient-to-r from-accent to-accent/90 hover:from-accent/90 hover:to-accent/80 text-background font-bold py-4 rounded-2xl transition-all duration-200 active:scale-95 shadow-lg shadow-accent/30 disabled:opacity-60"
           >
             <span className="flex items-center justify-center gap-2">
-              <span>⭐</span> Купить Premium — {PREMIUM_PRICE_STARS} Stars/мес
+              <span>⭐</span> {t('profile.buyPremium', { price: PREMIUM_PRICE_STARS })}
             </span>
           </button>
 
@@ -491,25 +524,24 @@ export default function ProfilePage() {
             onClick={recoverPremium}
             className="w-full text-sm text-accent border border-accent/30 rounded-2xl py-3 disabled:opacity-60"
           >
-            Уже оплатили? Активировать Premium
+            {t('profile.recoverPremium')}
           </button>
           </div>
         )}
 
         {isPremium && userProfile?.premium_until && (
           <p className="text-center text-sm text-muted">
-            Подписка активна до{' '}
-            {new Date(userProfile.premium_until).toLocaleDateString('ru-RU')}
+            {t('profile.subUntil')}{' '}
+            {new Date(userProfile.premium_until).toLocaleDateString(dateLocale)}
           </p>
         )}
 
-        {/* Описание */}
         <div className="bg-surface/60 border border-accent/10 rounded-2xl p-5 space-y-3">
           <p className="text-sm text-muted leading-relaxed">
-            <span className="text-accent font-semibold">🎯 Что такое EatSave?</span>
+            <span className="text-accent font-semibold">{t('profile.about')}</span>
           </p>
           <p className="text-sm text-muted/80 leading-relaxed">
-            EatSave помогает вам эффективно управлять холодильником, отслеживать сроки годности продуктов и контролировать расходы на продукты.
+            {t('profile.aboutText')}
           </p>
         </div>
 

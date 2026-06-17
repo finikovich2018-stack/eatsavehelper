@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { supabase } from '@/lib/supabase/client';
 import { useTelegram } from '@/components/TelegramProvider';
+import { useI18n } from '@/lib/i18n/LanguageProvider';
+import type { TranslationKey } from '@/lib/i18n/translations';
 
 type Expense = {
   id: string;
@@ -24,18 +26,27 @@ const DEFAULT_LIMITS: Record<string, number> = {
   AUD: 700, CAD: 650, CHF: 450, CNY: 3500, JPY: 70000, INR: 40000,
 };
 
+const CURRENCY_OPTIONS: { value: string; key: TranslationKey }[] = [
+  { value: 'RUB', key: 'cur.rub' },
+  { value: 'USD', key: 'cur.usd' },
+  { value: 'EUR', key: 'cur.eur' },
+  { value: 'GBP', key: 'cur.gbp' },
+  { value: 'UAH', key: 'cur.uah' },
+  { value: 'KZT', key: 'cur.kzt' },
+];
+
 function getCurrentMonth() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
-function getLast7Days() {
+function getLast7Days(dateLocale: string) {
   const days: { label: string; date: string }[] = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     days.push({
-      label: d.toLocaleDateString('ru-RU', { weekday: 'short' }),
+      label: d.toLocaleDateString(dateLocale, { weekday: 'short' }),
       date: d.toISOString().split('T')[0],
     });
   }
@@ -44,6 +55,7 @@ function getLast7Days() {
 
 export default function BudgetPage() {
   const { user } = useTelegram();
+  const { t, dateLocale } = useI18n();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgetLimits, setBudgetLimits] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -138,7 +150,7 @@ export default function BudgetPage() {
   const activeCurrencies = Object.keys(byCurrency);
 
   const weeklyChart = useMemo(() => {
-    const days = getLast7Days();
+    const days = getLast7Days(dateLocale);
     const primaryCurrency = activeCurrencies[0] || 'RUB';
     return days.map((day) => {
       const total = expenses
@@ -146,7 +158,7 @@ export default function BudgetPage() {
         .reduce((sum, e) => sum + Number(e.amount), 0);
       return { ...day, total };
     });
-  }, [expenses, activeCurrencies]);
+  }, [expenses, activeCurrencies, dateLocale]);
 
   const maxWeekly = Math.max(...weeklyChart.map((d) => d.total), 1);
   const primaryCur = activeCurrencies[0] || 'RUB';
@@ -156,16 +168,16 @@ export default function BudgetPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground pb-24">
-      <TopBar title="💰 Бюджет" />
+      <TopBar title={t('budget.title')} />
       <div className="max-w-mobile mx-auto px-4 py-4">
         {activeCurrencies.length === 0 ? (
           <div className="bg-gradient-to-br from-surface to-background border border-border rounded-2xl p-5 mb-4">
-            <div className="text-xs text-muted">Потрачено в этом месяце</div>
+            <div className="text-xs text-muted">{t('budget.spentMonth')}</div>
             <div className="text-3xl font-bold mt-1">0 ₽</div>
             <div className="bg-background/60 rounded-full h-3 mt-4">
               <div className="h-3 rounded-full bg-accent" style={{ width: '0%' }} />
             </div>
-            <div className="text-xs text-muted mt-2">Трат ещё нет</div>
+            <div className="text-xs text-muted mt-2">{t('budget.noExpenses')}</div>
           </div>
         ) : (
           <div className="space-y-3 mb-4">
@@ -179,13 +191,13 @@ export default function BudgetPage() {
                 <div key={cur} className="bg-gradient-to-br from-surface to-background border border-border rounded-2xl p-5">
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <div className="text-xs text-muted">Потрачено ({cur})</div>
+                      <div className="text-xs text-muted">{t('budget.spent', { cur })}</div>
                       <div className="text-3xl font-bold mt-1">
                         {cur === 'RUB' ? total.toLocaleString() : total.toFixed(2)} {symbol}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs text-muted">Лимит</div>
+                      <div className="text-xs text-muted">{t('budget.limit')}</div>
                       <div className="text-lg font-medium mt-1">
                         {cur === 'RUB' ? limit.toLocaleString() : limit.toFixed(0)} {symbol}
                       </div>
@@ -200,11 +212,14 @@ export default function BudgetPage() {
                     />
                   </div>
                   <div className="flex justify-between text-xs text-muted">
-                    <span>{percent.toFixed(0)}% использовано</span>
+                    <span>{t('budget.used', { pct: percent.toFixed(0) })}</span>
                     <span className={remaining < 0 ? 'text-red-400' : 'text-accent'}>
                       {remaining < 0
-                        ? `Перерасход ${Math.abs(remaining).toFixed(2)} ${symbol}`
-                        : `Остаток ${cur === 'RUB' ? remaining.toLocaleString() : remaining.toFixed(2)} ${symbol}`}
+                        ? t('budget.over', { amount: Math.abs(remaining).toFixed(2), symbol })
+                        : t('budget.left', {
+                            amount: cur === 'RUB' ? remaining.toLocaleString() : remaining.toFixed(2),
+                            symbol,
+                          })}
                     </span>
                   </div>
                 </div>
@@ -215,16 +230,16 @@ export default function BudgetPage() {
 
         {savedEstimate > 0 && activeCurrencies.length > 0 && (
           <div className="bg-accent/10 border border-accent/30 rounded-2xl p-4 mb-4 text-center">
-            <span className="text-sm text-muted">Вы можете сэкономить до </span>
+            <span className="text-sm text-muted">{t('budget.savings')}</span>
             <span className="text-accent font-bold">
               {savedEstimate.toLocaleString()} {CURRENCY_SYMBOLS[primaryCur] || primaryCur}
             </span>
-            <span className="text-sm text-muted"> в этом месяце</span>
+            <span className="text-sm text-muted">{t('budget.savingsEnd')}</span>
           </div>
         )}
 
         <div className="bg-surface border border-border rounded-2xl p-4 mb-4">
-          <h3 className="text-sm font-medium text-muted mb-3">📊 Расходы за 7 дней</h3>
+          <h3 className="text-sm font-medium text-muted mb-3">{t('budget.chart7days')}</h3>
           <div className="flex items-end justify-between gap-1 h-24">
             {weeklyChart.map((day) => (
               <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
@@ -243,14 +258,14 @@ export default function BudgetPage() {
           onClick={() => setShowBudgetForm(!showBudgetForm)}
           className="w-full bg-surface border border-border hover:border-accent/50 py-3 rounded-2xl font-medium mb-4"
         >
-          🎯 Установить лимит бюджета
+          {t('budget.setLimit')}
         </button>
 
         {showBudgetForm && (
           <div className="bg-surface border border-border rounded-2xl p-4 mb-4 space-y-3">
             <input
               type="number"
-              placeholder="Лимит на месяц"
+              placeholder={t('budget.limitPlaceholder')}
               className="w-full bg-background border border-border rounded-xl px-4 py-3 placeholder-muted outline-none"
               value={budgetForm.amount}
               onChange={(e) => setBudgetForm({ ...budgetForm, amount: e.target.value })}
@@ -260,15 +275,15 @@ export default function BudgetPage() {
               value={budgetForm.currency}
               onChange={(e) => setBudgetForm({ ...budgetForm, currency: e.target.value })}
             >
-              <option value="RUB">₽ Рубль</option>
-              <option value="USD">$ Доллар</option>
-              <option value="EUR">€ Евро</option>
+              {CURRENCY_OPTIONS.slice(0, 3).map(({ value, key }) => (
+                <option key={value} value={value}>{t(key)}</option>
+              ))}
             </select>
             <button
               onClick={saveBudgetLimit}
               className="w-full bg-accent text-background py-3 rounded-xl font-medium"
             >
-              Сохранить лимит
+              {t('budget.saveLimit')}
             </button>
           </div>
         )}
@@ -277,20 +292,20 @@ export default function BudgetPage() {
           onClick={() => setShowForm(!showForm)}
           className="w-full bg-accent text-background py-3 rounded-2xl font-medium mb-4"
         >
-          + Добавить трату
+          {t('budget.addExpense')}
         </button>
 
         {showForm && (
           <div className="bg-surface border border-border rounded-2xl p-4 mb-4 space-y-3">
             <input
-              placeholder="Название (магазин, продукт...)"
+              placeholder={t('budget.expenseName')}
               className="w-full bg-background border border-border rounded-xl px-4 py-3 placeholder-muted outline-none"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
             <input
               type="number"
-              placeholder="Сумма"
+              placeholder={t('budget.amount')}
               className="w-full bg-background border border-border rounded-xl px-4 py-3 placeholder-muted outline-none"
               value={form.amount}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
@@ -300,30 +315,27 @@ export default function BudgetPage() {
               value={form.currency}
               onChange={(e) => setForm({ ...form, currency: e.target.value })}
             >
-              <option value="RUB">₽ Рубль</option>
-              <option value="USD">$ Доллар</option>
-              <option value="EUR">€ Евро</option>
-              <option value="GBP">£ Фунт</option>
-              <option value="UAH">₴ Гривна</option>
-              <option value="KZT">₸ Тенге</option>
+              {CURRENCY_OPTIONS.map(({ value, key }) => (
+                <option key={value} value={value}>{t(key)}</option>
+              ))}
             </select>
             <button
               onClick={addExpense}
               className="w-full bg-accent text-background py-3 rounded-xl font-medium"
             >
-              Сохранить
+              {t('common.save')}
             </button>
           </div>
         )}
 
-        <h2 className="text-sm font-medium text-muted mb-3">История трат</h2>
+        <h2 className="text-sm font-medium text-muted mb-3">{t('budget.history')}</h2>
 
         {loading ? (
-          <div className="text-center text-muted py-10">Загрузка...</div>
+          <div className="text-center text-muted py-10">{t('common.loading')}</div>
         ) : expenses.length === 0 ? (
           <div className="text-center text-muted py-20">
             <div className="text-5xl mb-4">💰</div>
-            <div>Трат пока нет</div>
+            <div>{t('budget.noHistory')}</div>
           </div>
         ) : (
           <div className="space-y-3">

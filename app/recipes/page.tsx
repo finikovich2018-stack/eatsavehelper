@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { supabase } from '@/lib/supabase/client';
 import { useTelegram } from '@/components/TelegramProvider';
+import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_AI_RECIPES_PER_MONTH } from '@/lib/constants';
+import type { Locale } from '@/lib/i18n/translations';
 
 type Recipe = {
   id: string;
@@ -32,12 +34,24 @@ type FridgeItem = {
   icon: string;
 };
 
-const RECIPES: Recipe[] = [
+const RECIPES_RU: Recipe[] = [
   { id: '1', name: 'Борщ украинский', icon: '🍲', time: '45 мин', ingredients: ['Свёкла', 'Капуста', 'Морковь', 'Говядина', 'Сметана'] },
   { id: '2', name: 'Омлет с сыром', icon: '🍳', time: '15 мин', ingredients: ['Яйца', 'Молоко', 'Сыр', 'Масло', 'Соль'] },
   { id: '3', name: 'Овощной салат', icon: '🥗', time: '10 мин', ingredients: ['Помидоры', 'Огурцы', 'Салат', 'Масло', 'Уксус'] },
   { id: '4', name: 'Паста Карбонара', icon: '🍝', time: '20 мин', ingredients: ['Паста', 'Бекон', 'Яйца', 'Пармезан', 'Чёрный перец'] },
 ];
+
+const RECIPES_EN: Recipe[] = [
+  { id: '1', name: 'Ukrainian Borscht', icon: '🍲', time: '45 min', ingredients: ['Beetroot', 'Cabbage', 'Carrot', 'Beef', 'Sour cream'] },
+  { id: '2', name: 'Cheese Omelette', icon: '🍳', time: '15 min', ingredients: ['Eggs', 'Milk', 'Cheese', 'Butter', 'Salt'] },
+  { id: '3', name: 'Vegetable Salad', icon: '🥗', time: '10 min', ingredients: ['Tomatoes', 'Cucumbers', 'Lettuce', 'Oil', 'Vinegar'] },
+  { id: '4', name: 'Pasta Carbonara', icon: '🍝', time: '20 min', ingredients: ['Pasta', 'Bacon', 'Eggs', 'Parmesan', 'Black pepper'] },
+];
+
+const RECIPES_BY_LOCALE: Record<Locale, Recipe[]> = {
+  ru: RECIPES_RU,
+  en: RECIPES_EN,
+};
 
 function daysLeft(date: string) {
   return Math.ceil((new Date(date).getTime() - Date.now()) / 86400000);
@@ -45,6 +59,8 @@ function daysLeft(date: string) {
 
 export default function RecipesPage() {
   const { user } = useTelegram();
+  const { t, locale } = useI18n();
+  const recipes = useMemo(() => RECIPES_BY_LOCALE[locale], [locale]);
   const [expiringItems, setExpiringItems] = useState<FridgeItem[]>([]);
   const [savedRecipes, setSavedRecipes] = useState<SavedRecipe[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +83,7 @@ export default function RecipesPage() {
 
   const getAIRecipes = async () => {
     if (!userProfile?.is_premium && (userProfile?.ai_recipes_this_month || 0) >= FREE_AI_RECIPES_PER_MONTH) {
-      alert(`Бесплатный лимит: ${FREE_AI_RECIPES_PER_MONTH} AI рецепта/месяц. Купите Premium!`);
+      alert(t('recipes.limitAlert', { limit: FREE_AI_RECIPES_PER_MONTH }));
       return;
     }
     setShowAI(true);
@@ -97,11 +113,11 @@ export default function RecipesPage() {
       const json = await res.json();
       if (!res.ok) {
         if (res.status === 429) {
-          alert(`Бесплатный лимит: ${FREE_AI_RECIPES_PER_MONTH} AI рецепта/месяц. Купите Premium!`);
+          alert(t('recipes.limitAlert', { limit: FREE_AI_RECIPES_PER_MONTH }));
           setAiLoading(false);
           return;
         }
-        throw new Error(json.error || 'Ошибка');
+        throw new Error(json.error || t('common.error'));
       }
       setAiRecipes(json.recipes || []);
 
@@ -173,11 +189,11 @@ export default function RecipesPage() {
             <div className="text-7xl mb-4">{selectedSaved.icon}</div>
             <h1 className="text-2xl font-bold mb-2">{selectedSaved.name}</h1>
             <span className="inline-block bg-accent/20 text-accent px-4 py-2 rounded-full text-sm font-medium">
-              ✨ AI рецепт
+              {t('recipes.aiRecipe')}
             </span>
           </div>
           <div className="bg-surface border border-border rounded-2xl p-5 mb-4">
-            <h2 className="font-semibold text-accent mb-4">📝 Ингредиенты</h2>
+            <h2 className="font-semibold text-accent mb-4">{t('recipes.ingredients')}</h2>
             <ul className="space-y-2">
               {(selectedSaved.ingredients || []).map((ing, i) => (
                 <li key={i} className="flex items-center gap-3">
@@ -189,7 +205,7 @@ export default function RecipesPage() {
           </div>
           {steps.length > 0 && (
             <div className="bg-surface border border-border rounded-2xl p-5 mb-4">
-              <h2 className="font-semibold text-accent mb-4">👨‍🍳 Приготовление</h2>
+              <h2 className="font-semibold text-accent mb-4">{t('recipes.steps')}</h2>
               <p className="text-sm text-muted leading-relaxed">{steps.join('\n')}</p>
             </div>
           )}
@@ -197,7 +213,7 @@ export default function RecipesPage() {
             onClick={() => setSelectedSaved(null)}
             className="w-full bg-surface border border-border font-medium py-3 rounded-2xl"
           >
-            ← Назад к рецептам
+            {t('common.back')}
           </button>
         </div>
       </main>
@@ -217,7 +233,7 @@ export default function RecipesPage() {
             </span>
           </div>
           <div className="bg-surface border border-border rounded-2xl p-5 mb-4">
-            <h2 className="font-semibold text-accent mb-4">📝 Ингредиенты</h2>
+            <h2 className="font-semibold text-accent mb-4">{t('recipes.ingredients')}</h2>
             <ul className="space-y-2">
               {selected.ingredients.map((ing, i) => (
                 <li key={i} className="flex items-center gap-3">
@@ -231,7 +247,7 @@ export default function RecipesPage() {
             onClick={() => setSelected(null)}
             className="w-full bg-surface border border-border font-medium py-3 rounded-2xl"
           >
-            ← Назад к рецептам
+            {t('common.back')}
           </button>
         </div>
       </main>
@@ -240,7 +256,7 @@ export default function RecipesPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground pb-24">
-      <TopBar title="👨‍🍳 Рецепты" />
+      <TopBar title={t('recipes.title')} />
       <div className="max-w-mobile mx-auto px-4 py-6 space-y-6">
         <button
           onClick={getAIRecipes}
@@ -248,11 +264,11 @@ export default function RecipesPage() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold mb-1">✨ Что приготовить?</h3>
+              <h3 className="font-semibold mb-1">{t('recipes.whatToCook')}</h3>
               <p className="text-sm text-muted">
                 {userProfile?.is_premium
-                  ? '⭐ Premium — безлимитно'
-                  : `Осталось: ${aiLeft}/${FREE_AI_RECIPES_PER_MONTH} в месяц`}
+                  ? t('recipes.premiumUnlimited')
+                  : t('recipes.aiLeft', { left: aiLeft, limit: FREE_AI_RECIPES_PER_MONTH })}
               </p>
             </div>
             <span className="text-2xl">→</span>
@@ -265,16 +281,16 @@ export default function RecipesPage() {
               {aiLoading ? (
                 <div className="text-center py-8">
                   <div className="text-5xl mb-4">🤖</div>
-                  <p className="text-muted">Подбираю рецепты...</p>
+                  <p className="text-muted">{t('recipes.picking')}</p>
                 </div>
               ) : aiRecipes.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-5xl mb-4">❄️</div>
-                  <p className="text-muted">Добавьте продукты в холодильник</p>
+                  <p className="text-muted">{t('recipes.addProducts')}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <h2 className="text-xl font-bold">✨ Рецепты для вас</h2>
+                  <h2 className="text-xl font-bold">{t('recipes.forYou')}</h2>
                   {aiRecipes.map((r, i) => (
                     <div key={i} className="bg-background border border-border rounded-2xl p-4">
                       <div className="flex items-center gap-2 mb-2">
@@ -300,7 +316,7 @@ export default function RecipesPage() {
                 onClick={() => setShowAI(false)}
                 className="w-full mt-4 bg-background border border-border py-3 rounded-2xl"
               >
-                Закрыть
+                {t('common.close')}
               </button>
             </div>
           </div>
@@ -308,7 +324,7 @@ export default function RecipesPage() {
 
         {savedRecipes.length > 0 && (
           <div>
-            <h3 className="font-semibold mb-4">💾 Сохранённые рецепты</h3>
+            <h3 className="font-semibold mb-4">{t('recipes.saved')}</h3>
             <div className="space-y-3">
               {savedRecipes.map((recipe) => (
                 <button
@@ -332,7 +348,7 @@ export default function RecipesPage() {
 
         {expiringItems.length > 0 && (
           <div className="bg-surface border border-border rounded-2xl p-5">
-            <h3 className="font-semibold mb-4">⏰ Скоро истекают</h3>
+            <h3 className="font-semibold mb-4">{t('recipes.expiringSoon')}</h3>
             <div className="space-y-2">
               {expiringItems.slice(0, 5).map((item) => (
                 <div key={item.id} className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0">
@@ -342,7 +358,7 @@ export default function RecipesPage() {
                     <div className="text-xs text-muted">{item.quantity}</div>
                   </div>
                   <span className="text-xs font-semibold text-yellow-400">
-                    {daysLeft(item.expiry_date)} дн.
+                    {t('common.days', { n: daysLeft(item.expiry_date) })}
                   </span>
                 </div>
               ))}
@@ -351,9 +367,9 @@ export default function RecipesPage() {
         )}
 
         <div>
-          <h3 className="font-semibold mb-4">🥘 Популярные рецепты</h3>
+          <h3 className="font-semibold mb-4">{t('recipes.popular')}</h3>
           <div className="space-y-3">
-            {RECIPES.map((recipe) => (
+            {recipes.map((recipe) => (
               <button
                 key={recipe.id}
                 onClick={() => setSelected(recipe)}
@@ -378,7 +394,7 @@ export default function RecipesPage() {
         {!loading && (
           <div className="bg-surface/60 border border-accent/10 rounded-2xl p-4">
             <p className="text-xs text-muted leading-relaxed">
-              💡 <span className="text-foreground">Совет:</span> используйте продукты которые скоро истекают!
+              {t('recipes.tip')}
             </p>
           </div>
         )}

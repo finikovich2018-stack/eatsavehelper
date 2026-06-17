@@ -5,6 +5,7 @@ import Link from 'next/link';
 import TopBar from '@/components/layout/TopBar';
 import { supabase } from '@/lib/supabase/client';
 import { useTelegram } from '@/components/TelegramProvider';
+import { useI18n } from '@/lib/i18n/LanguageProvider';
 
 type FridgeItem = {
   id: string;
@@ -35,10 +36,13 @@ function getMonthStart() {
 
 export default function HomePage() {
   const { user } = useTelegram();
+  const { t, dateLocale } = useI18n();
   const [expiring, setExpiring] = useState<FridgeItem[]>([]);
   const [budget, setBudget] = useState<BudgetSummary>({ spent: 0, limit: 15000, currency: 'RUB' });
   const [stats, setStats] = useState({ products: 0, expiringSoon: 0, recipes: 0 });
   const [loading, setLoading] = useState(true);
+
+  const monthName = new Date().toLocaleString(dateLocale, { month: 'long' });
 
   const loadData = useCallback(async () => {
     if (!user?.id) return;
@@ -112,16 +116,8 @@ export default function HomePage() {
 
     const channel = supabase
       .channel('home-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'fridge_items' },
-        () => loadData()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'expenses' },
-        () => loadData()
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fridge_items' }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => loadData())
       .subscribe();
 
     return () => {
@@ -135,18 +131,17 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground pb-24">
-      <TopBar title="🏠 Главная" />
+      <TopBar title={t('home.title')} />
       <div className="max-w-mobile mx-auto px-4 py-4 space-y-6">
-
         <div className="bg-gradient-to-br from-surface to-background border border-border rounded-3xl p-5">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <div className="text-xs text-muted">Бюджет на {new Date().toLocaleString('ru-RU', { month: 'long' })}</div>
+              <div className="text-xs text-muted">{t('home.budgetFor', { month: monthName })}</div>
               <div className="text-2xl font-bold mt-1">
                 {budget.spent.toLocaleString()} / {budget.limit.toLocaleString()} {symbol}
               </div>
             </div>
-            <Link href="/budget" className="text-xs text-accent font-medium">Изменить →</Link>
+            <Link href="/budget" className="text-xs text-accent font-medium">{t('common.change')}</Link>
           </div>
           <div className="bg-background/60 rounded-full h-3 mb-2">
             <div
@@ -156,21 +151,21 @@ export default function HomePage() {
           </div>
           <div className="text-xs text-muted">
             {remaining >= 0
-              ? `Осталось ${remaining.toLocaleString()} ${symbol}`
-              : `Перерасход ${Math.abs(remaining).toLocaleString()} ${symbol}`}
+              ? t('home.remaining', { amount: remaining.toLocaleString(), symbol })
+              : t('home.overBudget', { amount: Math.abs(remaining).toLocaleString(), symbol })}
           </div>
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold">⏰ Скоро истекают</h2>
-            <Link href="/fridge" className="text-xs text-accent">Все →</Link>
+            <h2 className="font-semibold">{t('home.expiringSoon')}</h2>
+            <Link href="/fridge" className="text-xs text-accent">{t('common.all')}</Link>
           </div>
           {loading ? (
-            <p className="text-sm text-muted">Загрузка...</p>
+            <p className="text-sm text-muted">{t('common.loading')}</p>
           ) : expiring.length === 0 ? (
             <div className="bg-surface border border-border rounded-2xl p-5 text-center text-muted text-sm">
-              Нет продуктов с истекающим сроком 🎉
+              {t('home.noExpiring')}
             </div>
           ) : (
             <div className="space-y-2">
@@ -184,7 +179,7 @@ export default function HomePage() {
                       <div className="text-xs text-muted">{item.quantity}</div>
                     </div>
                     <span className={`text-xs font-semibold ${days <= 1 ? 'text-red-400' : days <= 3 ? 'text-yellow-400' : 'text-accent'}`}>
-                      {days <= 0 ? 'Сегодня' : `${days} дн.`}
+                      {days <= 0 ? t('common.today') : t('common.days', { n: days })}
                     </span>
                   </div>
                 );
@@ -194,23 +189,23 @@ export default function HomePage() {
         </div>
 
         <div>
-          <h2 className="font-semibold mb-3">⚡ Быстрые действия</h2>
+          <h2 className="font-semibold mb-3">{t('home.quickActions')}</h2>
           <div className="grid grid-cols-2 gap-3">
             <Link href="/scan" className="bg-accent text-background rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition">
               <div className="text-2xl mb-1">📷</div>
-              Сканировать чек
+              {t('home.scanReceipt')}
             </Link>
             <Link href="/fridge" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition">
               <div className="text-2xl mb-1">➕</div>
-              Добавить продукт
+              {t('home.addProduct')}
             </Link>
             <Link href="/recipes" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition">
               <div className="text-2xl mb-1">👨‍🍳</div>
-              Рецепты
+              {t('home.recipes')}
             </Link>
             <Link href="/profile" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition">
               <div className="text-2xl mb-1">📊</div>
-              Статистика
+              {t('home.stats')}
             </Link>
           </div>
         </div>
@@ -218,15 +213,15 @@ export default function HomePage() {
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-surface border border-border rounded-2xl p-3 text-center">
             <div className="text-xl font-bold text-accent">{stats.products}</div>
-            <div className="text-xs text-muted mt-1">продуктов</div>
+            <div className="text-xs text-muted mt-1">{t('home.products')}</div>
           </div>
           <div className="bg-surface border border-border rounded-2xl p-3 text-center">
             <div className="text-xl font-bold text-yellow-400">{stats.expiringSoon}</div>
-            <div className="text-xs text-muted mt-1">скоро истекают</div>
+            <div className="text-xs text-muted mt-1">{t('home.expiringCount')}</div>
           </div>
           <div className="bg-surface border border-border rounded-2xl p-3 text-center">
             <div className="text-xl font-bold text-accent">{stats.recipes}</div>
-            <div className="text-xs text-muted mt-1">рецептов</div>
+            <div className="text-xs text-muted mt-1">{t('home.recipesCount')}</div>
           </div>
         </div>
       </div>

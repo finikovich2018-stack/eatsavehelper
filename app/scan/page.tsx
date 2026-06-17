@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { useTelegram } from '@/components/TelegramProvider';
+import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { supabase } from '@/lib/supabase/client';
 import { FREE_SCANS_PER_MONTH } from '@/lib/constants';
 
@@ -22,6 +23,7 @@ type ParsedItem = {
 
 export default function ScanPage() {
   const { user } = useTelegram();
+  const { t, dateLocale } = useI18n();
   const testUserId = user?.id;
   const [image, setImage] = useState<string | null>(null);
   const [items, setItems] = useState<ParsedItem[]>([]);
@@ -51,7 +53,7 @@ export default function ScanPage() {
 
   const openGallery = () => {
     if (!canScan) {
-      alert(`Бесплатный лимит: ${FREE_SCANS_PER_MONTH} скана/месяц. Купите Premium!`);
+      alert(t('scan.limitAlert', { limit: FREE_SCANS_PER_MONTH }));
       return;
     }
     const input = document.createElement('input');
@@ -86,10 +88,10 @@ export default function ScanPage() {
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 429) {
-          alert(`Бесплатный лимит: ${FREE_SCANS_PER_MONTH} скана/месяц. Купите Premium!`);
+          alert(t('scan.limitAlert', { limit: FREE_SCANS_PER_MONTH }));
           return;
         }
-        throw new Error(data.details || data.error || 'Ошибка');
+        throw new Error(data.details || data.error || t('common.error'));
       }
       setItems(data.items || []);
       if (data.currency) setCurrency(data.currency);
@@ -104,8 +106,8 @@ export default function ScanPage() {
         prev ? { ...prev, scans_this_month: incData.scans_this_month || (prev.scans_this_month || 0) + 1 } : prev
       );
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Ошибка';
-      alert(`Ошибка при распознавании: ${message}`);
+      const message = err instanceof Error ? err.message : t('common.error');
+      alert(t('scan.parseError', { msg: message }));
     } finally {
       setLoading(false);
     }
@@ -129,7 +131,7 @@ export default function ScanPage() {
         return {
           name: item.name,
           category: item.category || 'other',
-          quantity: `${item.quantity || 1} шт.`,
+          quantity: t('scan.quantityUnit', { n: item.quantity || 1 }),
           expiry_date: expiryDate.toISOString().split('T')[0],
           icon: item.icon || '📦',
           telegram_user_id: testUserId,
@@ -145,7 +147,7 @@ export default function ScanPage() {
         telegram_user_id: testUserId,
         total_amount: totalAmount,
         currency,
-        store_name: `Чек ${new Date().toLocaleDateString('ru-RU')}`,
+        store_name: `Чек ${new Date().toLocaleDateString(dateLocale)}`,
       });
 
       await supabase.from('expenses').insert({
@@ -161,24 +163,22 @@ export default function ScanPage() {
       setItems([]);
       setImage(null);
     } catch {
-      alert('Ошибка при сохранении.');
+      alert(t('scan.saveError'));
     } finally {
       setSaving(false);
     }
   };
 
-  const currencySymbol = CURRENCY_SYMBOLS[currency] || currency;
-
   return (
     <main className="min-h-screen bg-background text-foreground pb-24">
-      <TopBar title="📷 Сканер чека" />
+      <TopBar title={t('scan.title')} />
       <div className="max-w-mobile mx-auto px-4 py-4">
         <div className="mb-4 text-sm text-muted">
           {userProfile?.is_premium ? (
-            <span className="text-accent">✨ Premium — безлимитные сканы</span>
+            <span className="text-accent">{t('scan.premiumUnlimited')}</span>
           ) : (
             <span>
-              Осталось сканов:{' '}
+              {t('scan.scansLeft')}{' '}
               <span className={Number(scansLeft) === 0 ? 'text-red-400' : 'text-accent'}>
                 {scansLeft}/{FREE_SCANS_PER_MONTH}
               </span>
@@ -194,24 +194,24 @@ export default function ScanPage() {
               : 'bg-surface border border-border text-muted cursor-not-allowed'
           }`}
         >
-          {canScan ? '🖼 Выбрать из галереи' : '🔒 Лимит исчерпан — купите Premium'}
+          {canScan ? t('scan.pickGallery') : t('scan.limitLocked')}
         </button>
 
         {saved && (
           <div className="mt-6 bg-accent/10 border border-accent/30 rounded-2xl p-4 text-center text-accent font-medium">
-            ✅ Продукты добавлены в холодильник!
+            {t('scan.savedSuccess')}
           </div>
         )}
 
         {image && (
           <div className="mt-6">
-            <img src={image} className="w-full rounded-2xl mb-4 border border-border" alt="чек" />
+            <img src={image} className="w-full rounded-2xl mb-4 border border-border" alt={t('scan.receiptAlt')} />
             <button
               onClick={parseReceipt}
               disabled={loading}
               className="w-full bg-accent text-background py-4 rounded-3xl font-medium text-lg disabled:opacity-50"
             >
-              {loading ? '🔍 Анализирую...' : '🔍 Распознать чек'}
+              {loading ? t('scan.analyzing') : t('scan.recognize')}
             </button>
           </div>
         )}
@@ -219,9 +219,10 @@ export default function ScanPage() {
         {items.length > 0 && (
           <div className="mt-6 bg-surface border border-border rounded-3xl p-5">
             <h2 className="font-semibold mb-4">
-              ✅ Найдено: {items.length} · <span className="text-accent">{currency}</span>
+              {t('scan.found', { count: items.length })}{' '}
+              <span className="text-accent">{currency}</span>
             </h2>
-            <p className="text-xs text-muted mb-4">Проверьте и отредактируйте перед сохранением</p>
+            <p className="text-xs text-muted mb-4">{t('scan.reviewHint')}</p>
             <div className="space-y-3 mb-4">
               {items.map((item, i) => (
                 <div key={i} className="bg-background border border-border rounded-xl p-3 space-y-2">
@@ -236,14 +237,14 @@ export default function ScanPage() {
                   <div className="flex gap-2">
                     <input
                       type="number"
-                      placeholder="Цена"
+                      placeholder={t('scan.price')}
                       className="w-1/2 bg-surface border border-border rounded-lg px-3 py-2 text-sm outline-none"
                       value={item.price ?? ''}
                       onChange={(e) => updateItem(i, 'price', parseFloat(e.target.value) || 0)}
                     />
                     <input
                       type="number"
-                      placeholder="Дней годности"
+                      placeholder={t('scan.expiryDays')}
                       className="w-1/2 bg-surface border border-border rounded-lg px-3 py-2 text-sm outline-none"
                       value={item.expiry_days ?? 7}
                       onChange={(e) => updateItem(i, 'expiry_days', parseInt(e.target.value, 10) || 7)}
@@ -257,7 +258,7 @@ export default function ScanPage() {
               disabled={saving}
               className="w-full bg-accent text-background py-4 rounded-2xl font-medium text-lg disabled:opacity-50"
             >
-              {saving ? 'Сохраняем...' : '➕ Добавить всё в холодильник'}
+              {saving ? t('scan.saving') : t('scan.addAll')}
             </button>
           </div>
         )}

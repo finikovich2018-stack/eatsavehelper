@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import BottomNav from "../components/layout/BottomNav";
-import { TelegramProvider } from "../components/TelegramProvider";
+import { AppProviders } from "../components/AppProviders";
 
 export const metadata: Metadata = {
   title: "EatSave",
@@ -15,10 +15,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script async src="https://telegram.org/js/telegram-web-app.js" />
       </head>
       <body className="bg-background text-foreground">
-        <TelegramProvider>
+        <AppProviders>
           <main className="pb-16">{children}</main>
           <BottomNav />
-        </TelegramProvider>
+        </AppProviders>
       </body>
     </html>
   );

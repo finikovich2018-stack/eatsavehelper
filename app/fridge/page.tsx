@@ -5,18 +5,21 @@ import Link from 'next/link';
 import TopBar from '@/components/layout/TopBar';
 import { supabase } from '@/lib/supabase/client';
 import { useTelegram } from '@/components/TelegramProvider';
+import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
+import type { TranslationKey } from '@/lib/i18n/translations';
 
-const CATEGORIES = {
-  all: '📦 Все',
-  dairy: '🥛 Молочное',
-  meat: '🥩 Мясо',
-  veg: '🥦 Овощи',
-  grains: '🌾 Крупы',
-  other: '📦 Другое',
-} as const;
+const CATEGORY_KEYS = ['all', 'dairy', 'meat', 'veg', 'grains', 'other'] as const;
+type CategoryKey = (typeof CATEGORY_KEYS)[number];
 
-type CategoryKey = keyof typeof CATEGORIES;
+const CAT_I18N: Record<CategoryKey, TranslationKey> = {
+  all: 'cat.all',
+  dairy: 'cat.dairy',
+  meat: 'cat.meat',
+  veg: 'cat.veg',
+  grains: 'cat.grains',
+  other: 'cat.other',
+};
 
 type Item = {
   id: string;
@@ -43,6 +46,7 @@ const ICONS: Record<string, string> = {
 
 export default function FridgePage() {
   const { user, dbUser } = useTelegram();
+  const { t } = useI18n();
   const testUserId = user?.id;
   const isPremium = Boolean(dbUser?.is_premium);
   const [items, setItems] = useState<Item[]>([]);
@@ -83,7 +87,7 @@ export default function FridgePage() {
   async function addItem() {
     if (!form.name || !form.expiry_date || !testUserId) return;
     if (atFridgeLimit) {
-      alert(`Бесплатный лимит: ${FREE_FRIDGE_ITEMS} продуктов. Купите Premium для безлимита!`);
+      alert(t('fridge.limitAlert', { limit: FREE_FRIDGE_ITEMS }));
       return;
     }
     const { data } = await supabase
@@ -110,7 +114,7 @@ export default function FridgePage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground pb-24">
-      <TopBar title="❄️ Холодильник" />
+      <TopBar title={t('fridge.title')} />
       <div className="max-w-mobile mx-auto px-4 py-4">
         <div className="grid grid-cols-2 gap-3 mb-4">
           <button
@@ -118,32 +122,32 @@ export default function FridgePage() {
             disabled={atFridgeLimit}
             className="bg-accent text-background py-3 rounded-2xl font-medium disabled:opacity-50"
           >
-            + Добавить
+            {t('fridge.add')}
           </button>
           <Link
             href="/scan"
             className="bg-surface border border-border py-3 rounded-2xl font-medium text-center active:scale-[0.98] transition"
           >
-            📷 Скан чека
+            {t('fridge.scanReceipt')}
           </Link>
         </div>
 
         {!isPremium && (
           <p className="text-xs text-muted mb-4 text-center">
-            Продуктов: {items.length}/{FREE_FRIDGE_ITEMS}
-            {atFridgeLimit && <span className="text-yellow-400"> — лимит достигнут</span>}
+            {t('fridge.productsCount', { count: items.length, limit: FREE_FRIDGE_ITEMS })}
+            {atFridgeLimit && <span className="text-yellow-400">{t('fridge.limitReached')}</span>}
           </p>
         )}
 
         <input
-          placeholder="🔍 Поиск продукта..."
+          placeholder={t('fridge.search')}
           className="w-full bg-surface border border-border rounded-xl px-4 py-3 placeholder-muted outline-none mb-3"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
 
         <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
-          {(Object.keys(CATEGORIES) as CategoryKey[]).map((key) => (
+          {CATEGORY_KEYS.map((key) => (
             <button
               key={key}
               onClick={() => setCategoryFilter(key)}
@@ -153,7 +157,7 @@ export default function FridgePage() {
                   : 'bg-surface border border-border text-muted'
               }`}
             >
-              {CATEGORIES[key]}
+              {t(CAT_I18N[key])}
             </button>
           ))}
         </div>
@@ -161,7 +165,7 @@ export default function FridgePage() {
         {showForm && (
           <div className="bg-surface border border-border rounded-2xl p-4 mb-4 space-y-3">
             <input
-              placeholder="Название продукта"
+              placeholder={t('fridge.productName')}
               className="w-full bg-background border border-border rounded-xl px-4 py-3 placeholder-muted outline-none"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -171,14 +175,12 @@ export default function FridgePage() {
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value as CategoryKey })}
             >
-              {Object.entries(CATEGORIES)
-                .filter(([k]) => k !== 'all')
-                .map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
+              {CATEGORY_KEYS.filter((k) => k !== 'all').map((k) => (
+                <option key={k} value={k}>{t(CAT_I18N[k])}</option>
+              ))}
             </select>
             <input
-              placeholder="Количество (1л, 500г...)"
+              placeholder={t('fridge.quantity')}
               className="w-full bg-background border border-border rounded-xl px-4 py-3 placeholder-muted outline-none"
               value={form.quantity}
               onChange={(e) => setForm({ ...form, quantity: e.target.value })}
@@ -193,7 +195,7 @@ export default function FridgePage() {
               onClick={addItem}
               className="w-full bg-accent text-background py-3 rounded-xl font-medium"
             >
-              Сохранить
+              {t('common.save')}
             </button>
           </div>
         )}
@@ -201,47 +203,51 @@ export default function FridgePage() {
         <div className="grid grid-cols-3 gap-3 mb-6">
           <div className="bg-surface border border-border rounded-2xl p-3 text-center">
             <div className="text-2xl font-bold text-accent">{items.length}</div>
-            <div className="text-xs text-muted mt-1">Продуктов</div>
+            <div className="text-xs text-muted mt-1">{t('fridge.statsProducts')}</div>
           </div>
           <div className="bg-surface border border-border rounded-2xl p-3 text-center">
             <div className="text-2xl font-bold text-red-400">
               {items.filter((i) => daysLeft(i.expiry_date) <= 1).length}
             </div>
-            <div className="text-xs text-muted mt-1">Истекают</div>
+            <div className="text-xs text-muted mt-1">{t('fridge.statsExpiring')}</div>
           </div>
           <div className="bg-surface border border-border rounded-2xl p-3 text-center">
             <div className="text-2xl font-bold text-yellow-400">
               {items.filter((i) => daysLeft(i.expiry_date) <= 3 && daysLeft(i.expiry_date) > 1).length}
             </div>
-            <div className="text-xs text-muted mt-1">Скоро</div>
+            <div className="text-xs text-muted mt-1">{t('fridge.statsSoon')}</div>
           </div>
         </div>
 
         {loading ? (
-          <div className="text-center text-muted py-10">Загрузка...</div>
+          <div className="text-center text-muted py-10">{t('common.loading')}</div>
         ) : filteredItems.length === 0 ? (
           <div className="text-center text-muted py-20">
             <div className="text-5xl mb-4">❄️</div>
-            <div>{items.length === 0 ? 'Холодильник пуст' : 'Ничего не найдено'}</div>
+            <div>{items.length === 0 ? t('fridge.empty') : t('fridge.notFound')}</div>
             <div className="text-sm mt-2">
-              {items.length === 0 ? 'Добавьте продукт или отсканируйте чек' : 'Попробуйте другой фильтр'}
+              {items.length === 0 ? t('fridge.emptyHint') : t('fridge.filterHint')}
             </div>
           </div>
         ) : (
           <div className="space-y-3">
             {filteredItems.map((item) => {
               const days = daysLeft(item.expiry_date);
-              const catKey = item.category in CATEGORIES ? item.category : 'other';
+              const catKey = item.category in CAT_I18N ? item.category : 'other';
               return (
                 <div key={item.id} className="bg-surface border border-border rounded-2xl p-4 flex items-center gap-3">
                   <span className="text-3xl">{item.icon}</span>
                   <div className="flex-1">
                     <div className="font-medium">{item.name}</div>
                     <div className="text-xs text-muted mt-0.5">
-                      {item.quantity} · {CATEGORIES[catKey]}
+                      {item.quantity} · {t(CAT_I18N[catKey])}
                     </div>
                     <div className={`text-xs mt-1 font-medium ${expiryColor(days)}`}>
-                      {days <= 0 ? '❌ Истёк' : days === 1 ? '⚠️ Сегодня истекает' : `📅 Ещё ${days} дн.`}
+                      {days <= 0
+                        ? t('fridge.expired')
+                        : days === 1
+                          ? t('fridge.expiresToday')
+                          : t('fridge.daysLeft', { n: days })}
                     </div>
                   </div>
                   <button

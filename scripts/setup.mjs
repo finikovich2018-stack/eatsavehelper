@@ -65,16 +65,17 @@ async function runSetup() {
   });
   const data = await res.json();
 
-  if (!res.ok) {
-    if (res.status === 401) {
-      console.error('❌ Unauthorized: CRON_SECRET в .env.local не совпадает с Vercel.');
-      console.error('   Скопируйте CRON_SECRET из Vercel → Environment Variables');
-      console.error('   и вставьте в .env.local, затем повторите команду.');
-    } else {
-      console.error('❌ Ошибка setup:', data);
+    if (!res.ok) {
+      if (res.status === 401) {
+        console.error('❌ Unauthorized: CRON_SECRET в .env.local не совпадает с Vercel.');
+        console.error('   Скопируйте CRON_SECRET из Vercel → Environment Variables');
+        console.error('   и вставьте в .env.local, затем повторите команду.');
+      } else {
+        console.error('❌ Ошибка setup:', data);
+        if (data.hint) console.error('💡', data.hint);
+      }
+      process.exit(1);
     }
-    process.exit(1);
-  }
 
   console.log('\n✅ Telegram настроен:\n');
   console.log(JSON.stringify(data, null, 2));

@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAppBaseUrl, getAppHomeUrl } from '@/lib/app-url';
+import { getBotToken, isBotTokenConfigured } from '@/lib/bot-token';
 
 export const dynamic = 'force-dynamic';
-
-function getBotToken() {
-  return process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN;
-}
 
 function isConfigured(value?: string) {
   return Boolean(value && value.trim() && !value.includes('placeholder'));
@@ -21,7 +18,7 @@ export async function GET() {
       supabaseUrl: isConfigured(process.env.NEXT_PUBLIC_SUPABASE_URL),
       supabaseAnonKey: isConfigured(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
       supabaseServiceKey: isConfigured(process.env.SUPABASE_SERVICE_ROLE_KEY),
-      telegramBot: isConfigured(process.env.TELEGRAM_BOT_TOKEN),
+      telegramBot: isBotTokenConfigured(),
       webhookSecret: isConfigured(process.env.TELEGRAM_WEBHOOK_SECRET),
       anthropicKey: isConfigured(process.env.ANTHROPIC_API_KEY),
       workerUrl: isConfigured(process.env.NEXT_PUBLIC_WORKER_URL),
@@ -89,7 +86,14 @@ export async function POST(req: NextRequest) {
   const webhookData = await webhookRes.json();
 
   if (!webhookData.ok) {
-    return NextResponse.json({ error: webhookData.description }, { status: 400 });
+    const hint =
+      webhookData.description === 'Not Found'
+        ? 'Проверьте TELEGRAM_BOT_TOKEN в Vercel — токен от @BotFather, формат 123456:ABC...'
+        : undefined;
+    return NextResponse.json(
+      { error: webhookData.description, hint, telegram: webhookData },
+      { status: 400 }
+    );
   }
 
   const menuRes = await fetch(`https://api.telegram.org/bot${botToken}/setChatMenuButton`, {

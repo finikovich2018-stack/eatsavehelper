@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PREMIUM_PRICE_STARS } from '@/lib/constants';
+import { getBotToken } from '@/lib/bot-token';
 
 export const dynamic = 'force-dynamic';
-
-function getBotToken() {
-  return process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN;
-}
 
 export async function POST(req: NextRequest) {
   try {

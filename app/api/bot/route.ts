@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { activatePremium } from '@/lib/premium';
 import { getAppHomeUrl } from '@/lib/app-url';
+import { getBotToken } from '@/lib/bot-token';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,10 +29,6 @@ function getSupabase() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
-}
-
-function getBotToken() {
-  return process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN || '';
 }
 
 function checkWebhookSecret(req: NextRequest): boolean {

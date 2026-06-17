@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getAppHomeUrl } from '@/lib/app-url';
+import { getBotToken } from '@/lib/bot-token';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
-
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 
 type ExpiringRow = {
   user_telegram_id: number;
@@ -18,9 +17,10 @@ type ExpiringRow = {
 };
 
 async function sendMessage(chatId: number, text: string) {
-  if (!BOT_TOKEN) return false;
+  const botToken = getBotToken();
+  if (!botToken) return false;
 
-  const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+  const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -49,7 +49,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  if (!BOT_TOKEN) {
+  if (!getBotToken()) {
     return NextResponse.json({ error: 'TELEGRAM_BOT_TOKEN not configured' }, { status: 500 });
   }
 

@@ -9,6 +9,7 @@ import { PREMIUM_PRICE_STARS } from '@/lib/constants';
 type UserProfile = {
   is_premium?: boolean;
   premium_until?: string | null;
+  notifications_enabled?: boolean;
 };
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -118,6 +119,31 @@ export default function ProfilePage() {
   }, [loadUserProfile, loadStats]);
 
   const isPremium = Boolean(userProfile?.is_premium);
+  const notificationsEnabled = userProfile?.notifications_enabled !== false;
+
+  const toggleNotifications = async () => {
+    if (!user?.id) return;
+
+    const endpoint = notificationsEnabled
+      ? '/api/notifications/unsubscribe'
+      : '/api/notifications/subscribe';
+
+    const body = notificationsEnabled
+      ? { telegram_user_id: user.id }
+      : { telegram_user_id: user.id, telegram_chat_id: user.id };
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      setUserProfile((prev) =>
+        prev ? { ...prev, notifications_enabled: !notificationsEnabled } : prev
+      );
+    }
+  };
 
   const monthName = new Date().toLocaleString('ru-RU', { month: 'long' });
 
@@ -246,6 +272,37 @@ export default function ProfilePage() {
                 )}
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Настройки */}
+        <div className="space-y-4">
+          <h2 className="font-semibold text-foreground text-lg flex items-center gap-2">
+            <span>⚙️</span> Настройки
+          </h2>
+          <div className="bg-surface border border-border rounded-2xl p-5">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-medium text-foreground">Push-уведомления</p>
+                <p className="text-sm text-muted mt-1">
+                  Напоминания о продуктах, которые скоро испортятся
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={toggleNotifications}
+                className={`relative w-14 h-8 rounded-full transition-colors ${
+                  notificationsEnabled ? 'bg-accent' : 'bg-border'
+                }`}
+                aria-label={notificationsEnabled ? 'Выключить уведомления' : 'Включить уведомления'}
+              >
+                <span
+                  className={`absolute top-1 w-6 h-6 rounded-full bg-background transition-transform ${
+                    notificationsEnabled ? 'left-7' : 'left-1'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         </div>
 

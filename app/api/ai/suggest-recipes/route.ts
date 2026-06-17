@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { callClaudeViaWorker } from '@/lib/ai';
 import { getClaudeModel } from '@/lib/ai-model';
+import { assertCanUseAiRecipes, UsageLimitError } from '@/lib/usage-limits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -44,6 +45,10 @@ export async function POST(req: NextRequest) {
 
     if (!finalIngredients || finalIngredients.length === 0) {
       return NextResponse.json({ recipes: [] });
+    }
+
+    if (telegram_user_id) {
+      await assertCanUseAiRecipes(supabase, Number(telegram_user_id));
     }
 
     let text = '';
@@ -93,6 +98,12 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ recipes });
   } catch (error: unknown) {
+    if (error instanceof UsageLimitError) {
+      return NextResponse.json(
+        { error: 'Достигнут лимит AI-рецептов', code: error.code },
+        { status: 429 }
+      );
+    }
     const message = error instanceof Error ? error.message : 'Error';
     return NextResponse.json({ error: message }, { status: 500 });
   }

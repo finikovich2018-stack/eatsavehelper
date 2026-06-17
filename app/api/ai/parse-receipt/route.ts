@@ -1,12 +1,21 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { callClaudeViaWorker } from '@/lib/ai';
 import { getClaudeModel } from '@/lib/ai-model';
 import { buildVisionMessage, parseImageDataUrl } from '@/lib/receipt-image';
+import { assertCanScan, UsageLimitError } from '@/lib/usage-limits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
+
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 function getAnthropic() {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -40,6 +49,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Нет изображения' }, { status: 400 });
     }
 
+    if (telegram_user_id) {
+      const supabase = getSupabase();
+      await assertCanScan(supabase, Number(telegram_user_id));
+    }
+
     const { mediaType, base64Data } = parseImageDataUrl(image);
     const message = buildVisionMessage(base64Data, mediaType, PARSE_PROMPT);
     let text = '';
@@ -71,6 +85,12 @@ export async function POST(req: NextRequest) {
       currency: parsed.currency || 'RUB',
     });
   } catch (error: unknown) {
+    if (error instanceof UsageLimitError) {
+      return NextResponse.json(
+        { error: 'Достигнут лимит бесплатных сканов', code: error.code },
+        { status: 429 }
+      );
+    }
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('PARSE RECEIPT ERROR:', message);
     return NextResponse.json({ error: 'Ошибка распознавания', details: message }, { status: 500 });

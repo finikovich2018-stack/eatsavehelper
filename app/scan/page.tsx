@@ -84,7 +84,13 @@ export default function ScanPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.details || data.error || 'Ошибка');
+      if (!res.ok) {
+        if (res.status === 429) {
+          alert(`Бесплатный лимит: ${FREE_SCANS_PER_MONTH} скана/месяц. Купите Premium!`);
+          return;
+        }
+        throw new Error(data.details || data.error || 'Ошибка');
+      }
       setItems(data.items || []);
       if (data.currency) setCurrency(data.currency);
 

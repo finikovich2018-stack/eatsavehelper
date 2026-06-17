@@ -66,7 +66,13 @@ async function runSetup() {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error('❌ Ошибка setup:', data);
+    if (res.status === 401) {
+      console.error('❌ Unauthorized: CRON_SECRET в .env.local не совпадает с Vercel.');
+      console.error('   Скопируйте CRON_SECRET из Vercel → Environment Variables');
+      console.error('   и вставьте в .env.local, затем повторите команду.');
+    } else {
+      console.error('❌ Ошибка setup:', data);
+    }
     process.exit(1);
   }
 

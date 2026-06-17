@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
+import { normalizeUser } from '@/lib/user-utils';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,21 +30,33 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (existing) {
-      if (existing.scans_month !== currentMonth) {
+      let user = existing;
+
+      if (existing.is_premium && existing.premium_until && new Date(existing.premium_until) <= new Date()) {
+        const { data: expired } = await supabase
+          .from('users')
+          .update({ is_premium: false })
+          .eq('telegram_user_id', userId)
+          .select()
+          .maybeSingle();
+        user = expired || { ...existing, is_premium: false };
+      }
+
+      if (user.scans_month !== currentMonth) {
         const { data: updated } = await supabase
           .from('users')
           .update({
             scans_this_month: 0,
             scans_month: currentMonth,
             ai_recipes_this_month: 0,
-            ai_recipes_month: currentMonth
+            ai_recipes_month: currentMonth,
           })
           .eq('telegram_user_id', userId)
           .select()
           .maybeSingle();
-        return NextResponse.json({ user: updated });
+        return NextResponse.json({ user: normalizeUser(updated || user) });
       }
-      return NextResponse.json({ user: existing });
+      return NextResponse.json({ user: normalizeUser(user) });
     }
 
     const { data: newUser, error } = await supabase
@@ -64,7 +77,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ user: newUser });
+    return NextResponse.json({ user: normalizeUser(newUser) });
   } catch (error: any) {
     console.error('Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -1,8 +1,8 @@
-# EatSave — Supabase full setup
-# Paste into Supabase Dashboard → SQL Editor → Run
-# Safe to re-run (uses IF NOT EXISTS / IF NOT EXISTS patterns)
+-- EatSave — Supabase full setup
+-- Supabase Dashboard -> SQL Editor -> New query -> Run
+-- Safe to re-run (IF NOT EXISTS)
 
--- ─── Core tables ───────────────────────────────────────────
+-- Core tables
 CREATE TABLE IF NOT EXISTS fridge_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,

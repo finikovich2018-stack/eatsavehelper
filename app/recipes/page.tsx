@@ -95,6 +95,14 @@ export default function RecipesPage() {
         }),
       });
       const json = await res.json();
+      if (!res.ok) {
+        if (res.status === 429) {
+          alert(`Бесплатный лимит: ${FREE_AI_RECIPES_PER_MONTH} AI рецепта/месяц. Купите Premium!`);
+          setAiLoading(false);
+          return;
+        }
+        throw new Error(json.error || 'Ошибка');
+      }
       setAiRecipes(json.recipes || []);
 
       await fetch('/api/user/increment-recipes', {

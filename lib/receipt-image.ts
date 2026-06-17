@@ -1,5 +1,3 @@
-import { CLAUDE_MODEL } from '@/lib/constants';
-
 type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
 
 export function parseImageDataUrl(image: string): { mediaType: ImageMediaType; base64Data: string } {
@@ -30,4 +28,4 @@ export function buildVisionMessage(base64Data: string, mediaType: ImageMediaType
   };
 }
 
-export { CLAUDE_MODEL };
+export type { ImageMediaType };

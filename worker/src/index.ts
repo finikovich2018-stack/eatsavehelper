@@ -4,11 +4,9 @@ export interface Env {
   RATE_LIMIT: KVNamespace;
 }
 
-import { CLAUDE_MODEL } from '@/lib/constants';
-
 const FREE_DAILY_LIMIT = 10;
 const PREMIUM_DAILY_LIMIT = 200;
-const MODEL = CLAUDE_MODEL;
+const DEFAULT_MODEL = 'claude-sonnet-4-6';
 
 function corsHeaders(origin: string, allowedOrigin: string) {
   const allowOrigin = origin === allowedOrigin ? origin : allowedOrigin;
@@ -79,7 +77,7 @@ export default {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: MODEL,
+          model: DEFAULT_MODEL,
           max_tokens: body.max_tokens || 1500,
           messages: body.messages,
         }),

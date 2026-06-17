@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import { callClaudeViaWorker } from '@/lib/ai';
-import { CLAUDE_MODEL } from '@/lib/constants';
+import { getClaudeModel } from '@/lib/ai-model';
 import { buildVisionMessage, parseImageDataUrl } from '@/lib/receipt-image';
 
 export const runtime = 'nodejs';
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     } else {
       const anthropic = getAnthropic();
       const response = await anthropic.messages.create({
-        model: CLAUDE_MODEL,
+        model: getClaudeModel(),
         max_tokens: 1500,
         messages: [message],
       });

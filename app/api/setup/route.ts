@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAppBaseUrl, getAppHomeUrl } from '@/lib/app-url';
 import { getBotToken, isBotTokenConfigured } from '@/lib/bot-token';
+import { checkPremiumDb } from '@/lib/premium';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,7 @@ function isConfigured(value?: string) {
 /** GET — check which env vars are set (no secrets exposed). */
 export async function GET() {
   const appUrl = getAppBaseUrl();
+  const premiumDb = await checkPremiumDb();
 
   return NextResponse.json({
     ok: true,
@@ -18,6 +20,7 @@ export async function GET() {
       supabaseUrl: isConfigured(process.env.NEXT_PUBLIC_SUPABASE_URL),
       supabaseAnonKey: isConfigured(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
       supabaseServiceKey: isConfigured(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      premiumDb: premiumDb.ok,
       telegramBot: isBotTokenConfigured(),
       webhookSecret: isConfigured(process.env.TELEGRAM_WEBHOOK_SECRET),
       anthropicKey: isConfigured(process.env.ANTHROPIC_API_KEY),
@@ -30,6 +33,7 @@ export async function GET() {
       home: appUrl ? getAppHomeUrl() : null,
       webhook: appUrl ? `${appUrl}/api/bot` : null,
     },
+    premiumDbError: premiumDb.ok ? undefined : premiumDb.error,
     nextSteps: [
       !isConfigured(process.env.NEXT_PUBLIC_SUPABASE_URL) && 'Добавьте NEXT_PUBLIC_SUPABASE_URL в .env.local и Vercel',
       !isConfigured(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) && 'Добавьте NEXT_PUBLIC_SUPABASE_ANON_KEY',
@@ -37,6 +41,7 @@ export async function GET() {
       !isConfigured(process.env.ANTHROPIC_API_KEY) && !isConfigured(process.env.NEXT_PUBLIC_WORKER_URL) && 'Добавьте ANTHROPIC_API_KEY или NEXT_PUBLIC_WORKER_URL для AI',
       !isConfigured(process.env.CRON_SECRET) && 'Добавьте CRON_SECRET для cron-уведомлений',
       'Примените supabase/setup.sql в Supabase SQL Editor',
+      !premiumDb.ok && 'Выполните supabase/patch_premium.sql — без этого Premium не активируется',
       'POST /api/setup с заголовком Authorization: Bearer <CRON_SECRET> для webhook + menu button',
     ].filter(Boolean),
   });

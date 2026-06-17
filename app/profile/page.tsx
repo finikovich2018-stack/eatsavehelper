@@ -25,8 +25,9 @@ type Stats = {
 };
 
 export default function ProfilePage() {
-  const { user } = useTelegram();
+  const { user, initData } = useTelegram();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [premiumBusy, setPremiumBusy] = useState(false);
   const [stats, setStats] = useState<Stats>({
     fridgeCount: 0,
     byCurrency: {},
@@ -120,6 +121,55 @@ export default function ProfilePage() {
 
   const isPremium = Boolean(userProfile?.is_premium);
   const notificationsEnabled = userProfile?.notifications_enabled !== false;
+
+  const waitForPremium = useCallback(async (attempts = 12) => {
+    for (let i = 0; i < attempts; i++) {
+      await new Promise((r) => setTimeout(r, 1500));
+      const profile = await loadUserProfile();
+      if (profile?.is_premium) return true;
+    }
+    return false;
+  }, [loadUserProfile]);
+
+  const activatePremiumOnServer = useCallback(async () => {
+    if (!initData) {
+      alert('Откройте приложение через Telegram');
+      return false;
+    }
+
+    const res = await fetch('/api/premium/activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData }),
+    });
+
+    const data = await res.json();
+    if (data.user) {
+      setUserProfile(data.user);
+      return Boolean(data.user.is_premium);
+    }
+
+    return false;
+  }, [initData]);
+
+  const handlePremiumActivated = useCallback(() => {
+    alert('✅ Premium активирован!');
+    window.location.reload();
+  }, []);
+
+  const recoverPremium = useCallback(async () => {
+    setPremiumBusy(true);
+    try {
+      const ok = await activatePremiumOnServer();
+      if (ok) {
+        handlePremiumActivated();
+        return;
+      }
+      alert('Не удалось активировать. Напишите боту /activate');
+    } finally {
+      setPremiumBusy(false);
+    }
+  }, [activatePremiumOnServer, handlePremiumActivated]);
 
   const toggleNotifications = async () => {
     if (!user?.id) return;
@@ -325,10 +375,13 @@ export default function ProfilePage() {
 
         {/* Кнопка Premium */}
         {!isPremium && (
+          <div className="space-y-3">
           <button
+            disabled={premiumBusy}
             onClick={async (event) => {
               const button = event.currentTarget;
               button.disabled = true;
+              setPremiumBusy(true);
 
               try {
                 const res = await fetch('/api/create-premium-invoice', {
@@ -339,30 +392,60 @@ export default function ProfilePage() {
 
                 const data = await res.json();
 
-                if (data.invoiceLink) {
-                  const tg = (window as { Telegram?: { WebApp: { openInvoice: (link: string, cb: (status: string) => void) => void } } }).Telegram?.WebApp;
-                  tg?.openInvoice(data.invoiceLink, async (status: string) => {
-                    if (status === 'paid') {
-                      for (let i = 0; i < 5; i++) {
-                        await new Promise((r) => setTimeout(r, 1000));
-                        const profile = await loadUserProfile();
-                        if (profile?.is_premium) break;
-                      }
-                      alert('✅ Спасибо! Premium активирован.');
-                      window.location.reload();
-                    } else if (status === 'cancelled') {
-                      alert('Оплата отменена');
-                    } else if (status === 'failed') {
-                      alert('Ошибка оплаты. Попробуйте ещё раз.');
-                    }
-                  });
-                } else {
+                if (!data.invoiceLink) {
                   alert(data.error || 'Ошибка при создании счёта');
+                  return;
                 }
+
+                const tg = (window as {
+                  Telegram?: {
+                    WebApp: {
+                      openInvoice: (link: string, cb: (status: string) => void) => void;
+                    };
+                  };
+                }).Telegram?.WebApp;
+
+                if (!tg?.openInvoice) {
+                  alert('Оплата доступна только в Telegram');
+                  return;
+                }
+
+                tg.openInvoice(data.invoiceLink, async (status: string) => {
+                  if (status === 'paid') {
+                    await activatePremiumOnServer();
+                    if (await waitForPremium(5)) {
+                      handlePremiumActivated();
+                      return;
+                    }
+                  }
+
+                  const activated = await waitForPremium(8);
+                  if (activated) {
+                    handlePremiumActivated();
+                    return;
+                  }
+
+                  if (status === 'paid' || status === 'pending') {
+                    const recovered = await activatePremiumOnServer();
+                    if (recovered) {
+                      handlePremiumActivated();
+                      return;
+                    }
+                  }
+
+                  if (status === 'cancelled') {
+                    alert(
+                      'Если Stars уже списались — нажмите «Активировать Premium» ниже или напишите боту /activate'
+                    );
+                  } else if (status === 'failed') {
+                    alert('Ошибка оплаты. Попробуйте ещё раз.');
+                  }
+                });
               } catch {
                 alert('Не удалось создать счёт');
               } finally {
                 button.disabled = false;
+                setPremiumBusy(false);
               }
             }}
             className="w-full bg-gradient-to-r from-accent to-accent/90 hover:from-accent/90 hover:to-accent/80 text-background font-bold py-4 rounded-2xl transition-all duration-200 active:scale-95 shadow-lg shadow-accent/30 disabled:opacity-60"
@@ -371,6 +454,16 @@ export default function ProfilePage() {
               <span>⭐</span> Купить Premium — {PREMIUM_PRICE_STARS} Stars/мес
             </span>
           </button>
+
+          <button
+            type="button"
+            disabled={premiumBusy}
+            onClick={recoverPremium}
+            className="w-full text-sm text-accent border border-accent/30 rounded-2xl py-3 disabled:opacity-60"
+          >
+            Уже оплатили? Активировать Premium
+          </button>
+          </div>
         )}
 
         {isPremium && userProfile?.premium_until && (

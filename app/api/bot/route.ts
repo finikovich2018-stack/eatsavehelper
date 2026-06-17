@@ -103,10 +103,25 @@ export async function POST(req: NextRequest) {
 
     const payment = body.message?.successful_payment;
     if (payment) {
-      const userId = parsePremiumUserId(payment.invoice_payload);
+      const userId =
+        parsePremiumUserId(payment.invoice_payload) ?? body.message?.from?.id ?? null;
+
       if (userId && payment.currency === 'XTR') {
-        await activatePremium(userId);
-        await sendMessage(userId, '⭐ Premium активирован на 30 дней! Спасибо за поддержку EatSave.');
+        try {
+          await activatePremium(userId);
+          await sendMessage(
+            userId,
+            '⭐ Premium активирован на 30 дней! Спасибо за поддержку EatSave.'
+          );
+        } catch (e) {
+          console.error('activatePremium failed:', e);
+          await sendMessage(
+            userId,
+            '⚠️ Оплата получена, но активация Premium не удалась. Напишите /activate или откройте Профиль → «Активировать Premium».'
+          );
+        }
+      } else {
+        console.error('Premium payment ignored:', payment);
       }
       return NextResponse.json({ ok: true });
     }
@@ -161,6 +176,18 @@ export async function POST(req: NextRequest) {
         .eq('telegram_user_id', chatId);
 
       await sendMessage(chatId, '🔕 Уведомления выключены. Напишите /subscribe чтобы включить обратно.');
+      return NextResponse.json({ ok: true });
+    }
+
+    if (body.message?.text === '/activate') {
+      const chatId = body.message.from.id;
+      try {
+        await activatePremium(chatId);
+        await sendMessage(chatId, '⭐ Premium активирован на 30 дней!');
+      } catch (e) {
+        console.error('Manual activate failed:', e);
+        await sendMessage(chatId, '⚠️ Не удалось активировать Premium. Откройте Mini App → Профиль.');
+      }
       return NextResponse.json({ ok: true });
     }
 

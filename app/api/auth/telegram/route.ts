@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getBotToken } from '@/lib/bot-token';
 import {
   getInitDataAuthDate,
   parseTelegramUser,
@@ -18,7 +19,7 @@ function getSupabase() {
 export async function POST(req: NextRequest) {
   try {
     const { initData } = await req.json();
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const botToken = getBotToken();
 
     if (!initData) {
       return NextResponse.json({ error: 'Missing initData' }, { status: 400 });

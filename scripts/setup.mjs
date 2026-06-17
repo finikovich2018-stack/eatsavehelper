@@ -43,6 +43,95 @@ async function checkConfig() {
   return data;
 }
 
+function isValidBotToken(token) {
+  return /^\d+:[A-Za-z0-9_-]+$/.test(token.trim());
+}
+
+function validateBotToken(token) {
+  const trimmed = (token || '').trim();
+  if (!trimmed) {
+    console.error('❌ TELEGRAM_BOT_TOKEN не задан в .env.local');
+    process.exit(1);
+  }
+  if (!isValidBotToken(trimmed)) {
+    console.error('❌ TELEGRAM_BOT_TOKEN имеет неверный формат.');
+    console.error('   Нужен полный токен от @BotFather: 123456789:ABCdef...');
+    console.error('   Сейчас указана только часть токена (без ID бота и двоеточия).');
+    console.error('   @BotFather → ваш бот → /token');
+    process.exit(1);
+  }
+  return trimmed;
+}
+
+async function runDirectSetup() {
+  const botToken = validateBotToken(env.TELEGRAM_BOT_TOKEN);
+  const prodUrl = (env.NEXT_PUBLIC_APP_URL || '')
+    .replace(/\/$/, '')
+    .replace(/\/home$/, '');
+
+  if (!prodUrl) {
+    console.error('❌ NEXT_PUBLIC_APP_URL не задан');
+    process.exit(1);
+  }
+
+  const webhookUrl = `${prodUrl}/api/bot`;
+  const secret = env.TELEGRAM_WEBHOOK_SECRET;
+
+  const meRes = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
+  const meData = await meRes.json();
+  if (!meData.ok) {
+    console.error('❌ Telegram getMe:', meData.description);
+    console.error('   Получите новый токен: @BotFather → /token');
+    process.exit(1);
+  }
+
+  console.log(`\n🤖 Бот: @${meData.result.username}`);
+
+  const webhookPayload = {
+    url: webhookUrl,
+    allowed_updates: ['message', 'pre_checkout_query'],
+    drop_pending_updates: true,
+  };
+  if (secret) webhookPayload.secret_token = secret;
+
+  const webhookRes = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(webhookPayload),
+  });
+  const webhookData = await webhookRes.json();
+
+  if (!webhookData.ok) {
+    console.error('❌ setWebhook:', webhookData.description);
+    process.exit(1);
+  }
+
+  const menuRes = await fetch(`https://api.telegram.org/bot${botToken}/setChatMenuButton`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      menu_button: {
+        type: 'web_app',
+        text: 'Открыть EatSave',
+        web_app: { url: `${prodUrl}/home` },
+      },
+    }),
+  });
+  const menuData = await menuRes.json();
+
+  console.log('\n✅ Telegram настроен (локально через Bot API):\n');
+  console.log(JSON.stringify({
+    ok: true,
+    bot: meData.result.username,
+    webhookUrl,
+    menuButton: menuData.ok,
+    menuError: menuData.ok ? undefined : menuData.description,
+  }, null, 2));
+
+  console.log('\n⚠️  Скопируйте тот же TELEGRAM_BOT_TOKEN в Vercel → Environment Variables');
+  console.log('   и сделайте Redeploy, иначе бот на сервере не сможет отвечать.');
+}
+
 async function runSetup() {
   const cronSecret = env.CRON_SECRET;
   if (!cronSecret) {
@@ -86,8 +175,13 @@ console.log(`🌐 App URL: ${baseUrl}`);
 await checkConfig();
 
 if (process.argv.includes('--apply')) {
-  await runSetup();
+  if (process.argv.includes('--direct')) {
+    await runDirectSetup();
+  } else {
+    await runSetup();
+  }
 } else {
   console.log('\n💡 Чтобы применить webhook и кнопку меню, запустите:');
-  console.log('   node scripts/setup.mjs --apply');
+  console.log('   node scripts/setup.mjs --apply          # через Vercel API');
+  console.log('   node scripts/setup.mjs --apply --direct # напрямую через Bot API');
 }

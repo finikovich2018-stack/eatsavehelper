@@ -7,6 +7,10 @@ export function getBotToken(): string {
     return '';
   }
 
+  if (!/^\d+:[A-Za-z0-9_-]+$/.test(token)) {
+    return '';
+  }
+
   return token;
 }
 

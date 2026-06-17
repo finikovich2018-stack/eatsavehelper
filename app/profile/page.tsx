@@ -28,6 +28,7 @@ export default function ProfilePage() {
   const { user, initData } = useTelegram();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [premiumBusy, setPremiumBusy] = useState(false);
+  const [notificationsBusy, setNotificationsBusy] = useState(false);
   const [stats, setStats] = useState<Stats>({
     fridgeCount: 0,
     byCurrency: {},
@@ -172,26 +173,54 @@ export default function ProfilePage() {
   }, [activatePremiumOnServer, handlePremiumActivated]);
 
   const toggleNotifications = async () => {
-    if (!user?.id) return;
+    if (!user?.id || notificationsBusy) return;
 
-    const endpoint = notificationsEnabled
-      ? '/api/notifications/unsubscribe'
-      : '/api/notifications/subscribe';
+    const nextEnabled = !notificationsEnabled;
+    setNotificationsBusy(true);
+    setUserProfile((prev) =>
+      prev ? { ...prev, notifications_enabled: nextEnabled } : prev
+    );
 
-    const body = notificationsEnabled
-      ? { telegram_user_id: user.id }
-      : { telegram_user_id: user.id, telegram_chat_id: user.id };
+    try {
+      const endpoint = nextEnabled
+        ? '/api/notifications/subscribe'
+        : '/api/notifications/unsubscribe';
 
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+      const body = nextEnabled
+        ? { telegram_user_id: user.id, telegram_chat_id: user.id }
+        : { telegram_user_id: user.id };
 
-    if (res.ok) {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setUserProfile((prev) =>
+          prev ? { ...prev, notifications_enabled: !nextEnabled } : prev
+        );
+        alert(data.error || 'Не удалось сохранить настройку');
+        return;
+      }
+
       setUserProfile((prev) =>
-        prev ? { ...prev, notifications_enabled: !notificationsEnabled } : prev
+        prev
+          ? {
+              ...prev,
+              notifications_enabled: data.notifications_enabled ?? nextEnabled,
+            }
+          : prev
       );
+    } catch {
+      setUserProfile((prev) =>
+        prev ? { ...prev, notifications_enabled: !nextEnabled } : prev
+      );
+      alert('Ошибка сети. Попробуйте ещё раз.');
+    } finally {
+      setNotificationsBusy(false);
     }
   };
 
@@ -340,8 +369,9 @@ export default function ProfilePage() {
               </div>
               <button
                 type="button"
+                disabled={notificationsBusy}
                 onClick={toggleNotifications}
-                className={`relative w-14 h-8 rounded-full transition-colors ${
+                className={`relative w-14 h-8 rounded-full transition-colors disabled:opacity-60 ${
                   notificationsEnabled ? 'bg-accent' : 'bg-border'
                 }`}
                 aria-label={notificationsEnabled ? 'Выключить уведомления' : 'Включить уведомления'}

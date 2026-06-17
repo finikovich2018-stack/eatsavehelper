@@ -29,18 +29,19 @@ const TgCtx = createContext<TelegramData>({
   loading: true,
 });
 
-async function subscribeToNotifications(telegramUserId: number, telegramChatId: number) {
+async function registerChatForNotifications(telegramUserId: number, telegramChatId: number) {
   try {
-    await fetch("/api/notifications/subscribe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    await fetch('/api/notifications/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         telegram_user_id: telegramUserId,
         telegram_chat_id: telegramChatId,
+        register_only: true,
       }),
     });
   } catch (e) {
-    console.error("Failed to subscribe to notifications:", e);
+    console.error('Failed to register chat for notifications:', e);
   }
 }
 
@@ -75,7 +76,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
 
           const profile = await authenticate(tg.initData);
           setDbUser(profile);
-          subscribeToNotifications(tg.initDataUnsafe.user.id, tg.initDataUnsafe.user.id);
+          registerChatForNotifications(tg.initDataUnsafe.user.id, tg.initDataUnsafe.user.id);
           setLoading(false);
           return;
         }
@@ -89,7 +90,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
             setUser(tg2.initDataUnsafe.user);
             const profile = await authenticate(tg2.initData);
             setDbUser(profile);
-            subscribeToNotifications(tg2.initDataUnsafe.user.id, tg2.initDataUnsafe.user.id);
+            registerChatForNotifications(tg2.initDataUnsafe.user.id, tg2.initDataUnsafe.user.id);
           } else {
             setUser({ id: 999999, first_name: "Dev User", username: "devuser" });
           }

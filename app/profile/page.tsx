@@ -196,15 +196,11 @@ export default function ProfilePage() {
     setPremiumBusy(true);
     try {
       const ok = await activatePremiumOnServer();
-      if (ok) {
-        handlePremiumActivated();
-        return;
-      }
-      alert(t('profile.activateFail'));
+      if (ok) handlePremiumActivated();
     } finally {
       setPremiumBusy(false);
     }
-  }, [activatePremiumOnServer, handlePremiumActivated, t]);
+  }, [activatePremiumOnServer, handlePremiumActivated]);
 
   const toggleNotifications = async () => {
     if (!user?.id || notificationsBusy) return;

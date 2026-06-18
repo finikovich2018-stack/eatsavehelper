@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAppBaseUrl, getAppHomeUrl } from '@/lib/app-url';
 import { getBotToken, isBotTokenConfigured } from '@/lib/bot-token';
 import { checkPremiumDb } from '@/lib/premium';
+import { getAdminTelegramIds } from '@/lib/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,7 @@ export async function GET() {
       anthropicKey: isConfigured(process.env.ANTHROPIC_API_KEY),
       workerUrl: isConfigured(process.env.NEXT_PUBLIC_WORKER_URL),
       cronSecret: isConfigured(process.env.CRON_SECRET),
+      adminTelegramIds: getAdminTelegramIds().length > 0,
       appUrl: Boolean(appUrl),
     },
     urls: {
@@ -41,7 +43,10 @@ export async function GET() {
       !isConfigured(process.env.ANTHROPIC_API_KEY) && !isConfigured(process.env.NEXT_PUBLIC_WORKER_URL) && 'Добавьте ANTHROPIC_API_KEY или NEXT_PUBLIC_WORKER_URL для AI',
       !isConfigured(process.env.CRON_SECRET) && 'Добавьте CRON_SECRET для cron-уведомлений',
       'Примените supabase/setup.sql в Supabase SQL Editor',
+      'Примените supabase/patch_rls.sql (блокировка anon-доступа)',
+      'Примените supabase/patch_users_columns.sql (имена в admin)',
       !premiumDb.ok && 'Выполните supabase/patch_premium.sql — без этого Premium не активируется',
+      getAdminTelegramIds().length === 0 && 'Добавьте ADMIN_TELEGRAM_IDS в Vercel для /admin',
       'POST /api/setup с заголовком Authorization: Bearer <CRON_SECRET> для webhook + menu button',
     ].filter(Boolean),
   });

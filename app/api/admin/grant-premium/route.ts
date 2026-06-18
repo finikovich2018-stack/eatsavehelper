@@ -8,7 +8,7 @@ import { normalizeUser } from '@/lib/user-utils';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Admin-only: grant Premium for 15 or 30 days (support / missing payment log) */
+/** Admin-only: grant or set Premium for 15 or 30 days (mode=extend adds to current expiry) */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -30,7 +30,9 @@ export async function POST(req: NextRequest) {
     const grantDays =
       days === PREMIUM_DAYS_SHORT ? PREMIUM_DAYS_SHORT : PREMIUM_DAYS;
 
-    await activatePremium(targetId, grantDays);
+    const fromNow = body.mode !== 'extend';
+
+    await activatePremium(targetId, grantDays, { fromNow });
 
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase

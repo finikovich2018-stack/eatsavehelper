@@ -39,7 +39,11 @@ export async function checkPremiumDb(): Promise<{ ok: boolean; error?: string }>
   }
 }
 
-export async function activatePremium(telegramUserId: number, days = PREMIUM_DAYS) {
+export async function activatePremium(
+  telegramUserId: number,
+  days = PREMIUM_DAYS,
+  options?: { fromNow?: boolean }
+) {
   const dbCheck = await checkPremiumDb();
   if (!dbCheck.ok) {
     throw new Error(
@@ -61,8 +65,9 @@ export async function activatePremium(telegramUserId: number, days = PREMIUM_DAY
     throw new Error(`DB select: ${selectError.message}`);
   }
 
-  const baseDate =
-    existing?.premium_until && new Date(existing.premium_until) > now
+  const baseDate = options?.fromNow
+    ? now
+    : existing?.premium_until && new Date(existing.premium_until) > now
       ? new Date(existing.premium_until)
       : now;
 

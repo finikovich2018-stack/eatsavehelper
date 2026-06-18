@@ -22,6 +22,7 @@ type RecentUser = {
   first_name: string | null;
   username: string | null;
   is_premium: boolean | null;
+  premium_until: string | null;
   created_at: string;
 };
 
@@ -34,8 +35,20 @@ export default function AdminPage() {
   const [error, setError] = useState('');
   const [grantBusy, setGrantBusy] = useState<number | null>(null);
 
-  const grantPremium = async (telegramUserId: number, days: 15 | 30) => {
+  const grantPremium = async (
+    telegramUserId: number,
+    days: 15 | 30,
+    isPremium: boolean,
+    mode: 'set' | 'extend' = 'set'
+  ) => {
     if (!auth) return;
+    const message =
+      mode === 'extend'
+        ? `Продлить Premium на ${days} дней?`
+        : isPremium
+          ? `Установить Premium на ${days} дней с сегодня? Текущий срок будет заменён.`
+          : `Выдать Premium на ${days} дней?`;
+    if (!confirm(message)) return;
     setGrantBusy(telegramUserId);
     try {
       const res = await fetch('/api/admin/grant-premium', {
@@ -46,6 +59,7 @@ export default function AdminPage() {
           telegram_user_id: auth.telegram_user_id,
           target_telegram_user_id: telegramUserId,
           days,
+          mode,
         }),
       });
       const data = await res.json();
@@ -179,31 +193,56 @@ export default function AdminPage() {
                     {u.first_name && u.username && (
                       <div className="text-muted text-xs truncate">@{u.username.replace(/^@/, '')}</div>
                     )}
-                    {u.is_premium && <span className="text-xs">⭐ Premium</span>}
+                    {u.is_premium && (
+                      <span className="text-xs">
+                        ⭐ Premium
+                        {u.premium_until && (
+                          <> до {new Date(u.premium_until).toLocaleDateString('ru-RU')}</>
+                        )}
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-muted text-right flex flex-col items-end gap-1">
                     <div className="font-mono">{u.telegram_user_id}</div>
                     <div>{new Date(u.created_at).toLocaleDateString('ru-RU')}</div>
-                    {!u.is_premium && (
-                      <div className="flex gap-1">
-                        <button
-                          type="button"
-                          disabled={grantBusy === u.telegram_user_id}
-                          onClick={() => grantPremium(u.telegram_user_id, 15)}
-                          className="text-accent text-[10px] border border-accent/30 rounded px-2 py-0.5"
-                        >
-                          {grantBusy === u.telegram_user_id ? '…' : '⭐ 15д'}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={grantBusy === u.telegram_user_id}
-                          onClick={() => grantPremium(u.telegram_user_id, 30)}
-                          className="text-accent text-[10px] border border-accent/30 rounded px-2 py-0.5"
-                        >
-                          {grantBusy === u.telegram_user_id ? '…' : '⭐ 30д'}
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex flex-wrap gap-1 justify-end max-w-[9rem]">
+                      <button
+                        type="button"
+                        disabled={grantBusy === u.telegram_user_id}
+                        onClick={() => grantPremium(u.telegram_user_id, 15, Boolean(u.is_premium), 'set')}
+                        className="text-accent text-[10px] border border-accent/30 rounded px-2 py-0.5"
+                      >
+                        {grantBusy === u.telegram_user_id ? '…' : '15д'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={grantBusy === u.telegram_user_id}
+                        onClick={() => grantPremium(u.telegram_user_id, 30, Boolean(u.is_premium), 'set')}
+                        className="text-accent text-[10px] border border-accent/30 rounded px-2 py-0.5"
+                      >
+                        {grantBusy === u.telegram_user_id ? '…' : '30д'}
+                      </button>
+                      {u.is_premium && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={grantBusy === u.telegram_user_id}
+                            onClick={() => grantPremium(u.telegram_user_id, 15, true, 'extend')}
+                            className="text-muted text-[10px] border border-border rounded px-2 py-0.5"
+                          >
+                            +15
+                          </button>
+                          <button
+                            type="button"
+                            disabled={grantBusy === u.telegram_user_id}
+                            onClick={() => grantPremium(u.telegram_user_id, 30, true, 'extend')}
+                            className="text-muted text-[10px] border border-border rounded px-2 py-0.5"
+                          >
+                            +30
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </li>
               ))}

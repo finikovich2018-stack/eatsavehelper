@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
         first_name: row.first_name ?? null,
         username: row.username ?? null,
         is_premium: isPremiumActive(row),
+        premium_until: row.premium_until ?? null,
         created_at: row.created_at,
       })),
     });

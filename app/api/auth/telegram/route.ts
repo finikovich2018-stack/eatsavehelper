@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { getBotToken } from '@/lib/bot-token';
 import {
   getInitDataAuthDate,
@@ -7,14 +7,8 @@ import {
   verifyTelegramInitData,
 } from '@/lib/telegram';
 import { normalizeUser } from '@/lib/user-utils';
-export const dynamic = 'force-dynamic';
 
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,7 +37,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No user in initData' }, { status: 400 });
     }
 
-    const supabase = getSupabase();
+    const supabase = getSupabaseAdmin();
     const currentMonth = new Date().toISOString().slice(0, 7);
 
     const { data: existing } = await supabase
@@ -56,7 +50,6 @@ export async function POST(req: NextRequest) {
       const updates: Record<string, unknown> = {
         first_name: tgUser.first_name,
         username: tgUser.username || null,
-        updated_at: new Date().toISOString(),
       };
 
       if (existing.scans_month !== currentMonth) {
@@ -74,12 +67,12 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (error) {
+        console.error('Auth update error:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
       return NextResponse.json({ user: normalizeUser(updated || existing), telegramUser: tgUser });
     }
-
     const { data: newUser, error } = await supabase
       .from('users')
       .insert({

@@ -38,20 +38,34 @@ export async function POST(req: NextRequest) {
         user = expired || { ...existing, is_premium: false };
       }
 
+      const profileUpdates: Record<string, unknown> = {};
+      if (auth.tgUser.first_name && auth.tgUser.first_name !== user.first_name) {
+        profileUpdates.first_name = auth.tgUser.first_name;
+      }
+      if (auth.tgUser.username !== user.username) {
+        profileUpdates.username = auth.tgUser.username || null;
+      }
       if (user.scans_month !== currentMonth) {
-        const { data: updated } = await supabase
+        profileUpdates.scans_this_month = 0;
+        profileUpdates.scans_month = currentMonth;
+        profileUpdates.ai_recipes_this_month = 0;
+        profileUpdates.ai_recipes_month = currentMonth;
+      }
+
+      if (Object.keys(profileUpdates).length > 0) {
+        const { data: updated, error } = await supabase
           .from('users')
-          .update({
-            scans_this_month: 0,
-            scans_month: currentMonth,
-            ai_recipes_this_month: 0,
-            ai_recipes_month: currentMonth,
-          })
+          .update(profileUpdates)
           .eq('telegram_user_id', userId)
           .select()
           .maybeSingle();
+        if (error) {
+          console.error('Update error:', error);
+          return NextResponse.json({ error: error.message }, { status: 500 });
+        }
         return NextResponse.json({ user: normalizeUser(updated || user) });
       }
+
       return NextResponse.json({ user: normalizeUser(user) });
     }
 

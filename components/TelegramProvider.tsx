@@ -55,14 +55,8 @@ async function registerChatForNotifications(
   }
 }
 
-/** Sync name/username and load fresh limits + Premium from DB. */
+/** Sync profile, limits and Premium from DB. */
 async function loadDbUser(initData: string, telegramUserId: number): Promise<DbUser | null> {
-  await fetch('/api/auth/telegram', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ initData }),
-  });
-
   const res = await fetch('/api/user/get-or-create', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -13,7 +13,6 @@ DROP POLICY IF EXISTS "deny_anon_expenses" ON expenses;
 DROP POLICY IF EXISTS "deny_anon_budgets" ON budgets;
 DROP POLICY IF EXISTS "deny_anon_receipts" ON receipts;
 DROP POLICY IF EXISTS "deny_anon_recipes" ON saved_recipes;
-DROP POLICY IF EXISTS "deny_anon_payments" ON premium_payments;
 
 CREATE POLICY "deny_anon_users" ON users FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
 CREATE POLICY "deny_anon_fridge" ON fridge_items FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
@@ -37,4 +36,5 @@ CREATE TABLE IF NOT EXISTS premium_payments (
 CREATE INDEX IF NOT EXISTS idx_premium_payments_user ON premium_payments(telegram_user_id, created_at DESC);
 
 ALTER TABLE premium_payments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "deny_anon_payments" ON premium_payments;
 CREATE POLICY "deny_anon_payments" ON premium_payments FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);

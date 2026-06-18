@@ -22,6 +22,7 @@ type TelegramUpdate = {
       invoice_payload: string;
       currency: string;
       total_amount: number;
+      telegram_payment_charge_id?: string;
     };
   };
   pre_checkout_query?: {
@@ -121,6 +122,7 @@ export async function POST(req: NextRequest) {
             amount: payment.total_amount,
             currency: payment.currency,
             invoicePayload: payment.invoice_payload,
+            chargeId: payment.telegram_payment_charge_id,
           });
           await activatePremium(userId);
           await markLatestPaymentActivated(supabase, userId);

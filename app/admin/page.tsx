@@ -31,6 +31,31 @@ export default function AdminPage() {
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [status, setStatus] = useState<'loading' | 'forbidden' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
+  const [grantBusy, setGrantBusy] = useState<number | null>(null);
+
+  const grantPremium = async (telegramUserId: number) => {
+    if (!auth) return;
+    setGrantBusy(telegramUserId);
+    try {
+      const res = await fetch('/api/admin/grant-premium', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          initData: auth.initData,
+          telegram_user_id: auth.telegram_user_id,
+          target_telegram_user_id: telegramUserId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Ошибка');
+        return;
+      }
+      await load();
+    } finally {
+      setGrantBusy(null);
+    }
+  };
 
   const load = useCallback(async () => {
     if (!auth) return;
@@ -150,9 +175,19 @@ export default function AdminPage() {
                     {u.username && <span className="text-muted ml-1">@{u.username}</span>}
                     {u.is_premium && <span className="ml-1">⭐</span>}
                   </div>
-                  <div className="text-xs text-muted text-right">
+                  <div className="text-xs text-muted text-right flex flex-col items-end gap-1">
                     <div className="font-mono">{u.telegram_user_id}</div>
                     <div>{new Date(u.created_at).toLocaleDateString('ru-RU')}</div>
+                    {!u.is_premium && (
+                      <button
+                        type="button"
+                        disabled={grantBusy === u.telegram_user_id}
+                        onClick={() => grantPremium(u.telegram_user_id)}
+                        className="text-accent text-[10px] border border-accent/30 rounded px-2 py-0.5"
+                      >
+                        {grantBusy === u.telegram_user_id ? '…' : '⭐ Premium'}
+                      </button>
+                    )}
                   </div>
                 </li>
               ))}

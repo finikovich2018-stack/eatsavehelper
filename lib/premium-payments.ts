@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-const RECOVERY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+/** Match Premium subscription length — payments within this window can restore access */
+export const PREMIUM_PAYMENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 export async function logPremiumPayment(
   supabase: SupabaseClient,
@@ -40,12 +41,11 @@ export async function markLatestPaymentActivated(
   supabase: SupabaseClient,
   telegramUserId: number
 ) {
-  const since = new Date(Date.now() - RECOVERY_WINDOW_MS).toISOString();
+  const since = new Date(Date.now() - PREMIUM_PAYMENT_WINDOW_MS).toISOString();
   const { data } = await supabase
     .from('premium_payments')
     .select('id')
     .eq('telegram_user_id', telegramUserId)
-    .eq('activated', false)
     .gte('created_at', since)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -56,17 +56,16 @@ export async function markLatestPaymentActivated(
   }
 }
 
-/** True if user has a Stars payment in the last 7 days not yet linked to active premium recovery */
+/** Any logged Stars payment in the last 30 days (paid in app or via bot webhook) */
 export async function hasRecoverablePremiumPayment(
   supabase: SupabaseClient,
   telegramUserId: number
 ): Promise<boolean> {
-  const since = new Date(Date.now() - RECOVERY_WINDOW_MS).toISOString();
+  const since = new Date(Date.now() - PREMIUM_PAYMENT_WINDOW_MS).toISOString();
   const { data, error } = await supabase
     .from('premium_payments')
     .select('id')
     .eq('telegram_user_id', telegramUserId)
-    .eq('activated', false)
     .gte('created_at', since)
     .limit(1);
 

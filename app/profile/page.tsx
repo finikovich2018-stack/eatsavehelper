@@ -148,9 +148,9 @@ export default function ProfilePage() {
     return false;
   }, [loadUserProfile]);
 
-  const activatePremiumOnServer = useCallback(async () => {
+  const activatePremiumOnServer = useCallback(async (silent = false) => {
     if (!initData) {
-      alert(t('profile.openInTelegram'));
+      if (!silent) alert(t('profile.openInTelegram'));
       return false;
     }
 
@@ -166,7 +166,7 @@ export default function ProfilePage() {
       await refreshUser();
       return Boolean(data.user.is_premium);
     }
-    if (!res.ok) {
+    if (!res.ok && !silent) {
       alert(data.error || t('profile.activateFail'));
     }
 
@@ -517,26 +517,18 @@ export default function ProfilePage() {
                 }
 
                 tg.openInvoice(data.invoiceLink, async (status: string) => {
-                  if (status === 'paid') {
-                    await activatePremiumOnServer();
-                    if (await waitForPremium(5)) {
-                      handlePremiumActivated();
-                      return;
-                    }
-                  }
-
-                  const activated = await waitForPremium(8);
-                  if (activated) {
-                    handlePremiumActivated();
-                    return;
-                  }
-
                   if (status === 'paid' || status === 'pending') {
-                    const recovered = await activatePremiumOnServer();
-                    if (recovered) {
+                    if (await waitForPremium(12)) {
                       handlePremiumActivated();
                       return;
                     }
+                    const recovered = await activatePremiumOnServer(true);
+                    if (recovered || (await waitForPremium(4))) {
+                      handlePremiumActivated();
+                      return;
+                    }
+                    alert(t('profile.activateFail'));
+                    return;
                   }
 
                   if (status === 'cancelled') {

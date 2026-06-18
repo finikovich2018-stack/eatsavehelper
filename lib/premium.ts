@@ -67,11 +67,10 @@ export async function activatePremium(telegramUserId: number) {
 
   const premiumUntil = addDays(baseDate, PREMIUM_DAYS).toISOString();
 
-  const row: Record<string, unknown> = {
+    const row: Record<string, unknown> = {
     telegram_user_id: telegramUserId,
     is_premium: true,
     premium_until: premiumUntil,
-    updated_at: now.toISOString(),
   };
 
   if (!existing) {

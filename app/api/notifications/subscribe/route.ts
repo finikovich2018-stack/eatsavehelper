@@ -24,12 +24,11 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
-    const now = new Date().toISOString();
 
     if (register_only) {
       const { data, error } = await supabase
         .from('users')
-        .update({ telegram_chat_id: chatId, updated_at: now })
+        .update({ telegram_chat_id: chatId })
         .eq('telegram_user_id', userId)
         .select('notifications_enabled')
         .maybeSingle();
@@ -49,7 +48,6 @@ export async function POST(req: NextRequest) {
     const patch: Record<string, unknown> = {
       telegram_user_id: userId,
       telegram_chat_id: chatId,
-      updated_at: now,
     };
 
     if (!register_only) {

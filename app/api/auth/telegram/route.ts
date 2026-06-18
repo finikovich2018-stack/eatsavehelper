@@ -47,16 +47,17 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (existing) {
-      const updates: Record<string, unknown> = {
-        first_name: tgUser.first_name,
-        username: tgUser.username || null,
-      };
+      const updates: Record<string, unknown> = {};
 
       if (existing.scans_month !== currentMonth) {
         updates.scans_this_month = 0;
         updates.scans_month = currentMonth;
         updates.ai_recipes_this_month = 0;
         updates.ai_recipes_month = currentMonth;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return NextResponse.json({ user: normalizeUser(existing), telegramUser: tgUser });
       }
 
       const { data: updated, error } = await supabase
@@ -77,8 +78,6 @@ export async function POST(req: NextRequest) {
       .from('users')
       .insert({
         telegram_user_id: tgUser.id,
-        first_name: tgUser.first_name,
-        username: tgUser.username || null,
         is_premium: false,
         scans_this_month: 0,
         scans_month: currentMonth,

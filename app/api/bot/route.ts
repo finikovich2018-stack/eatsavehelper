@@ -151,10 +151,7 @@ export async function POST(req: NextRequest) {
         {
           telegram_user_id: chatId,
           telegram_chat_id: chatId,
-          first_name: firstName,
-          username: username || null,
           notifications_enabled: true,
-          updated_at: new Date().toISOString(),
         },
         { onConflict: 'telegram_user_id' }
       );
@@ -173,7 +170,7 @@ export async function POST(req: NextRequest) {
       const locale = botLocale(body.message.from.language_code);
       await supabase
         .from('users')
-        .update({ notifications_enabled: true, telegram_chat_id: chatId, updated_at: new Date().toISOString() })
+        .update({ notifications_enabled: true, telegram_chat_id: chatId })
         .eq('telegram_user_id', chatId);
 
       await sendMessage(chatId, botMsg(locale).subscribed);
@@ -185,7 +182,7 @@ export async function POST(req: NextRequest) {
       const locale = botLocale(body.message.from.language_code);
       await supabase
         .from('users')
-        .update({ notifications_enabled: false, updated_at: new Date().toISOString() })
+        .update({ notifications_enabled: false })
         .eq('telegram_user_id', chatId);
 
       await sendMessage(chatId, botMsg(locale).unsubscribed);

@@ -39,12 +39,6 @@ export async function POST(req: NextRequest) {
       }
 
       const profileUpdates: Record<string, unknown> = {};
-      if (auth.tgUser.first_name && auth.tgUser.first_name !== user.first_name) {
-        profileUpdates.first_name = auth.tgUser.first_name;
-      }
-      if (auth.tgUser.username !== user.username) {
-        profileUpdates.username = auth.tgUser.username || null;
-      }
       if (user.scans_month !== currentMonth) {
         profileUpdates.scans_this_month = 0;
         profileUpdates.scans_month = currentMonth;
@@ -73,8 +67,6 @@ export async function POST(req: NextRequest) {
       .from('users')
       .insert({
         telegram_user_id: userId,
-        first_name: auth.tgUser.first_name,
-        username: auth.tgUser.username || null,
         is_premium: false,
         scans_this_month: 0,
         scans_month: currentMonth,

@@ -15,12 +15,11 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
-    const now = new Date().toISOString();
     const userId = auth.userId;
 
     const { data, error } = await supabase
       .from('users')
-      .update({ notifications_enabled: false, updated_at: now })
+      .update({ notifications_enabled: false })
       .eq('telegram_user_id', userId)
       .select('notifications_enabled')
       .maybeSingle();
@@ -43,7 +42,6 @@ export async function POST(req: NextRequest) {
           telegram_user_id: userId,
           telegram_chat_id: userId,
           notifications_enabled: false,
-          updated_at: now,
         },
         { onConflict: 'telegram_user_id' }
       )

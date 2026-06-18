@@ -11,7 +11,7 @@ import {
   parseTelegramUser,
   verifyTelegramInitData,
 } from '@/lib/telegram';
-import { normalizeUser } from '@/lib/user-utils';
+import { normalizeUser, isPremiumActive } from '@/lib/user-utils';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -42,6 +42,17 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+
+    const { data: current } = await supabase
+      .from('users')
+      .select('*')
+      .eq('telegram_user_id', tgUser.id)
+      .maybeSingle();
+
+    if (current && isPremiumActive(current)) {
+      return NextResponse.json({ ok: true, user: normalizeUser(current) });
+    }
+
     const canRecover = await hasRecoverablePremiumPayment(supabase, tgUser.id);
     if (!canRecover) {
       return NextResponse.json(

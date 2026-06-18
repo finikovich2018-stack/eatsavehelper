@@ -230,18 +230,27 @@ export default function HomePage() {
         </div>
 
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-surface border border-border rounded-2xl p-3 text-center">
+          <Link
+            href="/fridge"
+            className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition"
+          >
             <div className="text-xl font-bold text-accent">{stats.products}</div>
             <div className="text-xs text-muted mt-1">{t('home.products')}</div>
-          </div>
-          <div className="bg-surface border border-border rounded-2xl p-3 text-center">
+          </Link>
+          <Link
+            href="/fridge?filter=expiring"
+            className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition"
+          >
             <div className="text-xl font-bold text-yellow-400">{stats.expiringSoon}</div>
             <div className="text-xs text-muted mt-1">{t('home.expiringCount')}</div>
-          </div>
-          <div className="bg-surface border border-border rounded-2xl p-3 text-center">
+          </Link>
+          <Link
+            href="/recipes"
+            className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition"
+          >
             <div className="text-xl font-bold text-accent">{stats.recipes}</div>
             <div className="text-xs text-muted mt-1">{t('home.recipesCount')}</div>
-          </div>
+          </Link>
         </div>
       </div>
     </main>

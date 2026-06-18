@@ -1,7 +1,8 @@
 ﻿'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import TopBar from '@/components/layout/TopBar';
 import { supabase } from '@/lib/supabase/client';
 import { useTelegram } from '@/components/TelegramProvider';
@@ -46,6 +47,22 @@ const ICONS: Record<string, string> = {
 };
 
 export default function FridgePage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-background text-foreground pb-24">
+          <div className="text-center text-muted py-20">...</div>
+        </main>
+      }
+    >
+      <FridgePageContent />
+    </Suspense>
+  );
+}
+
+function FridgePageContent() {
+  const searchParams = useSearchParams();
+  const expiringOnly = searchParams.get('filter') === 'expiring';
   const { user, dbUser, refreshUser } = useTelegram();
   const { t } = useI18n();
   const testUserId = user?.id;
@@ -84,9 +101,11 @@ export default function FridgePage() {
     return items.filter((item) => {
       const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
       const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
-      return matchesSearch && matchesCategory;
+      const days = daysLeft(item.expiry_date);
+      const matchesExpiring = !expiringOnly || (days >= 0 && days <= 3);
+      return matchesSearch && matchesCategory && matchesExpiring;
     });
-  }, [items, search, categoryFilter]);
+  }, [items, search, categoryFilter, expiringOnly]);
 
   const atFridgeLimit = !isPremium && items.length >= FREE_FRIDGE_ITEMS;
 
@@ -151,6 +170,15 @@ export default function FridgePage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+
+        {expiringOnly && (
+          <div className="flex items-center justify-between mb-3 bg-yellow-400/10 border border-yellow-400/30 rounded-xl px-3 py-2">
+            <span className="text-sm text-yellow-400">{t('fridge.expiringFilter')}</span>
+            <Link href="/fridge" className="text-xs text-accent font-medium">
+              {t('fridge.showAll')}
+            </Link>
+          </div>
+        )}
 
         <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
           {CATEGORY_KEYS.map((key) => (

@@ -33,7 +33,9 @@ function getSupabase() {
 
 function checkWebhookSecret(req: NextRequest): boolean {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (!secret) return true;
+  if (!secret) {
+    return process.env.NODE_ENV !== 'production';
+  }
   return req.headers.get('x-telegram-bot-api-secret-token') === secret;
 }
 

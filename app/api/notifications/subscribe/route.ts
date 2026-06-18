@@ -1,29 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { verifyApiUser } from '@/lib/verify-api-user';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
-
 /** Save chat_id / enable notifications. register_only=true keeps notifications_enabled unchanged. */
 export async function POST(req: NextRequest) {
   try {
-    const { telegram_user_id, telegram_chat_id, register_only } = await req.json();
-    const userId = Number(telegram_user_id);
-    const chatId = Number(telegram_chat_id ?? telegram_user_id);
-
-    if (!userId || !chatId) {
-      return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+    const body = await req.json();
+    const auth = verifyApiUser(body);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const supabase = getSupabase();
+    const { telegram_chat_id, register_only } = body;
+    const userId = auth.userId;
+    const chatId = Number(telegram_chat_id ?? userId);
+
+    if (!chatId) {
+      return NextResponse.json({ error: 'Missing chat id' }, { status: 400 });
+    }
+
+    const supabase = getSupabaseAdmin();
     const now = new Date().toISOString();
 
     if (register_only) {

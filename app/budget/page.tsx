@@ -5,6 +5,7 @@ import TopBar from '@/components/layout/TopBar';
 import { supabase } from '@/lib/supabase/client';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
+import { formatLocalDate } from '@/lib/utils';
 import type { TranslationKey } from '@/lib/i18n/translations';
 
 type Expense = {
@@ -47,7 +48,7 @@ function getLast7Days(dateLocale: string) {
     d.setDate(d.getDate() - i);
     days.push({
       label: d.toLocaleDateString(dateLocale, { weekday: 'short' }),
-      date: d.toISOString().split('T')[0],
+      date: formatLocalDate(d),
     });
   }
   return days;
@@ -121,7 +122,7 @@ export default function BudgetPage() {
       .insert({
         name: form.name,
         amount: Number(form.amount),
-        date: new Date().toISOString().split('T')[0],
+        date: formatLocalDate(),
         category: '🛒',
         currency: form.currency,
         telegram_user_id: user.id,

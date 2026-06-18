@@ -1,27 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { normalizeUser } from '@/lib/user-utils';
+import { verifyApiUser } from '@/lib/verify-api-user';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dyxksakpvdupgutwswlm.supabase.co',
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
-
 export async function POST(req: NextRequest) {
-  const supabase = getSupabase();
-
   try {
-    const { telegram_user_id } = await req.json();
-    if (!telegram_user_id) return NextResponse.json({ error: 'No user id' }, { status: 400 });
+    const body = await req.json();
+    const auth = verifyApiUser(body);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
 
+    const supabase = getSupabaseAdmin();
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const userId = Number(telegram_user_id);
+    const userId = auth.userId;
 
     const { data: existing } = await supabase
       .from('users')
@@ -63,6 +59,8 @@ export async function POST(req: NextRequest) {
       .from('users')
       .insert({
         telegram_user_id: userId,
+        first_name: auth.tgUser.first_name,
+        username: auth.tgUser.username || null,
         is_premium: false,
         scans_this_month: 0,
         scans_month: currentMonth,
@@ -78,8 +76,9 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ user: normalizeUser(newUser) });
-  } catch (error: any) {
-    console.error('Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Error';
+    console.error('Error:', message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -104,3 +104,31 @@ export async function assertCanUseAiRecipes(
   if (!user || !canUseAiRecipes(user)) throw new UsageLimitError('recipe_limit');
   return user;
 }
+
+export async function incrementScanCount(
+  supabase: SupabaseClient,
+  telegramUserId: number,
+  user: UserRow
+): Promise<number> {
+  if (isPremiumActive(user)) return user.scans_this_month || 0;
+  const newCount = (user.scans_this_month || 0) + 1;
+  await supabase
+    .from('users')
+    .update({ scans_this_month: newCount })
+    .eq('telegram_user_id', telegramUserId);
+  return newCount;
+}
+
+export async function incrementRecipeCount(
+  supabase: SupabaseClient,
+  telegramUserId: number,
+  user: UserRow
+): Promise<number> {
+  if (isPremiumActive(user)) return user.ai_recipes_this_month || 0;
+  const newCount = (user.ai_recipes_this_month || 0) + 1;
+  await supabase
+    .from('users')
+    .update({ ai_recipes_this_month: newCount })
+    .eq('telegram_user_id', telegramUserId);
+  return newCount;
+}

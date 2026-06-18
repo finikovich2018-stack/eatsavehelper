@@ -1,21 +1,20 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { callClaudeViaWorker } from '@/lib/ai';
 import { getClaudeModel } from '@/lib/ai-model';
 import { buildVisionMessage, parseImageDataUrl } from '@/lib/receipt-image';
-import { assertCanScan, UsageLimitError } from '@/lib/usage-limits';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import {
+  assertCanScan,
+  incrementScanCount,
+  UsageLimitError,
+} from '@/lib/usage-limits';
+import { isPremiumActive } from '@/lib/user-utils';
+import { verifyApiUser } from '@/lib/verify-api-user';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
-
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
 
 function getAnthropic() {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -43,16 +42,22 @@ function extractJson(text: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { image, telegram_user_id, is_premium } = await req.json();
+    const body = await req.json();
+    const auth = verifyApiUser(body);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
 
+    const { image } = body;
     if (!image) {
       return NextResponse.json({ error: 'Нет изображения' }, { status: 400 });
     }
 
-    if (telegram_user_id) {
-      const supabase = getSupabase();
-      await assertCanScan(supabase, Number(telegram_user_id));
-    }
+    const supabase = getSupabaseAdmin();
+    const user = await assertCanScan(supabase, auth.userId);
+    const scansThisMonth = isPremiumActive(user)
+      ? user.scans_this_month || 0
+      : await incrementScanCount(supabase, auth.userId, user);
 
     const { mediaType, base64Data } = parseImageDataUrl(image);
     const message = buildVisionMessage(base64Data, mediaType, PARSE_PROMPT);
@@ -60,8 +65,8 @@ export async function POST(req: NextRequest) {
 
     if (process.env.NEXT_PUBLIC_WORKER_URL) {
       text = await callClaudeViaWorker({
-        userId: telegram_user_id,
-        isPremium: Boolean(is_premium),
+        userId: auth.userId,
+        isPremium: isPremiumActive(user),
         messages: [message],
       });
     } else {
@@ -83,6 +88,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       items: parsed.items || [],
       currency: parsed.currency || 'RUB',
+      scans_this_month: scansThisMonth,
     });
   } catch (error: unknown) {
     if (error instanceof UsageLimitError) {

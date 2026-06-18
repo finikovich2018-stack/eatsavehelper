@@ -21,8 +21,14 @@ type BudgetSummary = {
   currency: string;
 };
 
+import { formatLocalDate } from '@/lib/utils';
+
 const CURRENCY_SYMBOLS: Record<string, string> = {
   RUB: '₽', USD: '$', EUR: '€', GBP: '£', UAH: '₴', KZT: '₸',
+};
+
+const DEFAULT_LIMITS: Record<string, number> = {
+  RUB: 15000, USD: 500, EUR: 500, GBP: 400, UAH: 20000, KZT: 200000,
 };
 
 function daysLeft(date: string) {
@@ -58,7 +64,7 @@ export default function HomePage() {
       const allItems = items || [];
       const soon = allItems.filter((item) => {
         const days = daysLeft(item.expiry_date);
-        return days >= 0 && days <= 5;
+        return days >= 0 && days <= 3;
       });
 
       setExpiring(soon.slice(0, 5));
@@ -78,20 +84,33 @@ export default function HomePage() {
         .eq('telegram_user_id', user.id)
         .gte('date', monthStart);
 
-      const spent = (expenses || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-      const currency = expenses?.[0]?.currency || 'RUB';
+      const monthExpenses = expenses || [];
+      const byCurrency: Record<string, number> = {};
+      monthExpenses.forEach((row) => {
+        const cur = row.currency || 'RUB';
+        byCurrency[cur] = (byCurrency[cur] || 0) + Number(row.amount || 0);
+      });
 
-      const { data: budgetRow } = await supabase
+      const { data: budgetRows } = await supabase
         .from('budgets')
         .select('amount, currency')
         .eq('telegram_user_id', user.id)
-        .eq('month', monthStart)
-        .maybeSingle();
+        .eq('month', monthStart);
+
+      const limits: Record<string, number> = { ...DEFAULT_LIMITS };
+      (budgetRows || []).forEach((row: { amount: number; currency: string }) => {
+        limits[row.currency] = Number(row.amount);
+      });
+
+      const primaryCur =
+        Object.keys(byCurrency)[0] ||
+        budgetRows?.[0]?.currency ||
+        'RUB';
 
       setBudget({
-        spent,
-        limit: Number(budgetRow?.amount || 15000),
-        currency: budgetRow?.currency || currency,
+        spent: byCurrency[primaryCur] || 0,
+        limit: limits[primaryCur] || DEFAULT_LIMITS[primaryCur] || 15000,
+        currency: primaryCur,
       });
 
       const { count: recipeCount } = await supabase

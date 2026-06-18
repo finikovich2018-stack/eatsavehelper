@@ -1,29 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { assertCanUseAiRecipes, UsageLimitError } from '@/lib/usage-limits';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import {
+  assertCanUseAiRecipes,
+  incrementRecipeCount,
+  UsageLimitError,
+} from '@/lib/usage-limits';
 import { isPremiumActive } from '@/lib/user-utils';
+import { verifyApiUser } from '@/lib/verify-api-user';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dyxksakpvdupgutwswlm.supabase.co',
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
-
 export async function POST(req: NextRequest) {
-  const supabase = getSupabase();
-
   try {
-    const { telegram_user_id } = await req.json();
-    if (!telegram_user_id) {
-      return NextResponse.json({ error: 'No user id' }, { status: 400 });
+    const body = await req.json();
+    const auth = verifyApiUser(body);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const user = await assertCanUseAiRecipes(supabase, Number(telegram_user_id));
+    const supabase = getSupabaseAdmin();
+    const user = await assertCanUseAiRecipes(supabase, auth.userId);
 
     if (isPremiumActive(user)) {
       return NextResponse.json({
@@ -32,13 +30,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const newCount = (user.ai_recipes_this_month || 0) + 1;
-
-    await supabase
-      .from('users')
-      .update({ ai_recipes_this_month: newCount })
-      .eq('telegram_user_id', telegram_user_id);
-
+    const newCount = await incrementRecipeCount(supabase, auth.userId, user);
     return NextResponse.json({ ai_recipes_this_month: newCount });
   } catch (error) {
     if (error instanceof UsageLimitError) {

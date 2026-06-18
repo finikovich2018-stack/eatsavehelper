@@ -7,6 +7,7 @@ import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { PREMIUM_PRICE_STARS } from '@/lib/constants';
 import { computeAchievements } from '@/lib/achievements';
+import { isPremiumActive } from '@/lib/user-utils';
 import type { TranslationKey } from '@/lib/i18n/translations';
 
 type UserProfile = {
@@ -60,12 +61,12 @@ export default function ProfilePage() {
     const res = await fetch('/api/user/get-or-create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ telegram_user_id: user.id }),
+      body: JSON.stringify({ initData, telegram_user_id: user.id }),
     });
     const data = await res.json();
     if (data.user) setUserProfile(data.user);
     return data.user as UserProfile | null;
-  }, [user?.id]);
+  }, [user?.id, initData]);
 
   const loadStats = useCallback(async () => {
     if (!user?.id) return;
@@ -138,7 +139,7 @@ export default function ProfilePage() {
     loadStats();
   }, [loadUserProfile, loadStats]);
 
-  const isPremium = Boolean(userProfile?.is_premium);
+  const isPremium = isPremiumActive(userProfile || {});
   const notificationsEnabled = userProfile?.notifications_enabled !== false;
 
   const waitForPremium = useCallback(async (attempts = 12) => {
@@ -205,8 +206,8 @@ export default function ProfilePage() {
         : '/api/notifications/unsubscribe';
 
       const body = nextEnabled
-        ? { telegram_user_id: user.id, telegram_chat_id: user.id }
-        : { telegram_user_id: user.id };
+        ? { initData, telegram_user_id: user.id, telegram_chat_id: user.id }
+        : { initData, telegram_user_id: user.id };
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -463,7 +464,7 @@ export default function ProfilePage() {
                 const res = await fetch('/api/create-premium-invoice', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ userId: user?.id }),
+                  body: JSON.stringify({ initData, telegram_user_id: user?.id }),
                 });
 
                 const data = await res.json();

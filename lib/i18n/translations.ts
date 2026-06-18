@@ -86,6 +86,8 @@ const ru = {
   'scan.saveError': 'Ошибка при сохранении.',
   'scan.receiptAlt': 'чек',
   'scan.quantityUnit': '{n} шт.',
+  'scan.receiptStore': 'Чек {date}',
+  'scan.receiptExpense': '🧾 Покупка по чеку ({symbol})',
 
   // Recipes
   'recipes.title': '👨‍🍳 Рецепты',
@@ -264,6 +266,8 @@ const en: Record<TranslationKey, string> = {
   'scan.saveError': 'Failed to save.',
   'scan.receiptAlt': 'receipt',
   'scan.quantityUnit': '{n} pcs',
+  'scan.receiptStore': 'Receipt {date}',
+  'scan.receiptExpense': '🧾 Receipt purchase ({symbol})',
 
   'recipes.title': '👨‍🍳 Recipes',
   'recipes.whatToCook': '✨ What to cook?',

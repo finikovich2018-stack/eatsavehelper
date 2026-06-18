@@ -1,20 +1,15 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { callClaudeViaWorker } from '@/lib/ai';
 import { getClaudeModel } from '@/lib/ai-model';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { assertCanUseAiRecipes, UsageLimitError } from '@/lib/usage-limits';
+import { isPremiumActive } from '@/lib/user-utils';
+import { verifyApiUser } from '@/lib/verify-api-user';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
-
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
 
 function getAnthropic() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
@@ -26,37 +21,38 @@ const RECIPE_PROMPT = (ingredients: string[]) =>
 [{"name":"Название","icon":"🍳","time":"20 мин","ingredients":[],"steps":"","usesFromFridge":[]}]`;
 
 export async function POST(req: NextRequest) {
-  const supabase = getSupabase();
-
   try {
-    const { ingredients, telegram_user_id, is_premium, save } = await req.json();
+    const body = await req.json();
+    const auth = verifyApiUser(body);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    const supabase = getSupabaseAdmin();
+    const { ingredients, save } = body;
 
     let finalIngredients = ingredients;
 
     if (!finalIngredients || finalIngredients.length === 0) {
-      if (telegram_user_id) {
-        const { data } = await supabase
-          .from('fridge_items')
-          .select('name')
-          .eq('telegram_user_id', String(telegram_user_id));
-        finalIngredients = (data || []).map((i: { name: string }) => i.name);
-      }
+      const { data } = await supabase
+        .from('fridge_items')
+        .select('name')
+        .eq('telegram_user_id', auth.userId);
+      finalIngredients = (data || []).map((i: { name: string }) => i.name);
     }
 
     if (!finalIngredients || finalIngredients.length === 0) {
       return NextResponse.json({ recipes: [] });
     }
 
-    if (telegram_user_id) {
-      await assertCanUseAiRecipes(supabase, Number(telegram_user_id));
-    }
+    const user = await assertCanUseAiRecipes(supabase, auth.userId);
 
     let text = '';
 
     if (process.env.NEXT_PUBLIC_WORKER_URL) {
       text = await callClaudeViaWorker({
-        userId: telegram_user_id,
-        isPremium: Boolean(is_premium),
+        userId: auth.userId,
+        isPremium: isPremiumActive(user),
         messages: [{ role: 'user', content: RECIPE_PROMPT(finalIngredients) }],
       });
     } else {
@@ -78,7 +74,7 @@ export async function POST(req: NextRequest) {
     if (!match) throw new Error('No JSON');
     const recipes = JSON.parse(match[0]);
 
-    if (save && telegram_user_id && Array.isArray(recipes)) {
+    if (save && Array.isArray(recipes)) {
       const rows = recipes.map((recipe: {
         name: string;
         icon?: string;
@@ -86,7 +82,7 @@ export async function POST(req: NextRequest) {
         steps?: string;
         usesFromFridge?: string[];
       }) => ({
-        telegram_user_id,
+        telegram_user_id: auth.userId,
         name: recipe.name,
         icon: recipe.icon || '🍳',
         ingredients: recipe.ingredients || recipe.usesFromFridge || [],

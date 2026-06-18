@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase/client';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
+import { isPremiumActive } from '@/lib/user-utils';
 import type { TranslationKey } from '@/lib/i18n/translations';
 
 const CATEGORY_KEYS = ['all', 'dairy', 'meat', 'veg', 'grains', 'other'] as const;
@@ -48,7 +49,7 @@ export default function FridgePage() {
   const { user, dbUser } = useTelegram();
   const { t } = useI18n();
   const testUserId = user?.id;
-  const isPremium = Boolean(dbUser?.is_premium);
+  const isPremium = isPremiumActive(dbUser || {});
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

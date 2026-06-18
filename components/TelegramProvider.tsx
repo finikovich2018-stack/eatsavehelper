@@ -29,12 +29,20 @@ const TgCtx = createContext<TelegramData>({
   loading: true,
 });
 
-async function registerChatForNotifications(telegramUserId: number, telegramChatId: number) {
+const IS_DEV = process.env.NODE_ENV === 'development';
+const DEV_USER: TelegramUser = { id: 999999, first_name: "Dev User", username: "devuser" };
+
+async function registerChatForNotifications(
+  telegramUserId: number,
+  telegramChatId: number,
+  initData: string
+) {
   try {
     await fetch('/api/notifications/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        initData,
         telegram_user_id: telegramUserId,
         telegram_chat_id: telegramChatId,
         register_only: true,
@@ -76,7 +84,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
 
           const profile = await authenticate(tg.initData);
           setDbUser(profile);
-          registerChatForNotifications(tg.initDataUnsafe.user.id, tg.initDataUnsafe.user.id);
+          registerChatForNotifications(tg.initDataUnsafe.user.id, tg.initDataUnsafe.user.id, tg.initData);
           setLoading(false);
           return;
         }
@@ -90,14 +98,16 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
             setUser(tg2.initDataUnsafe.user);
             const profile = await authenticate(tg2.initData);
             setDbUser(profile);
-            registerChatForNotifications(tg2.initDataUnsafe.user.id, tg2.initDataUnsafe.user.id);
-          } else {
-            setUser({ id: 999999, first_name: "Dev User", username: "devuser" });
+            registerChatForNotifications(tg2.initDataUnsafe.user.id, tg2.initDataUnsafe.user.id, tg2.initData);
+          } else if (IS_DEV) {
+            setUser(DEV_USER);
           }
           setLoading(false);
         }, 500);
       } catch {
-        setUser({ id: 999999, first_name: "Dev User", username: "devuser" });
+        if (IS_DEV) {
+          setUser(DEV_USER);
+        }
         setLoading(false);
       }
     };

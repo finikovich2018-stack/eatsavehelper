@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase/client';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_AI_RECIPES_PER_MONTH } from '@/lib/constants';
+import { isPremiumActive } from '@/lib/user-utils';
 import type { Locale } from '@/lib/i18n/translations';
 
 type Recipe = {
@@ -58,7 +59,7 @@ function daysLeft(date: string) {
 }
 
 export default function RecipesPage() {
-  const { user } = useTelegram();
+  const { user, initData } = useTelegram();
   const { t, locale } = useI18n();
   const recipes = useMemo(() => RECIPES_BY_LOCALE[locale], [locale]);
   const [expiringItems, setExpiringItems] = useState<FridgeItem[]>([]);
@@ -76,13 +77,15 @@ export default function RecipesPage() {
       fetch('/api/user/get-or-create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telegram_user_id: user.id }),
+        body: JSON.stringify({ initData, telegram_user_id: user.id }),
       }).then((r) => r.json()).then((d) => setUserProfile(d.user));
     }
-  }, [user?.id]);
+  }, [user?.id, initData]);
+
+  const isPremium = isPremiumActive(userProfile || {});
 
   const getAIRecipes = async () => {
-    if (!userProfile?.is_premium && (userProfile?.ai_recipes_this_month || 0) >= FREE_AI_RECIPES_PER_MONTH) {
+    if (!isPremium && (userProfile?.ai_recipes_this_month || 0) >= FREE_AI_RECIPES_PER_MONTH) {
       alert(t('recipes.limitAlert', { limit: FREE_AI_RECIPES_PER_MONTH }));
       return;
     }
@@ -105,8 +108,8 @@ export default function RecipesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ingredients,
+          initData,
           telegram_user_id: user?.id,
-          is_premium: userProfile?.is_premium,
           save: true,
         }),
       });
@@ -124,14 +127,15 @@ export default function RecipesPage() {
       await fetch('/api/user/increment-recipes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telegram_user_id: user?.id }),
+        body: JSON.stringify({ initData, telegram_user_id: user?.id }),
       });
       setUserProfile((prev: any) =>
         prev ? { ...prev, ai_recipes_this_month: (prev.ai_recipes_this_month || 0) + 1 } : prev
       );
       loadSavedRecipes();
-    } catch {
-      /* ignore */
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('common.error');
+      alert(message);
     } finally {
       setAiLoading(false);
     }
@@ -188,7 +192,7 @@ export default function RecipesPage() {
     loadExpiringItems();
   }, [loadExpiringItems]);
 
-  const aiLeft = userProfile?.is_premium
+  const aiLeft = isPremium
     ? '∞'
     : Math.max(0, FREE_AI_RECIPES_PER_MONTH - (userProfile?.ai_recipes_this_month || 0));
 
@@ -285,7 +289,7 @@ export default function RecipesPage() {
             <div>
               <h3 className="font-semibold mb-1">{t('recipes.whatToCook')}</h3>
               <p className="text-sm text-muted">
-                {userProfile?.is_premium
+                {isPremium
                   ? t('recipes.premiumUnlimited')
                   : t('recipes.aiLeft', { left: aiLeft, limit: FREE_AI_RECIPES_PER_MONTH })}
               </p>

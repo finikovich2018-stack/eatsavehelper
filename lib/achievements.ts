@@ -1,3 +1,5 @@
+import { formatLocalDate } from '@/lib/utils';
+
 const DEFAULT_BUDGET_RUB = 15000;
 const SAVER_TARGET_RUB = 2000;
 const CHEF_TARGET_RECIPES = 10;
@@ -41,7 +43,7 @@ export function computeBudgetStreakDays(
   const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
   while (cursor <= end) {
-    const dateStr = cursor.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(cursor);
     cumulative += byDate[dateStr] || 0;
     const dayOfMonth = cursor.getDate();
     const allowedSpend = (limit * dayOfMonth) / daysInMonth;

@@ -5,7 +5,9 @@ import TopBar from '@/components/layout/TopBar';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { supabase } from '@/lib/supabase/client';
-import { FREE_SCANS_PER_MONTH } from '@/lib/constants';
+import { FREE_FRIDGE_ITEMS, FREE_SCANS_PER_MONTH } from '@/lib/constants';
+import { isPremiumActive } from '@/lib/user-utils';
+import { formatLocalDate } from '@/lib/utils';
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   RUB: '₽', USD: '$', EUR: '€', GBP: '£', UAH: '₴', KZT: '₸',
@@ -22,9 +24,10 @@ type ParsedItem = {
 };
 
 export default function ScanPage() {
-  const { user } = useTelegram();
+  const { user, dbUser, initData } = useTelegram();
   const { t, dateLocale } = useI18n();
   const testUserId = user?.id;
+  const isPremium = isPremiumActive(dbUser || {});
   const [image, setImage] = useState<string | null>(null);
   const [items, setItems] = useState<ParsedItem[]>([]);
   const [currency, setCurrency] = useState<string>('RUB');
@@ -38,18 +41,18 @@ export default function ScanPage() {
       fetch('/api/user/get-or-create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telegram_user_id: testUserId }),
+        body: JSON.stringify({ initData, telegram_user_id: testUserId }),
       })
         .then((r) => r.json())
         .then((d) => setUserProfile(d.user));
     }
-  }, [testUserId]);
+  }, [testUserId, initData]);
 
-  const scansLeft = userProfile?.is_premium
+  const scansLeft = isPremium
     ? '∞'
     : Math.max(0, FREE_SCANS_PER_MONTH - (userProfile?.scans_this_month || 0));
   const canScan =
-    userProfile?.is_premium || (userProfile?.scans_this_month || 0) < FREE_SCANS_PER_MONTH;
+    isPremium || (userProfile?.scans_this_month || 0) < FREE_SCANS_PER_MONTH;
 
   const openGallery = () => {
     if (!canScan) {
@@ -81,8 +84,8 @@ export default function ScanPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image,
+          initData,
           telegram_user_id: testUserId,
-          is_premium: userProfile?.is_premium,
         }),
       });
       const data = await res.json();
@@ -95,15 +98,10 @@ export default function ScanPage() {
       }
       setItems(data.items || []);
       if (data.currency) setCurrency(data.currency);
-
-      const incRes = await fetch('/api/user/increment-scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telegram_user_id: testUserId }),
-      });
-      const incData = await incRes.json();
       setUserProfile((prev: any) =>
-        prev ? { ...prev, scans_this_month: incData.scans_this_month || (prev.scans_this_month || 0) + 1 } : prev
+        prev
+          ? { ...prev, scans_this_month: data.scans_this_month ?? (prev.scans_this_month || 0) + 1 }
+          : prev
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : t('common.error');
@@ -125,6 +123,17 @@ export default function ScanPage() {
     if (!testUserId || items.length === 0) return;
     setSaving(true);
     try {
+      if (!isPremium) {
+        const { count } = await supabase
+          .from('fridge_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('telegram_user_id', testUserId);
+        if ((count || 0) + items.length > FREE_FRIDGE_ITEMS) {
+          alert(t('fridge.limitAlert', { limit: FREE_FRIDGE_ITEMS }));
+          return;
+        }
+      }
+
       const rows = items.map((item) => {
         const expiryDate = new Date();
         expiryDate.setDate(expiryDate.getDate() + (item.expiry_days || 7));
@@ -132,32 +141,37 @@ export default function ScanPage() {
           name: item.name,
           category: item.category || 'other',
           quantity: t('scan.quantityUnit', { n: item.quantity || 1 }),
-          expiry_date: expiryDate.toISOString().split('T')[0],
+          expiry_date: formatLocalDate(expiryDate),
           icon: item.icon || '📦',
           telegram_user_id: testUserId,
         };
       });
-      const { error } = await supabase.from('fridge_items').insert(rows);
-      if (error) throw error;
+      const { error: fridgeError } = await supabase.from('fridge_items').insert(rows);
+      if (fridgeError) throw fridgeError;
 
       const totalAmount = items.reduce((sum, item) => sum + (parseFloat(String(item.price)) || 0), 0);
       const currencySymbol = CURRENCY_SYMBOLS[currency] || currency;
+      const today = formatLocalDate();
 
-      await supabase.from('receipts').insert({
+      const { error: receiptError } = await supabase.from('receipts').insert({
         telegram_user_id: testUserId,
         total_amount: totalAmount,
         currency,
-        store_name: `Чек ${new Date().toLocaleDateString(dateLocale)}`,
+        store_name: t('scan.receiptStore', {
+          date: new Date().toLocaleDateString(dateLocale),
+        }),
       });
+      if (receiptError) throw receiptError;
 
-      await supabase.from('expenses').insert({
-        name: `🧾 Покупка по чеку (${currencySymbol})`,
+      const { error: expenseError } = await supabase.from('expenses').insert({
+        name: t('scan.receiptExpense', { symbol: currencySymbol }),
         amount: totalAmount,
-        date: new Date().toISOString().split('T')[0],
+        date: today,
         category: '🛒',
         currency,
         telegram_user_id: testUserId,
       });
+      if (expenseError) throw expenseError;
 
       setSaved(true);
       setItems([]);
@@ -174,7 +188,7 @@ export default function ScanPage() {
       <TopBar title={t('scan.title')} />
       <div className="max-w-mobile mx-auto px-4 py-4">
         <div className="mb-4 text-sm text-muted">
-          {userProfile?.is_premium ? (
+          {isPremium ? (
             <span className="text-accent">{t('scan.premiumUnlimited')}</span>
           ) : (
             <span>

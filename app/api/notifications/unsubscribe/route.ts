@@ -1,28 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { verifyApiUser } from '@/lib/verify-api-user';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
-
 export async function POST(req: NextRequest) {
   try {
-    const { telegram_user_id } = await req.json();
-    const userId = Number(telegram_user_id);
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Missing telegram_user_id' }, { status: 400 });
+    const body = await req.json();
+    const auth = verifyApiUser(body);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const supabase = getSupabase();
+    const supabase = getSupabaseAdmin();
     const now = new Date().toISOString();
+    const userId = auth.userId;
 
     const { data, error } = await supabase
       .from('users')

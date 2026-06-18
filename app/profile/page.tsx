@@ -483,24 +483,10 @@ export default function ProfilePage() {
               <span className="text-muted">{t('profile.telegramId')}</span>
               <span className="font-mono text-sm text-accent font-semibold">{user?.id}</span>
             </div>
-            <div className="flex items-center justify-between py-3 border-b border-border/50">
+            <div className="flex items-center justify-between py-3">
               <span className="text-muted">{t('profile.version')}</span>
               <span className="text-sm text-foreground font-medium">v1.0.0</span>
             </div>
-            <Link
-              href="/privacy"
-              className="flex items-center justify-between py-3 border-b border-border/50 text-sm text-accent"
-            >
-              <span>{t('profile.privacy')}</span>
-              <span>→</span>
-            </Link>
-            <Link
-              href="/terms"
-              className="flex items-center justify-between py-3 border-b border-border/50 text-sm text-accent"
-            >
-              <span>{t('profile.terms')}</span>
-              <span>→</span>
-            </Link>
             {isAdmin && (
               <Link
                 href="/admin"

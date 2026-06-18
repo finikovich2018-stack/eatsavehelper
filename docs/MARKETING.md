@@ -74,15 +74,6 @@ activate - Активировать Premium после оплаты / Recover Pr
 
 ---
 
-## Privacy & Terms (ссылки для BotFather / канала)
-
-- Privacy: `https://eatsavehelper-m6hl.vercel.app/privacy`
-- Terms: `https://eatsavehelper-m6hl.vercel.app/terms`
-
-В профиле Mini App ссылки уже есть (RU/EN по языку приложения).
-
----
-
 ## Ссылки
 
 - App: `https://eatsavehelper-m6hl.vercel.app/home`

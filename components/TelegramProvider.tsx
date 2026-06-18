@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 interface TelegramUser {
   id: number;
@@ -8,7 +8,7 @@ interface TelegramUser {
   is_premium?: boolean;
 }
 
-interface DbUser {
+export interface DbUser {
   is_premium?: boolean;
   premium_until?: string | null;
   scans_this_month?: number;
@@ -20,6 +20,7 @@ interface TelegramData {
   dbUser: DbUser | null;
   initData: string;
   loading: boolean;
+  refreshUser: () => Promise<DbUser | null>;
 }
 
 const TgCtx = createContext<TelegramData>({
@@ -27,6 +28,7 @@ const TgCtx = createContext<TelegramData>({
   dbUser: null,
   initData: "",
   loading: true,
+  refreshUser: async () => null,
 });
 
 const IS_DEV = process.env.NODE_ENV === 'development';
@@ -53,16 +55,23 @@ async function registerChatForNotifications(
   }
 }
 
-async function authenticate(initData: string) {
-  const res = await fetch("/api/auth/telegram", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+/** Sync name/username and load fresh limits + Premium from DB. */
+async function loadDbUser(initData: string, telegramUserId: number): Promise<DbUser | null> {
+  await fetch('/api/auth/telegram', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ initData }),
+  });
+
+  const res = await fetch('/api/user/get-or-create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ initData, telegram_user_id: telegramUserId }),
   });
 
   if (!res.ok) return null;
   const data = await res.json();
-  return data.user as DbUser | null;
+  return (data.user as DbUser) || null;
 }
 
 export function TelegramProvider({ children }: { children: React.ReactNode }) {
@@ -71,34 +80,38 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   const [initData, setInitData] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const refreshUser = useCallback(async () => {
+    if (!initData || !user?.id) return null;
+    const profile = await loadDbUser(initData, user.id);
+    if (profile) setDbUser(profile);
+    return profile;
+  }, [initData, user?.id]);
+
   useEffect(() => {
     const init = async () => {
       try {
         const tg = (window as any).Telegram?.WebApp;
 
-        if (tg?.initDataUnsafe?.user && tg.initData) {
-          tg.ready();
-          tg.expand();
-          setInitData(tg.initData);
-          setUser(tg.initDataUnsafe.user);
-
-          const profile = await authenticate(tg.initData);
+        const bootstrap = async (tgApp: typeof tg, tgUser: TelegramUser, rawInitData: string) => {
+          tgApp.ready();
+          tgApp.expand();
+          setInitData(rawInitData);
+          setUser(tgUser);
+          const profile = await loadDbUser(rawInitData, tgUser.id);
           setDbUser(profile);
-          registerChatForNotifications(tg.initDataUnsafe.user.id, tg.initDataUnsafe.user.id, tg.initData);
+          registerChatForNotifications(tgUser.id, tgUser.id, rawInitData);
           setLoading(false);
+        };
+
+        if (tg?.initDataUnsafe?.user && tg.initData) {
+          await bootstrap(tg, tg.initDataUnsafe.user, tg.initData);
           return;
         }
 
         setTimeout(async () => {
           const tg2 = (window as any).Telegram?.WebApp;
           if (tg2?.initDataUnsafe?.user && tg2.initData) {
-            tg2.ready();
-            tg2.expand();
-            setInitData(tg2.initData);
-            setUser(tg2.initDataUnsafe.user);
-            const profile = await authenticate(tg2.initData);
-            setDbUser(profile);
-            registerChatForNotifications(tg2.initDataUnsafe.user.id, tg2.initDataUnsafe.user.id, tg2.initData);
+            await bootstrap(tg2, tg2.initDataUnsafe.user, tg2.initData);
           } else if (IS_DEV) {
             setUser(DEV_USER);
           }
@@ -116,7 +129,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <TgCtx.Provider value={{ user, dbUser, initData, loading }}>
+    <TgCtx.Provider value={{ user, dbUser, initData, loading, refreshUser }}>
       {children}
     </TgCtx.Provider>
   );

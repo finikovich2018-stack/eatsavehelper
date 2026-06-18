@@ -46,10 +46,15 @@ const ICONS: Record<string, string> = {
 };
 
 export default function FridgePage() {
-  const { user, dbUser } = useTelegram();
+  const { user, dbUser, refreshUser } = useTelegram();
   const { t } = useI18n();
   const testUserId = user?.id;
-  const isPremium = isPremiumActive(dbUser || {});
+  const [localUser, setLocalUser] = useState<typeof dbUser>(null);
+  const isPremium = isPremiumActive(localUser || dbUser || {});
+
+  useEffect(() => {
+    refreshUser().then(setLocalUser);
+  }, [refreshUser]);
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

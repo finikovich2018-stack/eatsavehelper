@@ -24,18 +24,18 @@ type ParsedItem = {
 };
 
 export default function ScanPage() {
-  const { user, dbUser, initData } = useTelegram();
+  const { user, dbUser, initData, refreshUser } = useTelegram();
   const { t, dateLocale } = useI18n();
   const testUserId = user?.id;
-  const isPremium = isPremiumActive(dbUser || {});
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const isPremium = isPremiumActive(userProfile || dbUser || {});
+  const [fridgeCount, setFridgeCount] = useState(0);
   const [image, setImage] = useState<string | null>(null);
   const [items, setItems] = useState<ParsedItem[]>([]);
   const [currency, setCurrency] = useState<string>('RUB');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [fridgeCount, setFridgeCount] = useState(0);
 
   const loadFridgeCount = async () => {
     if (!testUserId) return 0;
@@ -62,16 +62,11 @@ export default function ScanPage() {
   const willPartialSave = !isPremium && items.length > slotsLeft && slotsLeft > 0;
 
   useEffect(() => {
-    if (testUserId) {
-      fetch('/api/user/get-or-create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData, telegram_user_id: testUserId }),
-      })
-        .then((r) => r.json())
-        .then((d) => setUserProfile(d.user));
-    }
-  }, [testUserId, initData]);
+    if (!testUserId) return;
+    refreshUser().then((profile) => {
+      if (profile) setUserProfile(profile);
+    });
+  }, [testUserId, refreshUser]);
 
   const scansLeft = isPremium
     ? '∞'
@@ -125,9 +120,15 @@ export default function ScanPage() {
       if (data.currency) setCurrency(data.currency);
       setUserProfile((prev: any) =>
         prev
-          ? { ...prev, scans_this_month: data.scans_this_month ?? (prev.scans_this_month || 0) + 1 }
+          ? {
+              ...prev,
+              scans_this_month: data.scans_this_month ?? (prev.scans_this_month || 0) + 1,
+            }
           : prev
       );
+      refreshUser().then((profile) => {
+        if (profile) setUserProfile(profile);
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : t('common.error');
       alert(t('scan.parseError', { msg: message }));
@@ -152,7 +153,7 @@ export default function ScanPage() {
       if (!isPremium) {
         currentCount = await loadFridgeCount();
         const left = Math.max(0, FREE_FRIDGE_ITEMS - currentCount);
-        if (left === 0) {
+        if (left === 0 && !isPremium) {
           alert(t('fridge.limitAlert', { limit: FREE_FRIDGE_ITEMS }));
           return;
         }

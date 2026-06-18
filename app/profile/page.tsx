@@ -40,7 +40,7 @@ const ACHIEVEMENT_META: Record<
 };
 
 export default function ProfilePage() {
-  const { user, initData } = useTelegram();
+  const { user, initData, dbUser, refreshUser } = useTelegram();
   const { t, locale, setLocale, dateLocale } = useI18n();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [premiumBusy, setPremiumBusy] = useState(false);
@@ -57,16 +57,10 @@ export default function ProfilePage() {
 
   const loadUserProfile = useCallback(async () => {
     if (!user?.id) return null;
-
-    const res = await fetch('/api/user/get-or-create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ initData, telegram_user_id: user.id }),
-    });
-    const data = await res.json();
-    if (data.user) setUserProfile(data.user);
-    return data.user as UserProfile | null;
-  }, [user?.id, initData]);
+    const profile = await refreshUser();
+    if (profile) setUserProfile(profile);
+    return profile as UserProfile | null;
+  }, [user?.id, refreshUser]);
 
   const loadStats = useCallback(async () => {
     if (!user?.id) return;
@@ -139,7 +133,7 @@ export default function ProfilePage() {
     loadStats();
   }, [loadUserProfile, loadStats]);
 
-  const isPremium = isPremiumActive(userProfile || {});
+  const isPremium = isPremiumActive(userProfile || dbUser || {});
   const notificationsEnabled = userProfile?.notifications_enabled !== false;
 
   const waitForPremium = useCallback(async (attempts = 12) => {

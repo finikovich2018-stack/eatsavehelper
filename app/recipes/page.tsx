@@ -59,7 +59,7 @@ function daysLeft(date: string) {
 }
 
 export default function RecipesPage() {
-  const { user, initData } = useTelegram();
+  const { user, dbUser, initData, refreshUser } = useTelegram();
   const { t, locale } = useI18n();
   const recipes = useMemo(() => RECIPES_BY_LOCALE[locale], [locale]);
   const [expiringItems, setExpiringItems] = useState<FridgeItem[]>([]);
@@ -73,16 +73,12 @@ export default function RecipesPage() {
   const [userProfile, setUserProfile] = useState<any>(null);
 
   useEffect(() => {
-    if (user?.id) {
-      fetch('/api/user/get-or-create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData, telegram_user_id: user.id }),
-      }).then((r) => r.json()).then((d) => setUserProfile(d.user));
-    }
-  }, [user?.id, initData]);
+    refreshUser().then((profile) => {
+      if (profile) setUserProfile(profile);
+    });
+  }, [refreshUser]);
 
-  const isPremium = isPremiumActive(userProfile || {});
+  const isPremium = isPremiumActive(userProfile || dbUser || {});
 
   const getAIRecipes = async () => {
     if (!isPremium && (userProfile?.ai_recipes_this_month || 0) >= FREE_AI_RECIPES_PER_MONTH) {

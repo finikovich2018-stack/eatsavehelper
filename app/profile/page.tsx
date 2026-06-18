@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import TopBar from '@/components/layout/TopBar';
 import { dataApi } from '@/lib/client-api';
 import { useDataAuth } from '@/lib/use-data-auth';
@@ -68,6 +69,7 @@ export default function ProfilePage() {
     expenses: [],
   });
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const loadUserProfile = useCallback(async () => {
     if (!user?.id) return null;
@@ -135,6 +137,18 @@ export default function ProfilePage() {
     loadUserProfile();
     loadStats();
   }, [loadUserProfile, loadStats]);
+
+  useEffect(() => {
+    if (!auth) return;
+    fetch('/api/admin/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: auth.initData, telegram_user_id: auth.telegram_user_id }),
+    })
+      .then((res) => res.json())
+      .then((data) => setIsAdmin(Boolean(data.admin)))
+      .catch(() => setIsAdmin(false));
+  }, [auth]);
 
   const isPremium = isPremiumActive(userProfile || dbUser || {});
   const notificationsEnabled = userProfile?.notifications_enabled !== false;
@@ -477,6 +491,15 @@ export default function ProfilePage() {
               <span className="text-muted">{t('profile.version')}</span>
               <span className="text-sm text-foreground font-medium">v1.0.0</span>
             </div>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="flex items-center justify-between py-3 border-t border-border/50 text-accent font-medium"
+              >
+                <span>📊 Admin</span>
+                <span>→</span>
+              </Link>
+            )}
           </div>
         </div>
 

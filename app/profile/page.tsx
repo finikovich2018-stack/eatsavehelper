@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase/client';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { PREMIUM_PRICE_STARS } from '@/lib/constants';
+import { computeAchievements } from '@/lib/achievements';
 import type { TranslationKey } from '@/lib/i18n/translations';
 
 type UserProfile = {
@@ -22,8 +23,19 @@ type Stats = {
   fridgeCount: number;
   byCurrency: Record<string, number>;
   receiptCount: number;
-  recipeCount: number;
-  daysUnderBudget: number;
+  aiRecipeCount: number;
+  budgetLimitRub: number;
+  expenses: { amount: number; date: string; currency?: string | null }[];
+};
+
+const ACHIEVEMENT_META: Record<
+  string,
+  { icon: string; titleKey: TranslationKey; descKey: TranslationKey }
+> = {
+  budget: { icon: '💰', titleKey: 'ach.budget.title', descKey: 'ach.budget.desc' },
+  receipt: { icon: '🧾', titleKey: 'ach.receipt.title', descKey: 'ach.receipt.desc' },
+  chef: { icon: '👨‍🍳', titleKey: 'ach.chef.title', descKey: 'ach.chef.desc' },
+  saver: { icon: '🌱', titleKey: 'ach.saver.title', descKey: 'ach.saver.desc' },
 };
 
 export default function ProfilePage() {
@@ -36,8 +48,9 @@ export default function ProfilePage() {
     fridgeCount: 0,
     byCurrency: {},
     receiptCount: 0,
-    recipeCount: 0,
-    daysUnderBudget: 0,
+    aiRecipeCount: 0,
+    budgetLimitRub: 15000,
+    expenses: [],
   });
   const [loading, setLoading] = useState(true);
 
@@ -69,15 +82,15 @@ export default function ProfilePage() {
         .select('*', { count: 'exact', head: true })
         .eq('telegram_user_id', user.id);
 
-      const { count: recipeCount } = await supabase
+      const { count: aiRecipeCount } = await supabase
         .from('saved_recipes')
         .select('*', { count: 'exact', head: true })
-        .eq('telegram_user_id', user.id);
+        .eq('telegram_user_id', user.id)
+        .eq('source', 'ai');
 
       const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-        .toISOString()
-        .split('T')[0];
+      const monthStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthStart = monthStartDate.toISOString().split('T')[0];
 
       const { data: expensesData } = await supabase
         .from('expenses')
@@ -99,17 +112,19 @@ export default function ProfilePage() {
         .eq('currency', 'RUB')
         .maybeSingle();
 
-      const limit = Number(budgetRow?.amount || 15000);
-      const spent = byCurrency['RUB'] || 0;
-      const daysInMonth = now.getDate();
-      const daysUnderBudget = spent <= limit ? daysInMonth : 0;
+      const budgetLimitRub = Number(budgetRow?.amount || 15000);
 
       setStats({
         fridgeCount: fridgeCount || 0,
         byCurrency,
         receiptCount: receiptCount || 0,
-        recipeCount: recipeCount || 0,
-        daysUnderBudget,
+        aiRecipeCount: aiRecipeCount || 0,
+        budgetLimitRub,
+        expenses: (expensesData || []).map((e) => ({
+          amount: Number(e.amount) || 0,
+          date: e.date,
+          currency: (e as { currency?: string }).currency || 'RUB',
+        })),
       });
     } catch (error) {
       console.error(error);
@@ -228,35 +243,27 @@ export default function ProfilePage() {
   };
 
   const monthName = new Date().toLocaleString(dateLocale, { month: 'long' });
+  const monthStartDate = useMemo(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    []
+  );
 
   const achievements = useMemo(
-    () => [
-      {
-        icon: '💰',
-        titleKey: 'ach.budget.title' as TranslationKey,
-        descKey: 'ach.budget.desc' as TranslationKey,
-        unlocked: stats.daysUnderBudget >= 7,
-      },
-      {
-        icon: '🧾',
-        titleKey: 'ach.receipt.title' as TranslationKey,
-        descKey: 'ach.receipt.desc' as TranslationKey,
-        unlocked: stats.receiptCount >= 1,
-      },
-      {
-        icon: '👨‍🍳',
-        titleKey: 'ach.chef.title' as TranslationKey,
-        descKey: 'ach.chef.desc' as TranslationKey,
-        unlocked: stats.recipeCount >= 10,
-      },
-      {
-        icon: '🌱',
-        titleKey: 'ach.saver.title' as TranslationKey,
-        descKey: 'ach.saver.desc' as TranslationKey,
-        unlocked: (15000 - (stats.byCurrency['RUB'] || 0)) >= 2000,
-      },
-    ],
-    [stats]
+    () =>
+      computeAchievements({
+        receiptCount: stats.receiptCount,
+        aiRecipeCount: stats.aiRecipeCount,
+        expenses: stats.expenses,
+        budgetLimitRub: stats.budgetLimitRub,
+        monthStart: monthStartDate,
+      }).map((item) => ({
+        id: item.id,
+        ...ACHIEVEMENT_META[item.id],
+        unlocked: item.unlocked,
+        current: item.current,
+        target: item.target,
+      })),
+    [stats, monthStartDate]
   );
 
   return (
@@ -341,18 +348,22 @@ export default function ProfilePage() {
           <div className="grid grid-cols-2 gap-3">
             {achievements.map((a) => (
               <div
-                key={a.titleKey}
+                key={a.id}
                 className={`rounded-2xl p-4 border text-center transition ${
                   a.unlocked
                     ? 'bg-accent/10 border-accent/40'
-                    : 'bg-surface border-border opacity-50'
+                    : 'bg-surface border-border opacity-70'
                 }`}
               >
                 <div className="text-3xl mb-2">{a.icon}</div>
                 <div className="text-sm font-semibold">{t(a.titleKey)}</div>
                 <div className="text-xs text-muted mt-1">{t(a.descKey)}</div>
-                {a.unlocked && (
+                {a.unlocked ? (
                   <span className="inline-block mt-2 text-xs text-accent font-medium">{t('ach.unlocked')}</span>
+                ) : (
+                  <span className="inline-block mt-2 text-xs text-muted font-medium">
+                    {t('ach.progress', { current: a.current, target: a.target })}
+                  </span>
                 )}
               </div>
             ))}

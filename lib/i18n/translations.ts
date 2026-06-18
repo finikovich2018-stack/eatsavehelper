@@ -180,6 +180,7 @@ const ru = {
   'ach.saver.title': 'Экономист',
   'ach.saver.desc': 'Сэкономить 2000₽',
   'ach.unlocked': '✓ Получено',
+  'ach.progress': '{current}/{target}',
 } as const;
 
 const en: Record<TranslationKey, string> = {
@@ -352,6 +353,7 @@ const en: Record<TranslationKey, string> = {
   'ach.saver.title': 'Saver',
   'ach.saver.desc': 'Save ₽2000',
   'ach.unlocked': '✓ Unlocked',
+  'ach.progress': '{current}/{target}',
 };
 
 export const translations = { ru, en };

@@ -88,6 +88,10 @@ const ru = {
   'scan.quantityUnit': '{n} шт.',
   'scan.receiptStore': 'Чек {date}',
   'scan.receiptExpense': '🧾 Покупка по чеку ({symbol})',
+  'scan.fridgeSlots': 'В холодильнике: {current}/{limit}',
+  'scan.fridgeFull': 'Холодильник полон ({limit}). Удалите продукты во вкладке «Холод.» или оформите Premium.',
+  'scan.partialSaved': 'Добавлено {added} из {total}. Освободите место для остальных или купите Premium.',
+  'scan.addCount': '➕ Добавить {count} в холодильник',
 
   // Recipes
   'recipes.title': '👨‍🍳 Рецепты',
@@ -268,6 +272,10 @@ const en: Record<TranslationKey, string> = {
   'scan.quantityUnit': '{n} pcs',
   'scan.receiptStore': 'Receipt {date}',
   'scan.receiptExpense': '🧾 Receipt purchase ({symbol})',
+  'scan.fridgeSlots': 'In fridge: {current}/{limit}',
+  'scan.fridgeFull': 'Fridge full ({limit}). Remove products in Fridge tab or get Premium.',
+  'scan.partialSaved': 'Added {added} of {total}. Free up space for the rest or get Premium.',
+  'scan.addCount': '➕ Add {count} to fridge',
 
   'recipes.title': '👨‍🍳 Recipes',
   'recipes.whatToCook': '✨ What to cook?',

@@ -35,6 +35,31 @@ export default function ScanPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [fridgeCount, setFridgeCount] = useState(0);
+
+  const loadFridgeCount = async () => {
+    if (!testUserId) return 0;
+    const { count } = await supabase
+      .from('fridge_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('telegram_user_id', testUserId);
+    const n = count || 0;
+    setFridgeCount(n);
+    return n;
+  };
+
+  useEffect(() => {
+    if (testUserId) loadFridgeCount();
+  }, [testUserId]);
+
+  useEffect(() => {
+    if (testUserId && items.length > 0) loadFridgeCount();
+  }, [testUserId, items.length]);
+
+  const slotsLeft = isPremium ? Infinity : Math.max(0, FREE_FRIDGE_ITEMS - fridgeCount);
+  const itemsToAdd = isPremium ? items.length : Math.min(items.length, slotsLeft);
+  const fridgeFull = !isPremium && slotsLeft === 0;
+  const willPartialSave = !isPremium && items.length > slotsLeft && slotsLeft > 0;
 
   useEffect(() => {
     if (testUserId) {
@@ -123,18 +148,23 @@ export default function ScanPage() {
     if (!testUserId || items.length === 0) return;
     setSaving(true);
     try {
+      let currentCount = fridgeCount;
       if (!isPremium) {
-        const { count } = await supabase
-          .from('fridge_items')
-          .select('*', { count: 'exact', head: true })
-          .eq('telegram_user_id', testUserId);
-        if ((count || 0) + items.length > FREE_FRIDGE_ITEMS) {
+        currentCount = await loadFridgeCount();
+        const left = Math.max(0, FREE_FRIDGE_ITEMS - currentCount);
+        if (left === 0) {
           alert(t('fridge.limitAlert', { limit: FREE_FRIDGE_ITEMS }));
           return;
         }
       }
 
-      const rows = items.map((item) => {
+      const batch = isPremium ? items : items.slice(0, Math.max(0, FREE_FRIDGE_ITEMS - currentCount));
+      if (batch.length === 0) {
+        alert(t('scan.fridgeFull', { limit: FREE_FRIDGE_ITEMS }));
+        return;
+      }
+
+      const rows = batch.map((item) => {
         const expiryDate = new Date();
         expiryDate.setDate(expiryDate.getDate() + (item.expiry_days || 7));
         return {
@@ -149,7 +179,7 @@ export default function ScanPage() {
       const { error: fridgeError } = await supabase.from('fridge_items').insert(rows);
       if (fridgeError) throw fridgeError;
 
-      const totalAmount = items.reduce((sum, item) => sum + (parseFloat(String(item.price)) || 0), 0);
+      const totalAmount = batch.reduce((sum, item) => sum + (parseFloat(String(item.price)) || 0), 0);
       const currencySymbol = CURRENCY_SYMBOLS[currency] || currency;
       const today = formatLocalDate();
 
@@ -173,9 +203,17 @@ export default function ScanPage() {
       });
       if (expenseError) throw expenseError;
 
-      setSaved(true);
-      setItems([]);
-      setImage(null);
+      const remainingItems = items.slice(batch.length);
+      if (remainingItems.length > 0) {
+        setItems(remainingItems);
+        setFridgeCount(currentCount + batch.length);
+        alert(t('scan.partialSaved', { added: batch.length, total: batch.length + remainingItems.length }));
+      } else {
+        setSaved(true);
+        setItems([]);
+        setImage(null);
+        setFridgeCount(currentCount + batch.length);
+      }
     } catch {
       alert(t('scan.saveError'));
     } finally {
@@ -237,6 +275,13 @@ export default function ScanPage() {
               <span className="text-accent">{currency}</span>
             </h2>
             <p className="text-xs text-muted mb-4">{t('scan.reviewHint')}</p>
+            {!isPremium && (
+              <p className={`text-xs mb-4 ${fridgeFull ? 'text-red-400' : willPartialSave ? 'text-yellow-400' : 'text-muted'}`}>
+                {fridgeFull
+                  ? t('scan.fridgeFull', { limit: FREE_FRIDGE_ITEMS })
+                  : t('scan.fridgeSlots', { current: fridgeCount, limit: FREE_FRIDGE_ITEMS })}
+              </p>
+            )}
             <div className="space-y-3 mb-4">
               {items.map((item, i) => (
                 <div key={i} className="bg-background border border-border rounded-xl p-3 space-y-2">
@@ -269,10 +314,14 @@ export default function ScanPage() {
             </div>
             <button
               onClick={addToFridge}
-              disabled={saving}
+              disabled={saving || fridgeFull}
               className="w-full bg-accent text-background py-4 rounded-2xl font-medium text-lg disabled:opacity-50"
             >
-              {saving ? t('scan.saving') : t('scan.addAll')}
+              {saving
+                ? t('scan.saving')
+                : !isPremium && itemsToAdd < items.length
+                  ? t('scan.addCount', { count: itemsToAdd })
+                  : t('scan.addAll')}
             </button>
           </div>
         )}

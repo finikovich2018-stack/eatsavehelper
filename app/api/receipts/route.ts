@@ -51,6 +51,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    if (op === 'delete') {
+      const { id } = body;
+      if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+      const { error } = await supabase
+        .from('receipts')
+        .delete()
+        .eq('id', id)
+        .eq('telegram_user_id', userId);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true });
+    }
+
     return NextResponse.json({ error: 'Unknown op' }, { status: 400 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Error';

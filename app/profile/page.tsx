@@ -133,6 +133,18 @@ export default function ProfilePage() {
     }
   }, [auth]);
 
+  const deleteReceipt = async (id: string) => {
+    if (!auth) return;
+    if (!confirm(t('profile.deleteReceiptConfirm'))) return;
+    try {
+      await dataApi.receipts.delete(auth, id);
+      setRecentReceipts((prev) => prev.filter((r) => r.id !== id));
+      setStats((prev) => ({ ...prev, receiptCount: Math.max(0, prev.receiptCount - 1) }));
+    } catch {
+      alert(t('profile.notifySaveError'));
+    }
+  };
+
   useEffect(() => {
     loadUserProfile();
     loadStats();
@@ -456,18 +468,28 @@ export default function ProfilePage() {
               recentReceipts.map((r) => (
                 <div
                   key={r.id}
-                  className="flex items-center justify-between py-2 border-b border-border/40 last:border-0"
+                  className="flex items-center gap-2 py-2 border-b border-border/40 last:border-0"
                 >
-                  <div>
-                    <div className="font-medium text-sm">{r.store_name || t('profile.receiptItem')}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">
+                      {r.store_name || t('profile.receiptItem')}
+                    </div>
                     <div className="text-xs text-muted">
                       {new Date(r.scanned_at).toLocaleDateString(dateLocale)}
                     </div>
                   </div>
-                  <div className="text-sm font-semibold text-accent">
+                  <div className="text-sm font-semibold text-accent shrink-0">
                     {Number(r.total_amount).toLocaleString()}{' '}
                     {CURRENCY_SYMBOLS[r.currency] || r.currency}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => deleteReceipt(r.id)}
+                    className="text-muted hover:text-red-400 px-2 py-1 shrink-0"
+                    aria-label={t('profile.deleteReceipt')}
+                  >
+                    ✕
+                  </button>
                 </div>
               ))
             )}

@@ -99,6 +99,8 @@ export const dataApi = {
       apiPost<{ ok: true }>('/api/receipts', withAuth(auth, { op: 'insert', row })),
     count: (auth: AuthPayload) =>
       apiPost<{ count: number }>('/api/receipts', withAuth(auth, { op: 'count' })),
+    delete: (auth: AuthPayload, id: string) =>
+      apiPost<{ ok: true }>('/api/receipts', withAuth(auth, { op: 'delete', id })),
   },
   recipes: {
     list: (auth: AuthPayload) =>

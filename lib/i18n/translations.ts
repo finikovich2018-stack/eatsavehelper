@@ -103,6 +103,8 @@ const ru = {
   'recipes.steps': '👨‍🍳 Приготовление',
   'recipes.aiRecipe': '✨ AI рецепт',
   'recipes.limitAlert': 'Бесплатный лимит: {limit} AI рецепта/месяц. Купите Premium!',
+  'recipes.delete': 'Удалить рецепт',
+  'recipes.deleteConfirm': 'Удалить этот рецепт?',
 
   // Budget
   'budget.title': '💰 Бюджет',
@@ -278,6 +280,8 @@ const en: Record<TranslationKey, string> = {
   'recipes.steps': '👨‍🍳 Instructions',
   'recipes.aiRecipe': '✨ AI recipe',
   'recipes.limitAlert': 'Free limit: {limit} AI recipes/month. Get Premium!',
+  'recipes.delete': 'Delete recipe',
+  'recipes.deleteConfirm': 'Delete this recipe?',
 
   'budget.title': '💰 Budget',
   'budget.spentMonth': 'Spent this month',

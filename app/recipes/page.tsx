@@ -143,10 +143,23 @@ export default function RecipesPage() {
       .from('saved_recipes')
       .select('*')
       .eq('telegram_user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
+      .order('created_at', { ascending: false });
     setSavedRecipes(data || []);
   }, [user?.id]);
+
+  const deleteSavedRecipe = async (id: string) => {
+    if (!user?.id) return;
+    if (!confirm(t('recipes.deleteConfirm'))) return;
+
+    await supabase
+      .from('saved_recipes')
+      .delete()
+      .eq('id', id)
+      .eq('telegram_user_id', user.id);
+
+    setSavedRecipes((prev) => prev.filter((r) => r.id !== id));
+    if (selectedSaved?.id === id) setSelectedSaved(null);
+  };
 
   const loadExpiringItems = useCallback(async () => {
     if (!user?.id) return;
@@ -209,6 +222,12 @@ export default function RecipesPage() {
               <p className="text-sm text-muted leading-relaxed">{steps.join('\n')}</p>
             </div>
           )}
+          <button
+            onClick={() => deleteSavedRecipe(selectedSaved.id)}
+            className="w-full bg-red-500/10 border border-red-500/30 text-red-400 font-medium py-3 rounded-2xl mb-3"
+          >
+            🗑 {t('recipes.delete')}
+          </button>
           <button
             onClick={() => setSelectedSaved(null)}
             className="w-full bg-surface border border-border font-medium py-3 rounded-2xl"
@@ -327,20 +346,33 @@ export default function RecipesPage() {
             <h3 className="font-semibold mb-4">{t('recipes.saved')}</h3>
             <div className="space-y-3">
               {savedRecipes.map((recipe) => (
-                <button
+                <div
                   key={recipe.id}
-                  onClick={() => setSelectedSaved(recipe)}
-                  className="w-full bg-surface border border-border rounded-2xl p-4 flex items-center gap-4 text-left active:scale-[0.98] transition"
+                  className="w-full bg-surface border border-border rounded-2xl p-4 flex items-center gap-4"
                 >
-                  <span className="text-4xl">{recipe.icon}</span>
-                  <div className="flex-1">
-                    <div className="font-semibold">{recipe.name}</div>
-                    <div className="text-xs text-muted mt-1">
-                      {(recipe.ingredients || []).slice(0, 3).join(', ')}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSaved(recipe)}
+                    className="flex flex-1 items-center gap-4 text-left active:scale-[0.98] transition min-w-0"
+                  >
+                    <span className="text-4xl shrink-0">{recipe.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold truncate">{recipe.name}</div>
+                      <div className="text-xs text-muted mt-1 truncate">
+                        {(recipe.ingredients || []).slice(0, 3).join(', ')}
+                      </div>
                     </div>
-                  </div>
-                  <span className="text-muted">›</span>
-                </button>
+                    <span className="text-muted shrink-0">›</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteSavedRecipe(recipe.id)}
+                    className="text-muted hover:text-red-400 text-xl px-2 shrink-0"
+                    aria-label={t('recipes.delete')}
+                  >
+                    ✕
+                  </button>
+                </div>
               ))}
             </div>
           </div>

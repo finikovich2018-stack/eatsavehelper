@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import { callClaudeViaWorker } from '@/lib/ai';
 import { getClaudeModel } from '@/lib/ai-model';
+import { parseReceiptJson } from '@/lib/parse-receipt-json';
 import { buildVisionMessage, parseImageDataUrl } from '@/lib/receipt-image';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import {
@@ -16,28 +17,54 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
+/** Long receipts (15+ items) need a larger output budget. */
+const RECEIPT_MAX_TOKENS = 4096;
+
 function getAnthropic() {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY не настроен на сервере');
   return new Anthropic({ apiKey });
 }
 
-const PARSE_PROMPT = `Извлеки ТОЛЬКО продукты питания и напитки с чека. Игнорируй бытовые товары. Определи валюту чека (USD, EUR, RUB и т.д.). Верни ТОЛЬКО чистый JSON без markdown:
+const PARSE_PROMPT = `Извлеки ВСЕ продукты питания и напитки с чека. Игнорируй бытовую химию и упаковку.
+Определи валюту (RUB, EUR, USD…). Верни ТОЛЬКО валидный JSON без markdown и комментариев.
+Короткие названия (до 60 символов). Экранируй кавычки в названиях.
 
 {
-  "currency": "USD",
+  "currency": "RUB",
   "items": [
-    {"name": "Название товара", "quantity": 1, "price": 1.49, "expiry_days": 7, "category": "veg", "icon": "🥦"}
+    {"name": "Молоко", "quantity": 1, "price": 89.99, "expiry_days": 5, "category": "dairy", "icon": "🥛"}
   ]
 }
 
-category: dairy | meat | veg | grains | other`;
+category: dairy | meat | veg | grains | other
+expiry_days — примерный срок годности в днях от покупки.`;
 
-function extractJson(text: string) {
-  const cleaned = text.replace(/```json|```/g, '').trim();
-  const match = cleaned.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('JSON не найден в ответе AI');
-  return JSON.parse(match[0]);
+async function callClaudeForReceipt(
+  message: ReturnType<typeof buildVisionMessage>,
+  userId: number,
+  isPremium: boolean
+): Promise<string> {
+  if (process.env.NEXT_PUBLIC_WORKER_URL) {
+    return callClaudeViaWorker({
+      userId,
+      isPremium,
+      messages: [message],
+      maxTokens: RECEIPT_MAX_TOKENS,
+    });
+  }
+
+  const anthropic = getAnthropic();
+  const response = await anthropic.messages.create({
+    model: getClaudeModel(),
+    max_tokens: RECEIPT_MAX_TOKENS,
+    messages: [message],
+  });
+
+  return response.content
+    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+    .map((block) => block.text)
+    .join('');
 }
 
 export async function POST(req: NextRequest) {
@@ -61,33 +88,12 @@ export async function POST(req: NextRequest) {
 
     const { mediaType, base64Data } = parseImageDataUrl(image);
     const message = buildVisionMessage(base64Data, mediaType, PARSE_PROMPT);
-    let text = '';
-
-    if (process.env.NEXT_PUBLIC_WORKER_URL) {
-      text = await callClaudeViaWorker({
-        userId: auth.userId,
-        isPremium: isPremiumActive(user),
-        messages: [message],
-      });
-    } else {
-      const anthropic = getAnthropic();
-      const response = await anthropic.messages.create({
-        model: getClaudeModel(),
-        max_tokens: 1500,
-        messages: [message],
-      });
-
-      text = response.content
-        .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-        .map((block) => block.text)
-        .join('');
-    }
-
-    const parsed = extractJson(text);
+    const text = await callClaudeForReceipt(message, auth.userId, isPremiumActive(user));
+    const parsed = parseReceiptJson(text);
 
     return NextResponse.json({
-      items: parsed.items || [],
-      currency: parsed.currency || 'RUB',
+      items: parsed.items,
+      currency: parsed.currency,
       scans_this_month: scansThisMonth,
     });
   } catch (error: unknown) {

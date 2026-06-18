@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const PREMIUM_DAYS = 30;
+export const PREMIUM_DAYS = 30;
+export const PREMIUM_DAYS_SHORT = 15;
 
 function getSupabase(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -38,7 +39,7 @@ export async function checkPremiumDb(): Promise<{ ok: boolean; error?: string }>
   }
 }
 
-export async function activatePremium(telegramUserId: number) {
+export async function activatePremium(telegramUserId: number, days = PREMIUM_DAYS) {
   const dbCheck = await checkPremiumDb();
   if (!dbCheck.ok) {
     throw new Error(
@@ -65,7 +66,7 @@ export async function activatePremium(telegramUserId: number) {
       ? new Date(existing.premium_until)
       : now;
 
-  const premiumUntil = addDays(baseDate, PREMIUM_DAYS).toISOString();
+  const premiumUntil = addDays(baseDate, days).toISOString();
 
     const row: Record<string, unknown> = {
     telegram_user_id: telegramUserId,

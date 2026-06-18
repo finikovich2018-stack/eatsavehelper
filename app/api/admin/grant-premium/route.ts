@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminTelegramId } from '@/lib/admin';
-import { activatePremium } from '@/lib/premium';
+import { activatePremium, PREMIUM_DAYS, PREMIUM_DAYS_SHORT } from '@/lib/premium';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { verifyApiUser } from '@/lib/verify-api-user';
 import { normalizeUser } from '@/lib/user-utils';
@@ -8,7 +8,7 @@ import { normalizeUser } from '@/lib/user-utils';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Admin-only: grant Premium for 30 days (support / missing payment log) */
+/** Admin-only: grant Premium for 15 or 30 days (support / missing payment log) */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -26,7 +26,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid telegram_user_id' }, { status: 400 });
     }
 
-    await activatePremium(targetId);
+    const days = Number(body.days);
+    const grantDays =
+      days === PREMIUM_DAYS_SHORT ? PREMIUM_DAYS_SHORT : PREMIUM_DAYS;
+
+    await activatePremium(targetId, grantDays);
 
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase

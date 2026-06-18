@@ -34,7 +34,7 @@ export default function AdminPage() {
   const [error, setError] = useState('');
   const [grantBusy, setGrantBusy] = useState<number | null>(null);
 
-  const grantPremium = async (telegramUserId: number) => {
+  const grantPremium = async (telegramUserId: number, days: 15 | 30) => {
     if (!auth) return;
     setGrantBusy(telegramUserId);
     try {
@@ -45,6 +45,7 @@ export default function AdminPage() {
           initData: auth.initData,
           telegram_user_id: auth.telegram_user_id,
           target_telegram_user_id: telegramUserId,
+          days,
         }),
       });
       const data = await res.json();
@@ -184,14 +185,24 @@ export default function AdminPage() {
                     <div className="font-mono">{u.telegram_user_id}</div>
                     <div>{new Date(u.created_at).toLocaleDateString('ru-RU')}</div>
                     {!u.is_premium && (
-                      <button
-                        type="button"
-                        disabled={grantBusy === u.telegram_user_id}
-                        onClick={() => grantPremium(u.telegram_user_id)}
-                        className="text-accent text-[10px] border border-accent/30 rounded px-2 py-0.5"
-                      >
-                        {grantBusy === u.telegram_user_id ? '…' : '⭐ Premium'}
-                      </button>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          disabled={grantBusy === u.telegram_user_id}
+                          onClick={() => grantPremium(u.telegram_user_id, 15)}
+                          className="text-accent text-[10px] border border-accent/30 rounded px-2 py-0.5"
+                        >
+                          {grantBusy === u.telegram_user_id ? '…' : '⭐ 15д'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={grantBusy === u.telegram_user_id}
+                          onClick={() => grantPremium(u.telegram_user_id, 30)}
+                          className="text-accent text-[10px] border border-accent/30 rounded px-2 py-0.5"
+                        >
+                          {grantBusy === u.telegram_user_id ? '…' : '⭐ 30д'}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </li>

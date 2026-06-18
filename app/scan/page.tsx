@@ -1,10 +1,11 @@
 ﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
-import { supabase } from '@/lib/supabase/client';
+import { dataApi } from '@/lib/client-api';
+import { useDataAuth } from '@/lib/use-data-auth';
 import { FREE_FRIDGE_ITEMS, FREE_SCANS_PER_MONTH } from '@/lib/constants';
 import { isPremiumActive } from '@/lib/user-utils';
 import { formatLocalDate } from '@/lib/utils';
@@ -24,6 +25,7 @@ type ParsedItem = {
 };
 
 export default function ScanPage() {
+  const auth = useDataAuth();
   const { user, dbUser, initData, refreshUser } = useTelegram();
   const { t, dateLocale } = useI18n();
   const testUserId = user?.id;
@@ -37,24 +39,21 @@ export default function ScanPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const loadFridgeCount = async () => {
-    if (!testUserId) return 0;
-    const { count } = await supabase
-      .from('fridge_items')
-      .select('*', { count: 'exact', head: true })
-      .eq('telegram_user_id', testUserId);
+  const loadFridgeCount = useCallback(async () => {
+    if (!auth) return 0;
+    const { count } = await dataApi.fridge.count(auth);
     const n = count || 0;
     setFridgeCount(n);
     return n;
-  };
+  }, [auth]);
 
   useEffect(() => {
-    if (testUserId) loadFridgeCount();
-  }, [testUserId]);
+    if (auth) loadFridgeCount();
+  }, [auth, loadFridgeCount]);
 
   useEffect(() => {
-    if (testUserId && items.length > 0) loadFridgeCount();
-  }, [testUserId, items.length]);
+    if (auth && items.length > 0) loadFridgeCount();
+  }, [auth, items.length, loadFridgeCount]);
 
   const slotsLeft = isPremium ? Infinity : Math.max(0, FREE_FRIDGE_ITEMS - fridgeCount);
   const itemsToAdd = isPremium ? items.length : Math.min(items.length, slotsLeft);
@@ -146,7 +145,7 @@ export default function ScanPage() {
   };
 
   const addToFridge = async () => {
-    if (!testUserId || items.length === 0) return;
+    if (!auth || items.length === 0) return;
     setSaving(true);
     try {
       let currentCount = fridgeCount;
@@ -174,35 +173,29 @@ export default function ScanPage() {
           quantity: t('scan.quantityUnit', { n: item.quantity || 1 }),
           expiry_date: formatLocalDate(expiryDate),
           icon: item.icon || '📦',
-          telegram_user_id: testUserId,
         };
       });
-      const { error: fridgeError } = await supabase.from('fridge_items').insert(rows);
-      if (fridgeError) throw fridgeError;
+      await dataApi.fridge.insert(auth, rows);
 
       const totalAmount = batch.reduce((sum, item) => sum + (parseFloat(String(item.price)) || 0), 0);
       const currencySymbol = CURRENCY_SYMBOLS[currency] || currency;
       const today = formatLocalDate();
 
-      const { error: receiptError } = await supabase.from('receipts').insert({
-        telegram_user_id: testUserId,
+      await dataApi.receipts.insert(auth, {
         total_amount: totalAmount,
         currency,
         store_name: t('scan.receiptStore', {
           date: new Date().toLocaleDateString(dateLocale),
         }),
       });
-      if (receiptError) throw receiptError;
 
-      const { error: expenseError } = await supabase.from('expenses').insert({
+      await dataApi.expenses.insert(auth, {
         name: t('scan.receiptExpense', { symbol: currencySymbol }),
         amount: totalAmount,
         date: today,
         category: '🛒',
         currency,
-        telegram_user_id: testUserId,
       });
-      if (expenseError) throw expenseError;
 
       const remainingItems = items.slice(batch.length);
       if (remainingItems.length > 0) {

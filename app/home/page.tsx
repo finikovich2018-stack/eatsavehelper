@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import TopBar from '@/components/layout/TopBar';
-import { supabase } from '@/lib/supabase/client';
-import { useTelegram } from '@/components/TelegramProvider';
+import { dataApi } from '@/lib/client-api';
+import { useDataAuth } from '@/lib/use-data-auth';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 
 type FridgeItem = {
@@ -20,8 +20,6 @@ type BudgetSummary = {
   limit: number;
   currency: string;
 };
-
-import { formatLocalDate } from '@/lib/utils';
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   RUB: '₽', USD: '$', EUR: '€', GBP: '£', UAH: '₴', KZT: '₸',
@@ -41,7 +39,7 @@ function getMonthStart() {
 }
 
 export default function HomePage() {
-  const { user } = useTelegram();
+  const auth = useDataAuth();
   const { t, dateLocale } = useI18n();
   const [expiring, setExpiring] = useState<FridgeItem[]>([]);
   const [budget, setBudget] = useState<BudgetSummary>({ spent: 0, limit: 15000, currency: 'RUB' });
@@ -51,17 +49,12 @@ export default function HomePage() {
   const monthName = new Date().toLocaleString(dateLocale, { month: 'long' });
 
   const loadData = useCallback(async () => {
-    if (!user?.id) return;
+    if (!auth) return;
     setLoading(true);
 
     try {
-      const { data: items } = await supabase
-        .from('fridge_items')
-        .select('id, name, icon, expiry_date, quantity')
-        .eq('telegram_user_id', user.id)
-        .order('expiry_date', { ascending: true });
-
-      const allItems = items || [];
+      const { items } = await dataApi.fridge.list(auth);
+      const allItems = (items || []) as FridgeItem[];
       const soon = allItems.filter((item) => {
         const days = daysLeft(item.expiry_date);
         return days >= 0 && days <= 3;
@@ -78,25 +71,15 @@ export default function HomePage() {
       });
 
       const monthStart = getMonthStart();
-      const { data: expenses } = await supabase
-        .from('expenses')
-        .select('amount, currency')
-        .eq('telegram_user_id', user.id)
-        .gte('date', monthStart);
-
-      const monthExpenses = expenses || [];
+      const { items: expenseItems } = await dataApi.expenses.list(auth, { monthStart });
+      const monthExpenses = (expenseItems || []) as { amount: number; currency: string }[];
       const byCurrency: Record<string, number> = {};
       monthExpenses.forEach((row) => {
         const cur = row.currency || 'RUB';
         byCurrency[cur] = (byCurrency[cur] || 0) + Number(row.amount || 0);
       });
 
-      const { data: budgetRows } = await supabase
-        .from('budgets')
-        .select('amount, currency')
-        .eq('telegram_user_id', user.id)
-        .eq('month', monthStart);
-
+      const { items: budgetRows } = await dataApi.budgets.list(auth, monthStart);
       const limits: Record<string, number> = { ...DEFAULT_LIMITS };
       (budgetRows || []).forEach((row: { amount: number; currency: string }) => {
         limits[row.currency] = Number(row.amount);
@@ -104,7 +87,7 @@ export default function HomePage() {
 
       const primaryCur =
         Object.keys(byCurrency)[0] ||
-        budgetRows?.[0]?.currency ||
+        (budgetRows as { currency: string }[])?.[0]?.currency ||
         'RUB';
 
       setBudget({
@@ -113,36 +96,18 @@ export default function HomePage() {
         currency: primaryCur,
       });
 
-      const { count: recipeCount } = await supabase
-        .from('saved_recipes')
-        .select('*', { count: 'exact', head: true })
-        .eq('telegram_user_id', user.id);
-
+      const { count: recipeCount } = await dataApi.recipes.count(auth);
       setStats((prev) => ({ ...prev, recipes: recipeCount || 0 }));
     } catch (error) {
       console.error('Home load error:', error);
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [auth]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const channel = supabase
-      .channel('home-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'fridge_items' }, () => loadData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => loadData())
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, loadData]);
 
   const symbol = CURRENCY_SYMBOLS[budget.currency] || budget.currency;
   const percent = budget.limit > 0 ? Math.min((budget.spent / budget.limit) * 100, 100) : 0;

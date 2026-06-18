@@ -91,7 +91,7 @@ CREATE INDEX IF NOT EXISTS idx_budgets_tgid_month ON budgets(telegram_user_id, m
 CREATE INDEX IF NOT EXISTS idx_receipts_tgid ON receipts(telegram_user_id);
 CREATE INDEX IF NOT EXISTS idx_saved_recipes_tgid ON saved_recipes(telegram_user_id);
 
--- ─── RLS (open for Mini App — filtered by telegram_user_id in app) ───
+-- ─── RLS: run supabase/patch_rls.sql after deploy to lock anon access ───
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE fridge_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;

@@ -1,0 +1,111 @@
+type AuthPayload = {
+  initData: string;
+  telegram_user_id: number;
+};
+
+export type ApiFridgeItem = {
+  id: string;
+  name: string;
+  category?: string;
+  quantity?: string | null;
+  expiry_date?: string | null;
+  price?: number | null;
+  icon?: string | null;
+  added_from?: string;
+  created_at?: string;
+  telegram_user_id?: number;
+};
+
+export type ApiExpense = {
+  id: string;
+  name: string;
+  amount: number;
+  date: string;
+  category: string;
+  currency: string;
+};
+
+export type ApiBudgetRow = {
+  amount: number;
+  currency: string;
+};
+
+export type ApiReceipt = {
+  id: string;
+  store_name?: string | null;
+  total_amount?: number | null;
+  total?: number | null;
+  currency?: string;
+  scanned_at?: string;
+  created_at?: string;
+};
+
+export type ApiSavedRecipe = {
+  id: string;
+  name: string;
+  ingredients?: unknown;
+  steps?: unknown;
+  kcal?: number | null;
+  source?: string;
+  created_at?: string;
+};
+
+async function apiPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || data.details || 'Request failed');
+  }
+  return data as T;
+}
+
+export function withAuth(auth: AuthPayload, extra: Record<string, unknown> = {}) {
+  return { initData: auth.initData, telegram_user_id: auth.telegram_user_id, ...extra };
+}
+
+export const dataApi = {
+  fridge: {
+    list: (auth: AuthPayload) =>
+      apiPost<{ items: ApiFridgeItem[] }>('/api/fridge', withAuth(auth, { op: 'list' })),
+    insert: (auth: AuthPayload, items: Partial<ApiFridgeItem>[]) =>
+      apiPost<{ items: ApiFridgeItem[] }>('/api/fridge', withAuth(auth, { op: 'insert', items })),
+    delete: (auth: AuthPayload, id: string) =>
+      apiPost<{ ok: true }>('/api/fridge', withAuth(auth, { op: 'delete', id })),
+    count: (auth: AuthPayload) =>
+      apiPost<{ count: number }>('/api/fridge', withAuth(auth, { op: 'count' })),
+  },
+  expenses: {
+    list: (auth: AuthPayload, opts?: { monthStart?: string }) =>
+      apiPost<{ items: ApiExpense[] }>('/api/expenses', withAuth(auth, { op: 'list', ...opts })),
+    insert: (auth: AuthPayload, item: Partial<ApiExpense>) =>
+      apiPost<{ item: ApiExpense }>('/api/expenses', withAuth(auth, { op: 'insert', item })),
+    delete: (auth: AuthPayload, id: string) =>
+      apiPost<{ ok: true }>('/api/expenses', withAuth(auth, { op: 'delete', id })),
+  },
+  budgets: {
+    list: (auth: AuthPayload, month: string) =>
+      apiPost<{ items: ApiBudgetRow[] }>('/api/budgets', withAuth(auth, { op: 'list', month })),
+    upsert: (auth: AuthPayload, row: { month: string; amount: number; currency: string }) =>
+      apiPost<{ ok: true }>('/api/budgets', withAuth(auth, { op: 'upsert', ...row })),
+  },
+  receipts: {
+    list: (auth: AuthPayload, days?: number) =>
+      apiPost<{ items: ApiReceipt[] }>('/api/receipts', withAuth(auth, { op: 'list', days: days ?? 7 })),
+    insert: (auth: AuthPayload, row: Partial<ApiReceipt>) =>
+      apiPost<{ ok: true }>('/api/receipts', withAuth(auth, { op: 'insert', row })),
+    count: (auth: AuthPayload) =>
+      apiPost<{ count: number }>('/api/receipts', withAuth(auth, { op: 'count' })),
+  },
+  recipes: {
+    list: (auth: AuthPayload) =>
+      apiPost<{ items: ApiSavedRecipe[] }>('/api/saved-recipes', withAuth(auth, { op: 'list' })),
+    delete: (auth: AuthPayload, id: string) =>
+      apiPost<{ ok: true }>('/api/saved-recipes', withAuth(auth, { op: 'delete', id })),
+    count: (auth: AuthPayload, source?: string) =>
+      apiPost<{ count: number }>('/api/saved-recipes', withAuth(auth, { op: 'count', source })),
+  },
+};

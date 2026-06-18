@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import TopBar from '@/components/layout/TopBar';
-import { supabase } from '@/lib/supabase/client';
+import { dataApi } from '@/lib/client-api';
+import { useDataAuth } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
@@ -63,9 +64,9 @@ export default function FridgePage() {
 function FridgePageContent() {
   const searchParams = useSearchParams();
   const expiringOnly = searchParams.get('filter') === 'expiring';
-  const { user, dbUser, refreshUser } = useTelegram();
+  const auth = useDataAuth();
+  const { dbUser, refreshUser } = useTelegram();
   const { t } = useI18n();
-  const testUserId = user?.id;
   const [localUser, setLocalUser] = useState<typeof dbUser>(null);
   const isPremium = isPremiumActive(localUser || dbUser || {});
 
@@ -82,16 +83,15 @@ function FridgePageContent() {
   });
 
   const loadItems = useCallback(async () => {
-    if (!testUserId) return;
+    if (!auth) return;
     setLoading(true);
-    const { data } = await supabase
-      .from('fridge_items')
-      .select('*')
-      .eq('telegram_user_id', testUserId)
-      .order('expiry_date', { ascending: true });
-    setItems(data || []);
-    setLoading(false);
-  }, [testUserId]);
+    try {
+      const { items } = await dataApi.fridge.list(auth);
+      setItems((items || []) as Item[]);
+    } finally {
+      setLoading(false);
+    }
+  }, [auth]);
 
   useEffect(() => {
     loadItems();
@@ -110,30 +110,27 @@ function FridgePageContent() {
   const atFridgeLimit = !isPremium && items.length >= FREE_FRIDGE_ITEMS;
 
   async function addItem() {
-    if (!form.name || !form.expiry_date || !testUserId) return;
+    if (!form.name || !form.expiry_date || !auth) return;
     if (atFridgeLimit) {
       alert(t('fridge.limitAlert', { limit: FREE_FRIDGE_ITEMS }));
       return;
     }
-    const { data } = await supabase
-      .from('fridge_items')
-      .insert({
-        name: form.name,
-        category: form.category === 'all' ? 'other' : form.category,
-        quantity: form.quantity,
-        expiry_date: form.expiry_date,
-        icon: ICONS[form.category] || '📦',
-        telegram_user_id: testUserId,
-      })
-      .select()
-      .single();
+    const { items: inserted } = await dataApi.fridge.insert(auth, [{
+      name: form.name,
+      category: form.category === 'all' ? 'other' : form.category,
+      quantity: form.quantity,
+      expiry_date: form.expiry_date,
+      icon: ICONS[form.category] || '📦',
+    }]);
+    const data = (inserted || [])[0] as Item | undefined;
     if (data) setItems([...items, data]);
     setForm({ name: '', category: 'other', expiry_date: '', quantity: '' });
     setShowForm(false);
   }
 
   async function removeItem(id: string) {
-    await supabase.from('fridge_items').delete().eq('id', id).eq('telegram_user_id', testUserId);
+    if (!auth) return;
+    await dataApi.fridge.delete(auth, id);
     setItems(items.filter((i) => i.id !== id));
   }
 

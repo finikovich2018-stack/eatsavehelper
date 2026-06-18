@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import TopBar from '@/components/layout/TopBar';
-import { supabase } from '@/lib/supabase/client';
+import { dataApi } from '@/lib/client-api';
+import { useDataAuth } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_AI_RECIPES_PER_MONTH } from '@/lib/constants';
@@ -59,6 +60,7 @@ function daysLeft(date: string) {
 }
 
 export default function RecipesPage() {
+  const auth = useDataAuth();
   const { user, dbUser, initData, refreshUser } = useTelegram();
   const { t, locale } = useI18n();
   const recipes = useMemo(() => RECIPES_BY_LOCALE[locale], [locale]);
@@ -81,6 +83,7 @@ export default function RecipesPage() {
   const isPremium = isPremiumActive(userProfile || dbUser || {});
 
   const getAIRecipes = async () => {
+    if (!auth) return;
     if (!isPremium && (userProfile?.ai_recipes_this_month || 0) >= FREE_AI_RECIPES_PER_MONTH) {
       alert(t('recipes.limitAlert', { limit: FREE_AI_RECIPES_PER_MONTH }));
       return;
@@ -88,12 +91,8 @@ export default function RecipesPage() {
     setShowAI(true);
     setAiLoading(true);
     try {
-      const { data } = await supabase
-        .from('fridge_items')
-        .select('name')
-        .eq('telegram_user_id', user?.id);
-
-      const ingredients = (data || []).map((i: { name: string }) => i.name);
+      const { items } = await dataApi.fridge.list(auth);
+      const ingredients = ((items || []) as { name: string }[]).map((i) => i.name);
       if (ingredients.length === 0) {
         setAiLoading(false);
         return;
@@ -138,51 +137,38 @@ export default function RecipesPage() {
   };
 
   const loadSavedRecipes = useCallback(async () => {
-    if (!user?.id) return;
-    const { data } = await supabase
-      .from('saved_recipes')
-      .select('*')
-      .eq('telegram_user_id', user.id)
-      .order('created_at', { ascending: false });
-    setSavedRecipes(data || []);
-  }, [user?.id]);
+    if (!auth) return;
+    const { items } = await dataApi.recipes.list(auth);
+    setSavedRecipes((items || []) as SavedRecipe[]);
+  }, [auth]);
 
   const deleteSavedRecipe = async (id: string) => {
-    if (!user?.id) return;
+    if (!auth) return;
     if (!confirm(t('recipes.deleteConfirm'))) return;
 
-    await supabase
-      .from('saved_recipes')
-      .delete()
-      .eq('id', id)
-      .eq('telegram_user_id', user.id);
+    await dataApi.recipes.delete(auth, id);
 
     setSavedRecipes((prev) => prev.filter((r) => r.id !== id));
     if (selectedSaved?.id === id) setSelectedSaved(null);
   };
 
   const loadExpiringItems = useCallback(async () => {
-    if (!user?.id) return;
+    if (!auth) return;
     setLoading(true);
     try {
-      const { data } = await supabase
-        .from('fridge_items')
-        .select('*')
-        .eq('telegram_user_id', user.id)
-        .order('expiry_date', { ascending: true });
-      if (data) {
-        setExpiringItems(data.filter((item) => {
-          const d = daysLeft(item.expiry_date);
-          return d <= 3 && d > 0;
-        }));
-      }
+      const { items } = await dataApi.fridge.list(auth);
+      const data = (items || []) as FridgeItem[];
+      setExpiringItems(data.filter((item) => {
+        const d = daysLeft(item.expiry_date);
+        return d <= 3 && d > 0;
+      }));
       await loadSavedRecipes();
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
     }
-  }, [user?.id, loadSavedRecipes]);
+  }, [auth, loadSavedRecipes]);
 
   useEffect(() => {
     loadExpiringItems();

@@ -119,6 +119,37 @@ async function runDirectSetup() {
   });
   const menuData = await menuRes.json();
 
+  await fetch(`https://api.telegram.org/bot${botToken}/setMyDescription`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      description:
+        'EatSave — умный холодильник в Telegram. Скан чеков, AI-рецепты, бюджет, напоминания о сроках годности. Premium ⭐ 100 Stars/мес.',
+    }),
+  });
+
+  await fetch(`https://api.telegram.org/bot${botToken}/setMyShortDescription`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      short_description: 'Умный холодильник + бюджет. Скан чеков, AI-рецепты.',
+    }),
+  });
+
+  await fetch(`https://api.telegram.org/bot${botToken}/setMyCommands`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      commands: [
+        { command: 'start', description: 'Открыть EatSave' },
+        { command: 'status', description: 'Premium и уведомления' },
+        { command: 'subscribe', description: 'Включить напоминания' },
+        { command: 'unsubscribe', description: 'Выключить напоминания' },
+        { command: 'activate', description: 'Активировать Premium после оплаты' },
+      ],
+    }),
+  });
+
   console.log('\n✅ Telegram настроен (локально через Bot API):\n');
   console.log(JSON.stringify({
     ok: true,

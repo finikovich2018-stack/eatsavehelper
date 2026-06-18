@@ -2,13 +2,23 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import TopBar from '@/components/layout/TopBar';
-import { supabase } from '@/lib/supabase/client';
+import { dataApi } from '@/lib/client-api';
+import { useDataAuth } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { PREMIUM_PRICE_STARS } from '@/lib/constants';
 import { computeAchievements } from '@/lib/achievements';
 import { isPremiumActive } from '@/lib/user-utils';
+import { formatLocalDate } from '@/lib/utils';
 import type { TranslationKey } from '@/lib/i18n/translations';
+
+type ReceiptRow = {
+  id: string;
+  store_name: string | null;
+  total_amount: number;
+  currency: string;
+  scanned_at: string;
+};
 
 type UserProfile = {
   is_premium?: boolean;
@@ -25,7 +35,8 @@ type Stats = {
   byCurrency: Record<string, number>;
   receiptCount: number;
   aiRecipeCount: number;
-  budgetLimitRub: number;
+  budgetLimit: number;
+  primaryCurrency: string;
   expenses: { amount: number; date: string; currency?: string | null }[];
 };
 
@@ -40,17 +51,20 @@ const ACHIEVEMENT_META: Record<
 };
 
 export default function ProfilePage() {
+  const auth = useDataAuth();
   const { user, initData, dbUser, refreshUser } = useTelegram();
   const { t, locale, setLocale, dateLocale } = useI18n();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [premiumBusy, setPremiumBusy] = useState(false);
   const [notificationsBusy, setNotificationsBusy] = useState(false);
+  const [recentReceipts, setRecentReceipts] = useState<ReceiptRow[]>([]);
   const [stats, setStats] = useState<Stats>({
     fridgeCount: 0,
     byCurrency: {},
     receiptCount: 0,
     aiRecipeCount: 0,
-    budgetLimitRub: 15000,
+    budgetLimit: 15000,
+    primaryCurrency: 'RUB',
     expenses: [],
   });
   const [loading, setLoading] = useState(true);
@@ -63,62 +77,51 @@ export default function ProfilePage() {
   }, [user?.id, refreshUser]);
 
   const loadStats = useCallback(async () => {
-    if (!user?.id) return;
+    if (!auth) return;
     setLoading(true);
 
     try {
-      const { count: fridgeCount } = await supabase
-        .from('fridge_items')
-        .select('*', { count: 'exact', head: true })
-        .eq('telegram_user_id', user.id);
+      const monthStart = formatLocalDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
 
-      const { count: receiptCount } = await supabase
-        .from('receipts')
-        .select('*', { count: 'exact', head: true })
-        .eq('telegram_user_id', user.id);
+      const [fridgeRes, receiptRes, aiRes, expensesRes, budgetsRes, receiptsListRes] =
+        await Promise.all([
+          dataApi.fridge.count(auth),
+          dataApi.receipts.count(auth),
+          dataApi.recipes.count(auth, 'ai'),
+          dataApi.expenses.list(auth, { monthStart }),
+          dataApi.budgets.list(auth, monthStart),
+          dataApi.receipts.list(auth, 7),
+        ]);
 
-      const { count: aiRecipeCount } = await supabase
-        .from('saved_recipes')
-        .select('*', { count: 'exact', head: true })
-        .eq('telegram_user_id', user.id)
-        .eq('source', 'ai');
-
-      const now = new Date();
-      const monthStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      const monthStart = monthStartDate.toISOString().split('T')[0];
-
-      const { data: expensesData } = await supabase
-        .from('expenses')
-        .select('amount, currency, date')
-        .eq('telegram_user_id', user.id)
-        .gte('date', monthStart);
+      const expensesData = (expensesRes.items || []) as {
+        amount: number;
+        currency?: string;
+        date: string;
+      }[];
 
       const byCurrency: Record<string, number> = {};
-      expensesData?.forEach((e) => {
-        const cur = (e as { currency?: string }).currency || 'RUB';
+      expensesData.forEach((e) => {
+        const cur = e.currency || 'RUB';
         byCurrency[cur] = (byCurrency[cur] || 0) + (Number(e.amount) || 0);
       });
 
-      const { data: budgetRow } = await supabase
-        .from('budgets')
-        .select('amount')
-        .eq('telegram_user_id', user.id)
-        .eq('month', monthStart)
-        .eq('currency', 'RUB')
-        .maybeSingle();
+      const primaryCurrency = Object.keys(byCurrency)[0] || 'RUB';
+      const budgetRows = (budgetsRes.items || []) as { amount: number; currency: string }[];
+      const budgetRow = budgetRows.find((b) => b.currency === primaryCurrency);
+      const budgetLimit = Number(budgetRow?.amount || (primaryCurrency === 'RUB' ? 15000 : 500));
 
-      const budgetLimitRub = Number(budgetRow?.amount || 15000);
-
+      setRecentReceipts((receiptsListRes.items || []) as ReceiptRow[]);
       setStats({
-        fridgeCount: fridgeCount || 0,
+        fridgeCount: fridgeRes.count || 0,
         byCurrency,
-        receiptCount: receiptCount || 0,
-        aiRecipeCount: aiRecipeCount || 0,
-        budgetLimitRub,
-        expenses: (expensesData || []).map((e) => ({
+        receiptCount: receiptRes.count || 0,
+        aiRecipeCount: aiRes.count || 0,
+        budgetLimit,
+        primaryCurrency,
+        expenses: expensesData.map((e) => ({
           amount: Number(e.amount) || 0,
           date: e.date,
-          currency: (e as { currency?: string }).currency || 'RUB',
+          currency: e.currency || 'RUB',
         })),
       });
     } catch (error) {
@@ -126,7 +129,7 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [auth]);
 
   useEffect(() => {
     loadUserProfile();
@@ -160,11 +163,15 @@ export default function ProfilePage() {
     const data = await res.json();
     if (data.user) {
       setUserProfile(data.user);
+      await refreshUser();
       return Boolean(data.user.is_premium);
+    }
+    if (!res.ok) {
+      alert(data.error || t('profile.activateFail'));
     }
 
     return false;
-  }, [initData, t]);
+  }, [initData, refreshUser, t]);
 
   const handlePremiumActivated = useCallback(() => {
     alert(t('profile.premiumActivated'));
@@ -249,7 +256,8 @@ export default function ProfilePage() {
         receiptCount: stats.receiptCount,
         aiRecipeCount: stats.aiRecipeCount,
         expenses: stats.expenses,
-        budgetLimitRub: stats.budgetLimitRub,
+        budgetLimit: stats.budgetLimit,
+        primaryCurrency: stats.primaryCurrency,
         monthStart: monthStartDate,
       }).map((item) => ({
         id: item.id,
@@ -426,6 +434,33 @@ export default function ProfilePage() {
                 />
               </button>
             </div>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="font-semibold text-foreground text-lg">{t('profile.receiptHistory')}</h3>
+          <div className="bg-surface border border-border rounded-2xl p-5 space-y-3">
+            {recentReceipts.length === 0 ? (
+              <p className="text-sm text-muted text-center py-2">{t('profile.noReceipts')}</p>
+            ) : (
+              recentReceipts.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex items-center justify-between py-2 border-b border-border/40 last:border-0"
+                >
+                  <div>
+                    <div className="font-medium text-sm">{r.store_name || t('profile.receiptItem')}</div>
+                    <div className="text-xs text-muted">
+                      {new Date(r.scanned_at).toLocaleDateString(dateLocale)}
+                    </div>
+                  </div>
+                  <div className="text-sm font-semibold text-accent">
+                    {Number(r.total_amount).toLocaleString()}{' '}
+                    {CURRENCY_SYMBOLS[r.currency] || r.currency}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 

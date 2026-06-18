@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { activatePremium } from '@/lib/premium';
+import {
+  hasRecoverablePremiumPayment,
+  markLatestPaymentActivated,
+} from '@/lib/premium-payments';
 import { getBotToken } from '@/lib/bot-token';
 import {
   getInitDataAuthDate,
@@ -13,14 +17,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
-
-/** Activate Premium after Stars payment (openInvoice paid or manual recovery) */
+/** Activate Premium only if a recent Stars payment was logged */
 export async function POST(req: NextRequest) {
   try {
     const { initData } = await req.json();
@@ -44,9 +41,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No user in initData' }, { status: 400 });
     }
 
-    await activatePremium(tgUser.id);
+    const supabase = getSupabaseAdmin();
+    const canRecover = await hasRecoverablePremiumPayment(supabase, tgUser.id);
+    if (!canRecover) {
+      return NextResponse.json(
+        { error: 'No recent Stars payment found. Pay in the app first.' },
+        { status: 403 }
+      );
+    }
 
-    const supabase = getSupabase();
+    await activatePremium(tgUser.id);
+    await markLatestPaymentActivated(supabase, tgUser.id);
+
     const { data, error } = await supabase
       .from('users')
       .select('*')

@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import TopBar from '@/components/layout/TopBar';
-import { supabase } from '@/lib/supabase/client';
-import { useTelegram } from '@/components/TelegramProvider';
+import { dataApi } from '@/lib/client-api';
+import { useDataAuth } from '@/lib/use-data-auth';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { formatLocalDate } from '@/lib/utils';
 import type { TranslationKey } from '@/lib/i18n/translations';
@@ -55,7 +55,7 @@ function getLast7Days(dateLocale: string) {
 }
 
 export default function BudgetPage() {
-  const { user } = useTelegram();
+  const auth = useDataAuth();
   const { t, dateLocale } = useI18n();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgetLimits, setBudgetLimits] = useState<Record<string, number>>({});
@@ -68,31 +68,25 @@ export default function BudgetPage() {
   const monthStart = getCurrentMonth();
 
   const loadBudgets = useCallback(async () => {
-    if (!user?.id) return;
-    const { data } = await supabase
-      .from('budgets')
-      .select('amount, currency')
-      .eq('telegram_user_id', user.id)
-      .eq('month', monthStart);
-
+    if (!auth) return;
+    const { items } = await dataApi.budgets.list(auth, monthStart);
     const limits: Record<string, number> = { ...DEFAULT_LIMITS };
-    (data || []).forEach((row: { amount: number; currency: string }) => {
+    (items || []).forEach((row: { amount: number; currency: string }) => {
       limits[row.currency] = Number(row.amount);
     });
     setBudgetLimits(limits);
-  }, [user?.id, monthStart]);
+  }, [auth, monthStart]);
 
   const loadExpenses = useCallback(async () => {
-    if (!user?.id) return;
+    if (!auth) return;
     setLoading(true);
-    const { data } = await supabase
-      .from('expenses')
-      .select('*')
-      .eq('telegram_user_id', user.id)
-      .order('date', { ascending: false });
-    setExpenses(data || []);
-    setLoading(false);
-  }, [user?.id]);
+    try {
+      const { items } = await dataApi.expenses.list(auth);
+      setExpenses((items || []) as Expense[]);
+    } finally {
+      setLoading(false);
+    }
+  }, [auth]);
 
   useEffect(() => {
     loadExpenses();
@@ -100,42 +94,34 @@ export default function BudgetPage() {
   }, [loadExpenses, loadBudgets]);
 
   async function saveBudgetLimit() {
-    if (!user?.id || !budgetForm.amount) return;
+    if (!auth || !budgetForm.amount) return;
     const amount = Number(budgetForm.amount);
-    await supabase.from('budgets').upsert(
-      {
-        telegram_user_id: user.id,
-        month: monthStart,
-        amount,
-        currency: budgetForm.currency,
-      },
-      { onConflict: 'telegram_user_id,month,currency' }
-    );
+    await dataApi.budgets.upsert(auth, {
+      month: monthStart,
+      amount,
+      currency: budgetForm.currency,
+    });
     setBudgetLimits((prev) => ({ ...prev, [budgetForm.currency]: amount }));
     setShowBudgetForm(false);
   }
 
   async function addExpense() {
-    if (!form.name || !form.amount || !user?.id) return;
-    const { data } = await supabase
-      .from('expenses')
-      .insert({
-        name: form.name,
-        amount: Number(form.amount),
-        date: formatLocalDate(),
-        category: '🛒',
-        currency: form.currency,
-        telegram_user_id: user.id,
-      })
-      .select()
-      .single();
-    if (data) setExpenses([data, ...expenses]);
+    if (!form.name || !form.amount || !auth) return;
+    const { item } = await dataApi.expenses.insert(auth, {
+      name: form.name,
+      amount: Number(form.amount),
+      date: formatLocalDate(),
+      category: '🛒',
+      currency: form.currency,
+    });
+    if (item) setExpenses([item as Expense, ...expenses]);
     setForm({ name: '', amount: '', currency: 'RUB' });
     setShowForm(false);
   }
 
   async function removeExpense(id: string) {
-    await supabase.from('expenses').delete().eq('id', id).eq('telegram_user_id', user?.id);
+    if (!auth) return;
+    await dataApi.expenses.delete(auth, id);
     setExpenses(expenses.filter((e) => e.id !== id));
   }
 

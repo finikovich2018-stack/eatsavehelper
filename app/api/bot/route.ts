@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { activatePremium } from '@/lib/premium';
+import {
+  hasRecoverablePremiumPayment,
+  logPremiumPayment,
+  markLatestPaymentActivated,
+} from '@/lib/premium-payments';
+import { botLocale, botMsg } from '@/lib/bot-messages';
 import { getAppHomeUrl } from '@/lib/app-url';
 import { getBotToken } from '@/lib/bot-token';
 
@@ -10,7 +16,7 @@ export const fetchCache = 'force-no-store';
 
 type TelegramUpdate = {
   message?: {
-    from: { id: number; first_name?: string; username?: string };
+    from: { id: number; first_name?: string; username?: string; language_code?: string };
     text?: string;
     successful_payment?: {
       invoice_payload: string;
@@ -110,17 +116,20 @@ export async function POST(req: NextRequest) {
 
       if (userId && payment.currency === 'XTR') {
         try {
+          await logPremiumPayment(supabase, {
+            telegramUserId: userId,
+            amount: payment.total_amount,
+            currency: payment.currency,
+            invoicePayload: payment.invoice_payload,
+          });
           await activatePremium(userId);
-          await sendMessage(
-            userId,
-            '⭐ Premium активирован на 30 дней! Спасибо за поддержку EatSave.'
-          );
+          await markLatestPaymentActivated(supabase, userId);
+          const locale = botLocale(body.message?.from?.language_code);
+          await sendMessage(userId, botMsg(locale).premiumActivated);
         } catch (e) {
           console.error('activatePremium failed:', e);
-          await sendMessage(
-            userId,
-            '⚠️ Оплата получена, но активация Premium не удалась. Напишите /activate или откройте Профиль → «Активировать Premium».'
-          );
+          const locale = botLocale(body.message?.from?.language_code);
+          await sendMessage(userId, botMsg(locale).premiumFailed);
         }
       } else {
         console.error('Premium payment ignored:', payment);
@@ -133,6 +142,8 @@ export async function POST(req: NextRequest) {
       const chatId = from.id;
       const firstName = from.first_name || '';
       const username = from.username;
+      const locale = botLocale(from.language_code);
+      const msg = botMsg(locale);
 
       await supabase.from('users').upsert(
         {
@@ -146,69 +157,73 @@ export async function POST(req: NextRequest) {
         { onConflict: 'telegram_user_id' }
       );
 
-      await sendMessage(
-        chatId,
-        `Привет, ${firstName}! 👋\n\nЯ EatSave бот. Откройте приложение, чтобы отслеживать продукты и получать напоминания о сроках годности.`,
-        {
-          reply_markup: {
-            inline_keyboard: [[{ text: '📱 Открыть EatSave', web_app: { url: getAppHomeUrl() } }]],
-          },
-        }
-      );
+      await sendMessage(chatId, msg.start(firstName), {
+        reply_markup: {
+          inline_keyboard: [[{ text: msg.openApp, web_app: { url: getAppHomeUrl() } }]],
+        },
+      });
 
       return NextResponse.json({ ok: true });
     }
 
     if (body.message?.text === '/subscribe') {
       const chatId = body.message.from.id;
+      const locale = botLocale(body.message.from.language_code);
       await supabase
         .from('users')
         .update({ notifications_enabled: true, telegram_chat_id: chatId, updated_at: new Date().toISOString() })
         .eq('telegram_user_id', chatId);
 
-      await sendMessage(chatId, '✅ Уведомления включены!');
+      await sendMessage(chatId, botMsg(locale).subscribed);
       return NextResponse.json({ ok: true });
     }
 
     if (body.message?.text === '/unsubscribe') {
       const chatId = body.message.from.id;
+      const locale = botLocale(body.message.from.language_code);
       await supabase
         .from('users')
         .update({ notifications_enabled: false, updated_at: new Date().toISOString() })
         .eq('telegram_user_id', chatId);
 
-      await sendMessage(chatId, '🔕 Уведомления выключены. Напишите /subscribe чтобы включить обратно.');
+      await sendMessage(chatId, botMsg(locale).unsubscribed);
       return NextResponse.json({ ok: true });
     }
 
     if (body.message?.text === '/activate') {
       const chatId = body.message.from.id;
+      const locale = botLocale(body.message.from.language_code);
+      const msg = botMsg(locale);
       try {
+        const canRecover = await hasRecoverablePremiumPayment(supabase, chatId);
+        if (!canRecover) {
+          await sendMessage(chatId, msg.activateFail);
+          return NextResponse.json({ ok: true });
+        }
         await activatePremium(chatId);
-        await sendMessage(chatId, '⭐ Premium активирован на 30 дней!');
+        await markLatestPaymentActivated(supabase, chatId);
+        await sendMessage(chatId, msg.activateOk);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Unknown error';
+        const errMsg = e instanceof Error ? e.message : 'Unknown error';
         console.error('Manual activate failed:', e);
-        await sendMessage(
-          chatId,
-          `⚠️ Не удалось активировать Premium.\n\nПричина: ${msg.slice(0, 180)}\n\nЕсли видите "column" — выполните supabase/patch_premium.sql в Supabase.`
-        );
+        await sendMessage(chatId, `${msg.activateFail}\n\n${errMsg.slice(0, 120)}`);
       }
       return NextResponse.json({ ok: true });
     }
 
     if (body.message?.text === '/status') {
       const chatId = body.message.from.id;
+      const locale = botLocale(body.message.from.language_code);
       const { data } = await supabase
         .from('users')
         .select('is_premium, notifications_enabled')
         .eq('telegram_user_id', chatId)
         .single();
 
-      const premium = data?.is_premium ? '✅ Premium' : '❌ Free';
-      const notifs = data?.notifications_enabled ? '✅' : '❌';
-
-      await sendMessage(chatId, `📊 Ваш статус\n\nПодписка: ${premium}\nУведомления: ${notifs}`);
+      await sendMessage(
+        chatId,
+        botMsg(locale).status(Boolean(data?.is_premium), data?.notifications_enabled !== false)
+      );
       return NextResponse.json({ ok: true });
     }
 

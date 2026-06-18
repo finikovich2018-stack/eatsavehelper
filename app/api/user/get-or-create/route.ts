@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { normalizeUser } from '@/lib/user-utils';
+import { syncUserProfile } from '@/lib/sync-user-profile';
 import { verifyApiUser } from '@/lib/verify-api-user';
 
 export const runtime = 'nodejs';
@@ -57,10 +58,22 @@ export async function POST(req: NextRequest) {
           console.error('Update error:', error);
           return NextResponse.json({ error: error.message }, { status: 500 });
         }
-        return NextResponse.json({ user: normalizeUser(updated || user) });
+        await syncUserProfile(supabase, userId, auth.tgUser);
+        const { data: fresh } = await supabase
+          .from('users')
+          .select('*')
+          .eq('telegram_user_id', userId)
+          .maybeSingle();
+        return NextResponse.json({ user: normalizeUser(fresh || updated || user) });
       }
 
-      return NextResponse.json({ user: normalizeUser(user) });
+      await syncUserProfile(supabase, userId, auth.tgUser);
+      const { data: fresh } = await supabase
+        .from('users')
+        .select('*')
+        .eq('telegram_user_id', userId)
+        .maybeSingle();
+      return NextResponse.json({ user: normalizeUser(fresh || user) });
     }
 
     const { data: newUser, error } = await supabase
@@ -81,7 +94,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ user: normalizeUser(newUser) });
+    await syncUserProfile(supabase, userId, auth.tgUser);
+    const { data: fresh } = await supabase
+      .from('users')
+      .select('*')
+      .eq('telegram_user_id', userId)
+      .maybeSingle();
+
+    return NextResponse.json({ user: normalizeUser(fresh || newUser) });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Error';
     console.error('Error:', message);

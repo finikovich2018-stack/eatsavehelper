@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import TopBar from '@/components/layout/TopBar';
+import { userDisplayLabel } from '@/lib/sync-user-profile';
 import { useDataAuth } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 
@@ -170,10 +171,14 @@ export default function AdminPage() {
                   key={u.telegram_user_id}
                   className="flex items-center justify-between text-sm border-b border-border pb-2 last:border-0"
                 >
-                  <div>
-                    <span className="text-foreground">{u.first_name || '—'}</span>
-                    {u.username && <span className="text-muted ml-1">@{u.username}</span>}
-                    {u.is_premium && <span className="ml-1">⭐</span>}
+                  <div className="min-w-0 flex-1 pr-2">
+                    <div className="text-foreground font-medium truncate">
+                      {userDisplayLabel(u)}
+                    </div>
+                    {u.first_name && u.username && (
+                      <div className="text-muted text-xs truncate">@{u.username.replace(/^@/, '')}</div>
+                    )}
+                    {u.is_premium && <span className="text-xs">⭐ Premium</span>}
                   </div>
                   <div className="text-xs text-muted text-right flex flex-col items-end gap-1">
                     <div className="font-mono">{u.telegram_user_id}</div>

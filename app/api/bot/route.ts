@@ -7,6 +7,7 @@ import {
   markLatestPaymentActivated,
 } from '@/lib/premium-payments';
 import { botLocale, botMsg } from '@/lib/bot-messages';
+import { syncUserProfile } from '@/lib/sync-user-profile';
 import { getAppHomeUrl } from '@/lib/app-url';
 import { getBotToken } from '@/lib/bot-token';
 
@@ -155,6 +156,11 @@ export async function POST(req: NextRequest) {
         },
         { onConflict: 'telegram_user_id' }
       );
+
+      await syncUserProfile(supabase, chatId, {
+        first_name: firstName,
+        username: username || null,
+      });
 
       await sendMessage(chatId, msg.start(firstName), {
         reply_markup: {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminTelegramId } from '@/lib/admin';
+import { botMsg } from '@/lib/bot-messages';
 import { activatePremium, PREMIUM_DAYS, PREMIUM_DAYS_SHORT } from '@/lib/premium';
+import { sendBotMessage } from '@/lib/send-bot-message';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { verifyApiUser } from '@/lib/verify-api-user';
 import { normalizeUser } from '@/lib/user-utils';
@@ -45,7 +47,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true, user: normalizeUser(data) });
+    let notified = false;
+    const chatId = Number(data?.telegram_chat_id ?? targetId);
+    if (chatId > 0 && data?.premium_until) {
+      const untilLabel = new Date(data.premium_until).toLocaleDateString('ru-RU');
+      const messages = botMsg('ru');
+      notified = await sendBotMessage(
+        chatId,
+        messages.premiumGranted(grantDays, untilLabel, body.mode === 'extend'),
+        { buttonText: messages.openApp }
+      );
+    }
+
+    return NextResponse.json({ ok: true, user: normalizeUser(data), notified });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Error';
     return NextResponse.json({ error: message }, { status: 500 });

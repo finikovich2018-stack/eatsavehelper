@@ -11,6 +11,10 @@ const MESSAGES = {
       `Привет, ${name}! 👋\n\nЯ EatSave — умный холодильник и бюджет на продукты. Откройте приложение, чтобы отслеживать сроки годности и получать напоминания.`,
     premiumActivated:
       '⭐ Premium активирован на 30 дней! Спасибо за поддержку EatSave.',
+    premiumGranted: (days: number, until: string, extended?: boolean) =>
+      extended
+        ? `🎁 Premium продлён на ${days} дн.!\n\nАктивен до ${until}. Приятного пользования EatSave!`
+        : `🎁 Вам подарили Premium на ${days} дн.!\n\nАктивен до ${until}. Приятного пользования EatSave!`,
     premiumFailed:
       '⚠️ Оплата получена, но активация Premium не удалась. Нажмите «Активировать Premium» в профиле приложения.',
     subscribed: '✅ Уведомления включены. Буду напоминать о продуктах, которые скоро испортятся.',
@@ -28,6 +32,10 @@ const MESSAGES = {
       `Hi, ${name}! 👋\n\nI'm EatSave — smart fridge & grocery budget. Open the app to track expiry dates and get reminders.`,
     premiumActivated:
       '⭐ Premium activated for 30 days! Thank you for supporting EatSave.',
+    premiumGranted: (days: number, until: string, extended?: boolean) =>
+      extended
+        ? `🎁 Premium extended by ${days} days!\n\nActive until ${until}. Enjoy EatSave!`
+        : `🎁 You received Premium for ${days} days!\n\nActive until ${until}. Enjoy EatSave!`,
     premiumFailed:
       '⚠️ Payment received but Premium activation failed. Tap «Activate Premium» in the app profile.',
     subscribed: '✅ Notifications enabled. I will remind you about expiring products.',

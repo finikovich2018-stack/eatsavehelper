@@ -141,7 +141,10 @@ export default function BudgetPage() {
     const primaryCurrency = activeCurrencies[0] || 'RUB';
     return days.map((day) => {
       const total = expenses
-        .filter((e) => e.date === day.date && (e.currency || 'RUB') === primaryCurrency)
+        .filter((e) => {
+          const expenseDate = String(e.date || '').slice(0, 10);
+          return expenseDate === day.date && (e.currency || 'RUB') === primaryCurrency;
+        })
         .reduce((sum, e) => sum + Number(e.amount), 0);
       return { ...day, total };
     });

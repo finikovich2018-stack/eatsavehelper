@@ -228,16 +228,23 @@ export default function BudgetPage() {
         <div className="bg-surface border border-border rounded-2xl p-4 mb-4">
           <h3 className="text-sm font-medium text-muted mb-3">{t('budget.chart7days')}</h3>
           <div className="flex items-end justify-between gap-1 h-24">
-            {weeklyChart.map((day) => (
-              <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
+            {weeklyChart.map((day) => {
+              const barPx =
+                day.total > 0 ? Math.max(Math.round((day.total / maxWeekly) * 72), 10) : 4;
+              return (
                 <div
-                  className="w-full bg-accent/80 rounded-t-md transition-all min-h-[4px]"
-                  style={{ height: `${Math.max((day.total / maxWeekly) * 100, 4)}%` }}
-                  title={`${day.total}`}
-                />
-                <span className="text-[10px] text-muted">{day.label}</span>
-              </div>
-            ))}
+                  key={day.date}
+                  className="flex-1 flex flex-col items-center justify-end h-full min-w-0"
+                >
+                  <div
+                    className="w-full bg-accent/80 rounded-t-md transition-all"
+                    style={{ height: `${barPx}px` }}
+                    title={`${day.total}`}
+                  />
+                  <span className="text-[10px] text-muted mt-1 shrink-0">{day.label}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 

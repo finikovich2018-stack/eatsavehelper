@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1080, height=1920, initial-scale=1" />
+  <title>EatSave — promo 10s</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+    }
+    .stage-wrap {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+    }
+    .stage {
+      position: relative;
+      width: 1080px;
+      height: 1920px;
+      overflow: hidden;
+      background: radial-gradient(ellipse at 50% 0%, #1a2418 0%, #0c0f0a 55%, #080a07 100%);
+      color: #f0f4ec;
+      transform-origin: center center;
+    }
+    .glow {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+    }
+    .glow-a { width: 520px; height: 520px; background: rgba(126, 217, 87, 0.18); top: -120px; right: -80px; }
+    .glow-b { width: 420px; height: 420px; background: rgba(126, 217, 87, 0.1); bottom: 200px; left: -120px; }
+
+    .scene {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 72px;
+      opacity: 0;
+      transform: translateY(24px) scale(0.98);
+      transition: opacity 0.55s ease, transform 0.55s ease;
+      text-align: center;
+    }
+    .scene.active {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .logo-mark {
+      width: 180px;
+      height: 180px;
+      border-radius: 42px;
+      background: linear-gradient(145deg, #7ed957 0%, #5fbf3f 100%);
+      display: grid;
+      place-items: center;
+      font-size: 92px;
+      box-shadow: 0 24px 80px rgba(126, 217, 87, 0.35);
+      margin-bottom: 36px;
+    }
+    h1 {
+      font-size: 96px;
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1;
+      margin-bottom: 20px;
+    }
+    .accent { color: #7ed957; }
+    .tagline {
+      font-size: 42px;
+      color: #9baa8e;
+      line-height: 1.35;
+      max-width: 860px;
+    }
+
+    .phone {
+      width: 620px;
+      height: 980px;
+      border-radius: 48px;
+      border: 3px solid #2a3325;
+      background: linear-gradient(180deg, #202820 0%, #151a14 100%);
+      box-shadow: 0 40px 100px rgba(0,0,0,0.55), inset 0 0 0 2px rgba(126,217,87,0.08);
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+    .phone-notch {
+      width: 180px;
+      height: 28px;
+      background: #0c0f0a;
+      border-radius: 0 0 18px 18px;
+      margin: 0 auto 24px;
+    }
+    .phone-title {
+      font-size: 34px;
+      font-weight: 700;
+      margin-bottom: 28px;
+      text-align: left;
+    }
+    .receipt {
+      background: #f0f4ec;
+      color: #1a1f17;
+      border-radius: 20px;
+      padding: 28px;
+      text-align: left;
+      transform: translateY(120px) scale(0.92);
+      opacity: 0;
+    }
+    .receipt.show {
+      animation: receiptIn 0.7s ease forwards;
+    }
+    @keyframes receiptIn {
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    .receipt-line {
+      height: 10px;
+      background: #d8dfd2;
+      border-radius: 6px;
+      margin-bottom: 14px;
+    }
+    .receipt-line.short { width: 55%; }
+    .receipt-line.mid { width: 75%; }
+    .receipt-total {
+      margin-top: 18px;
+      font-size: 34px;
+      font-weight: 800;
+      color: #3d7a28;
+    }
+
+    .items {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      width: 100%;
+    }
+    .item {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      background: rgba(126,217,87,0.08);
+      border: 1px solid rgba(126,217,87,0.18);
+      border-radius: 18px;
+      padding: 18px 22px;
+      opacity: 0;
+      transform: translateX(-30px);
+    }
+    .item.show {
+      animation: itemIn 0.45s ease forwards;
+    }
+    @keyframes itemIn {
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .item-icon { font-size: 42px; }
+    .item-text { text-align: left; font-size: 28px; font-weight: 600; }
+    .item-sub { font-size: 22px; color: #9baa8e; font-weight: 500; }
+
+    .recipe-card {
+      width: 100%;
+      background: rgba(126,217,87,0.1);
+      border: 1px solid rgba(126,217,87,0.25);
+      border-radius: 24px;
+      padding: 28px;
+      text-align: left;
+    }
+    .recipe-card h3 { font-size: 34px; margin-bottom: 12px; }
+    .recipe-card p { font-size: 26px; color: #9baa8e; line-height: 1.4; }
+    .chips { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+    .chip {
+      background: rgba(126,217,87,0.18);
+      color: #7ed957;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .cta-btn {
+      display: inline-block;
+      margin-top: 36px;
+      padding: 28px 56px;
+      border-radius: 24px;
+      background: linear-gradient(90deg, #7ed957, #6bc948);
+      color: #0c0f0a;
+      font-size: 38px;
+      font-weight: 800;
+      box-shadow: 0 20px 60px rgba(126, 217, 87, 0.35);
+    }
+    .bot {
+      margin-top: 22px;
+      font-size: 34px;
+      color: #7ed957;
+      font-weight: 700;
+    }
+    .hint {
+      position: absolute;
+      bottom: 36px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 22px;
+      color: #5a6b52;
+    }
+    .progress {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 6px;
+      background: #7ed957;
+      width: 0;
+      box-shadow: 0 0 20px rgba(126,217,87,0.6);
+    }
+  </style>
+</head>
+<body>
+  <div class="stage-wrap">
+    <div class="stage" id="stage">
+      <div class="glow glow-a"></div>
+      <div class="glow glow-b"></div>
+
+      <section class="scene active" data-scene="0">
+        <div class="logo-mark">🥗</div>
+        <h1>Eat<span class="accent">Save</span></h1>
+        <p class="tagline">Умный холодильник<br />прямо в Telegram</p>
+      </section>
+
+      <section class="scene" data-scene="1">
+        <div class="phone">
+          <div class="phone-notch"></div>
+          <div class="phone-title">📷 Сканер чека</div>
+          <div class="receipt" id="receipt">
+            <div class="receipt-line"></div>
+            <div class="receipt-line mid"></div>
+            <div class="receipt-line"></div>
+            <div class="receipt-line short"></div>
+            <div class="receipt-total">1 247,50 ₽</div>
+          </div>
+        </div>
+        <p class="tagline" style="margin-top:40px">Сканируй чек — продукты сами в холодильник</p>
+      </section>
+
+      <section class="scene" data-scene="2">
+        <div class="phone">
+          <div class="phone-notch"></div>
+          <div class="phone-title">❄️ Холодильник</div>
+          <div class="items" id="items">
+            <div class="item" data-delay="0"><span class="item-icon">🥛</span><div><div class="item-text">Молоко</div><div class="item-sub">ещё 5 дн.</div></div></div>
+            <div class="item" data-delay="120"><span class="item-icon">🥚</span><div><div class="item-text">Яйца</div><div class="item-sub">ещё 12 дн.</div></div></div>
+            <div class="item" data-delay="240"><span class="item-icon">🍗</span><div><div class="item-text">Курица</div><div class="item-sub">⚠️ 2 дн.</div></div></div>
+          </div>
+        </div>
+        <p class="tagline" style="margin-top:40px">Напомнит, что скоро испортится</p>
+      </section>
+
+      <section class="scene" data-scene="3">
+        <div class="phone">
+          <div class="phone-notch"></div>
+          <div class="phone-title">🍳 AI-рецепты</div>
+          <div class="recipe-card">
+            <h3>Омлет с овощами</h3>
+            <p>Из того, что уже есть дома — без лишних покупок</p>
+            <div class="chips"><span class="chip">15 мин</span><span class="chip">🥚 🧅 🥕</span></div>
+          </div>
+        </div>
+        <p class="tagline" style="margin-top:40px">AI подскажет, что приготовить</p>
+      </section>
+
+      <section class="scene" data-scene="4">
+        <div class="logo-mark">⭐</div>
+        <h1 style="font-size:72px">Экономь продукты<br />и <span class="accent">бюджет</span></h1>
+        <div class="cta-btn">Открой в Telegram</div>
+        <div class="bot">@EatSavehelper_bot</div>
+      </section>
+
+      <div class="progress" id="progress"></div>
+      <div class="hint" id="hint">10 сек • 9:16 • EatSave promo</div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const DURATION = params.get('duration') === '6' ? 6000 : 10000;
+    const LOOP = params.get('loop') !== '0';
+
+    const TIMELINE_10 = [
+      { scene: 0, at: 0, until: 1800 },
+      { scene: 1, at: 1800, until: 3800 },
+      { scene: 2, at: 3800, until: 5800 },
+      { scene: 3, at: 5800, until: 7800 },
+      { scene: 4, at: 7800, until: 10000 },
+    ];
+    const TIMELINE_6 = [
+      { scene: 0, at: 0, until: 1000 },
+      { scene: 1, at: 1000, until: 2200 },
+      { scene: 2, at: 2200, until: 3400 },
+      { scene: 3, at: 3400, until: 4600 },
+      { scene: 4, at: 4600, until: 6000 },
+    ];
+    const TIMELINE = DURATION === 6000 ? TIMELINE_6 : TIMELINE_10;
+
+    document.getElementById('hint').textContent =
+      `${DURATION / 1000} сек • 9:16 • EatSave promo`;
+
+    const stage = document.getElementById('stage');
+    const scenes = [...document.querySelectorAll('.scene')];
+    const progress = document.getElementById('progress');
+    const receipt = document.getElementById('receipt');
+    const items = [...document.querySelectorAll('.item')];
+
+    function scaleStage() {
+      const sx = window.innerWidth / 1080;
+      const sy = window.innerHeight / 1920;
+      const s = Math.min(sx, sy);
+      stage.style.transform = `scale(${s})`;
+    }
+    scaleStage();
+    window.addEventListener('resize', scaleStage);
+
+    let start = null;
+    let currentScene = -1;
+
+    function setScene(index) {
+      if (index === currentScene) return;
+      currentScene = index;
+      scenes.forEach((el, i) => el.classList.toggle('active', i === index));
+      receipt.classList.remove('show');
+      items.forEach((el) => el.classList.remove('show'));
+      if (index === 1) setTimeout(() => receipt.classList.add('show'), 120);
+      if (index === 2) {
+        items.forEach((el) => {
+          const delay = Number(el.dataset.delay || 0);
+          setTimeout(() => el.classList.add('show'), delay);
+        });
+      }
+    }
+
+    function frame(ts) {
+      if (!start) start = ts;
+      let elapsed = (ts - start) % DURATION;
+      if (!LOOP && ts - start >= DURATION) {
+        elapsed = DURATION;
+        progress.style.width = '100%';
+        return;
+      }
+      progress.style.width = `${(elapsed / DURATION) * 100}%`;
+      const step = TIMELINE.find((t) => elapsed >= t.at && elapsed < t.until);
+      if (step) setScene(step.scene);
+      if (LOOP || ts - start < DURATION) requestAnimationFrame(frame);
+    }
+
+    setScene(0);
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>

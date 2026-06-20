@@ -18,6 +18,7 @@
 .DS_Store
 *.pem
 /eatsavehelper/
+docs/assets/page@*.webm
 
 # debug
 npm-debug.log*

@@ -17,6 +17,10 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { t } = useI18n();
 
+  if (pathname.startsWith('/marketing')) {
+    return null;
+  }
+
   return (
     <nav className="fixed bottom-0 left-1/2 z-50 w-full max-w-mobile -translate-x-1/2 border-t border-border bg-surface px-1 pb-safe">
       <ul className="flex items-center justify-around py-2">

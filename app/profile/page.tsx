@@ -163,6 +163,7 @@ export default function ProfilePage() {
   }, [auth]);
 
   const isPremium = isPremiumActive(userProfile || dbUser || {});
+  const premiumUntil = (userProfile || dbUser)?.premium_until;
   const notificationsEnabled = userProfile?.notifications_enabled !== false;
 
   const waitForPremium = useCallback(async (attempts = 12) => {
@@ -315,7 +316,13 @@ export default function ProfilePage() {
                 {isPremium ? (
                   <div className="bg-accent/20 rounded-2xl px-5 py-3 border border-accent/50 text-center">
                     <span className="text-accent font-bold text-sm block">{t('profile.premiumActive')}</span>
-                    <span className="text-xs text-muted mt-1 block">{t('profile.premiumOn')}</span>
+                    <span className="text-xs text-muted mt-1 block">
+                      {premiumUntil
+                        ? t('profile.premiumUntil', {
+                            date: new Date(premiumUntil).toLocaleDateString(dateLocale),
+                          })
+                        : t('profile.premiumOn')}
+                    </span>
                   </div>
                 ) : (
                   <div className="bg-surface border border-border rounded-2xl px-5 py-3 text-center">
@@ -361,6 +368,16 @@ export default function ProfilePage() {
                 )}
                 <div className="text-sm text-muted mt-1">{t('profile.spent')}</div>
                 <div className="text-xs text-muted/60 mt-1">{t('profile.inMonth', { month: monthName })}</div>
+              </div>
+              <div className="bg-surface border border-border rounded-2xl p-5 text-center hover:border-accent/50 transition-colors group">
+                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">🧾</div>
+                <div className="text-3xl font-bold text-accent mb-1">{stats.receiptCount}</div>
+                <div className="text-sm text-muted">{t('profile.receiptsCount')}</div>
+              </div>
+              <div className="bg-surface border border-border rounded-2xl p-5 text-center hover:border-accent/50 transition-colors group">
+                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">🍳</div>
+                <div className="text-3xl font-bold text-accent mb-1">{stats.aiRecipeCount}</div>
+                <div className="text-sm text-muted">{t('profile.aiRecipesCount')}</div>
               </div>
             </div>
           )}

@@ -47,7 +47,7 @@ activate - Активировать Premium после оплаты / Recover Pr
 ## Каналы продвижения
 
 1. **Telegram** — канал/группа о meal prep, экономии, Zero Waste
-2. **Shorts/Reels** — «скан чека → холодильник за 10 сек»
+2. **Shorts/Reels** — «скан чека → холодильник за 10 сек» → готовый ролик: [`assets/promo-video.html`](./assets/promo-video.html) (см. [`PROMO_VIDEO.md`](./PROMO_VIDEO.md))
 3. **Product Hunt / Reddit** — r/mealprep, r/EatCheapAndHealthy
 4. **Локальные группы** — экспаты, студенты (NL/EU чеки EUR)
 

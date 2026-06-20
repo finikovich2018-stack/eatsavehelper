@@ -115,12 +115,7 @@ export async function ensureHouseholdContext(
   telegramUserId: number
 ): Promise<HouseholdContext> {
   const existing = await getHouseholdContext(supabase, telegramUserId);
-  if (existing) {
-    for (const m of existing.members) {
-      await backfillHouseholdData(supabase, existing.householdId, m.telegram_user_id);
-    }
-    return existing;
-  }
+  if (existing) return existing;
 
   const { data: household, error: hErr } = await supabase
     .from('households')

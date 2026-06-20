@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { applyDataScope, resolveDataScope } from '@/lib/data-scope';
-import { ensureHouseholdContext } from '@/lib/household';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { verifyApiUser } from '@/lib/verify-api-user';
 
@@ -40,8 +39,12 @@ export async function POST(req: NextRequest) {
 
       let ownerId = userId;
       if (scope.householdId) {
-        const ctx = await ensureHouseholdContext(supabase, userId);
-        ownerId = ctx.ownerTelegramId;
+        const { data: household } = await supabase
+          .from('households')
+          .select('owner_telegram_user_id')
+          .eq('id', scope.householdId)
+          .maybeSingle();
+        ownerId = household?.owner_telegram_user_id ?? userId;
       }
 
       const existingQuery = applyDataScope(

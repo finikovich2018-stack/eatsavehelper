@@ -53,8 +53,22 @@ export default function HomePage() {
     setLoading(true);
 
     try {
-      const { items } = await dataApi.fridge.list(auth);
-      const allItems = (items || []) as FridgeItem[];
+      const monthStart = getMonthStart();
+      const [
+        fridgeRes,
+        expenseRes,
+        budgetRes,
+        recipeRes,
+        shoppingRes,
+      ] = await Promise.all([
+        dataApi.fridge.list(auth),
+        dataApi.expenses.list(auth, { monthStart }),
+        dataApi.budgets.list(auth, monthStart),
+        dataApi.recipes.count(auth),
+        dataApi.shopping.count(auth),
+      ]);
+
+      const allItems = (fridgeRes.items || []) as FridgeItem[];
       const soon = allItems.filter((item) => {
         const days = daysLeft(item.expiry_date);
         return days >= 0 && days <= 3;
@@ -63,26 +77,21 @@ export default function HomePage() {
       setExpiring(soon.slice(0, 5));
       setStats({
         products: allItems.length,
-        expiringSoon: allItems.filter((item) => {
-          const days = daysLeft(item.expiry_date);
-          return days >= 0 && days <= 3;
-        }).length,
-        recipes: 0,
-        shopping: 0,
+        expiringSoon: soon.length,
+        recipes: recipeRes.count || 0,
+        shopping: shoppingRes.count || 0,
       });
 
-      const monthStart = getMonthStart();
-      const { items: expenseItems } = await dataApi.expenses.list(auth, { monthStart });
-      const monthExpenses = (expenseItems || []) as { amount: number; currency: string }[];
+      const monthExpenses = (expenseRes.items || []) as { amount: number; currency: string }[];
       const byCurrency: Record<string, number> = {};
       monthExpenses.forEach((row) => {
         const cur = row.currency || 'RUB';
         byCurrency[cur] = (byCurrency[cur] || 0) + Number(row.amount || 0);
       });
 
-      const { items: budgetRows } = await dataApi.budgets.list(auth, monthStart);
+      const budgetRows = budgetRes.items || [];
       const limits: Record<string, number> = { ...DEFAULT_LIMITS };
-      (budgetRows || []).forEach((row: { amount: number; currency: string }) => {
+      budgetRows.forEach((row: { amount: number; currency: string }) => {
         limits[row.currency] = Number(row.amount);
       });
 
@@ -96,14 +105,6 @@ export default function HomePage() {
         limit: limits[primaryCur] || DEFAULT_LIMITS[primaryCur] || 15000,
         currency: primaryCur,
       });
-
-      const { count: recipeCount } = await dataApi.recipes.count(auth);
-      const { count: shoppingCount } = await dataApi.shopping.count(auth);
-      setStats((prev) => ({
-        ...prev,
-        recipes: recipeCount || 0,
-        shopping: shoppingCount || 0,
-      }));
     } catch (error) {
       console.error('Home load error:', error);
     } finally {

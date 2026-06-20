@@ -1,6 +1,5 @@
 import type { PostgrestFilterBuilder } from '@supabase/postgrest-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { backfillHouseholdData, ensureHouseholdContext } from '@/lib/household';
 
 export type DataScope = {
   householdId: string | null;
@@ -8,34 +7,49 @@ export type DataScope = {
   userId: number;
 };
 
-/** Resolve household scope; backfill legacy rows; fall back to solo user if household DB missing. */
+/** Lightweight scope lookup — no backfill, no household creation. */
 export async function resolveDataScope(
   supabase: SupabaseClient,
   userId: number
 ): Promise<DataScope> {
-  try {
-    const ctx = await ensureHouseholdContext(supabase, userId);
-    for (const m of ctx.members) {
-      await backfillHouseholdData(supabase, ctx.householdId, m.telegram_user_id);
-    }
-    return {
-      householdId: ctx.householdId,
-      memberIds: ctx.members.map((m) => m.telegram_user_id),
-      userId,
-    };
-  } catch {
+  const { data: user } = await supabase
+    .from('users')
+    .select('household_id')
+    .eq('telegram_user_id', userId)
+    .maybeSingle();
+
+  let householdId = user?.household_id ?? null;
+
+  if (!householdId) {
+    const { data: membership } = await supabase
+      .from('household_members')
+      .select('household_id')
+      .eq('telegram_user_id', userId)
+      .maybeSingle();
+    householdId = membership?.household_id ?? null;
+  }
+
+  if (!householdId) {
     return { householdId: null, memberIds: [userId], userId };
   }
+
+  const { data: members } = await supabase
+    .from('household_members')
+    .select('telegram_user_id')
+    .eq('household_id', householdId);
+
+  const memberIds = (members || []).map((m) => m.telegram_user_id);
+  if (!memberIds.includes(userId)) memberIds.push(userId);
+
+  return { householdId, memberIds, userId };
 }
 
 type FilterBuilder = PostgrestFilterBuilder<any, any, any, any, any>;
 
-/** Match rows for this user/household, including legacy rows without household_id. */
+/** Match rows for this user/household (indexed household_id when available). */
 export function applyDataScope<T extends FilterBuilder>(query: T, scope: DataScope): T {
   if (scope.householdId) {
-    return query.or(
-      `household_id.eq.${scope.householdId},and(household_id.is.null,telegram_user_id.in.(${scope.memberIds.join(',')}))`
-    ) as T;
+    return query.eq('household_id', scope.householdId) as T;
   }
   return query.eq('telegram_user_id', scope.userId) as T;
 }

@@ -9,3 +9,7 @@ export const FREE_FRIDGE_ITEMS = 30;
 export const FREE_AI_RECIPES_PER_MONTH = 3;
 export const FREE_SCANS_PER_MONTH = 3;
 export const FREE_RECEIPT_HISTORY_DAYS = 7;
+
+/** Family sharing: max people in one household (including owner) */
+export const MAX_HOUSEHOLD_MEMBERS = 3;
+export const HOUSEHOLD_BOT_USERNAME = 'EatSavehelper_bot';

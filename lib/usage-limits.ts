@@ -3,6 +3,7 @@ import {
   FREE_AI_RECIPES_PER_MONTH,
   FREE_SCANS_PER_MONTH,
 } from '@/lib/constants';
+import { hasEffectivePremium } from '@/lib/household';
 import { isPremiumActive } from '@/lib/user-utils';
 
 type UserRow = {
@@ -81,9 +82,29 @@ export function canUseScan(user: UserRow | null): boolean {
   return (user.scans_this_month || 0) < FREE_SCANS_PER_MONTH;
 }
 
+export async function canUseScanAsync(
+  supabase: SupabaseClient,
+  telegramUserId: number,
+  user: UserRow | null
+): Promise<boolean> {
+  if (!user) return false;
+  if (await hasEffectivePremium(supabase, telegramUserId)) return true;
+  return (user.scans_this_month || 0) < FREE_SCANS_PER_MONTH;
+}
+
 export function canUseAiRecipes(user: UserRow | null): boolean {
   if (!user) return false;
   if (isPremiumActive(user)) return true;
+  return (user.ai_recipes_this_month || 0) < FREE_AI_RECIPES_PER_MONTH;
+}
+
+export async function canUseAiRecipesAsync(
+  supabase: SupabaseClient,
+  telegramUserId: number,
+  user: UserRow | null
+): Promise<boolean> {
+  if (!user) return false;
+  if (await hasEffectivePremium(supabase, telegramUserId)) return true;
   return (user.ai_recipes_this_month || 0) < FREE_AI_RECIPES_PER_MONTH;
 }
 
@@ -92,7 +113,9 @@ export async function assertCanScan(
   telegramUserId: number
 ): Promise<UserRow> {
   const user = await getUserWithLimits(supabase, telegramUserId);
-  if (!user || !canUseScan(user)) throw new UsageLimitError('scan_limit');
+  if (!user || !(await canUseScanAsync(supabase, telegramUserId, user))) {
+    throw new UsageLimitError('scan_limit');
+  }
   return user;
 }
 
@@ -101,7 +124,9 @@ export async function assertCanUseAiRecipes(
   telegramUserId: number
 ): Promise<UserRow> {
   const user = await getUserWithLimits(supabase, telegramUserId);
-  if (!user || !canUseAiRecipes(user)) throw new UsageLimitError('recipe_limit');
+  if (!user || !(await canUseAiRecipesAsync(supabase, telegramUserId, user))) {
+    throw new UsageLimitError('recipe_limit');
+  }
   return user;
 }
 
@@ -110,7 +135,9 @@ export async function incrementScanCount(
   telegramUserId: number,
   user: UserRow
 ): Promise<number> {
-  if (isPremiumActive(user)) return user.scans_this_month || 0;
+  if (await hasEffectivePremium(supabase, telegramUserId)) {
+    return user.scans_this_month || 0;
+  }
   const newCount = (user.scans_this_month || 0) + 1;
   await supabase
     .from('users')
@@ -124,7 +151,9 @@ export async function incrementRecipeCount(
   telegramUserId: number,
   user: UserRow
 ): Promise<number> {
-  if (isPremiumActive(user)) return user.ai_recipes_this_month || 0;
+  if (await hasEffectivePremium(supabase, telegramUserId)) {
+    return user.ai_recipes_this_month || 0;
+  }
   const newCount = (user.ai_recipes_this_month || 0) + 1;
   await supabase
     .from('users')

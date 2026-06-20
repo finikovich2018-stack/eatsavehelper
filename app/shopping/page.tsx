@@ -8,7 +8,7 @@ import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
 import { defaultExpiryDate } from '@/lib/shopping-utils';
-import { isPremiumActive } from '@/lib/user-utils';
+import { hasPremiumAccess } from '@/lib/user-utils';
 
 export default function ShoppingPage() {
   const auth = useDataAuth();
@@ -19,7 +19,7 @@ export default function ShoppingPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', quantity: '' });
   const [localUser, setLocalUser] = useState<typeof dbUser>(null);
-  const isPremium = isPremiumActive(localUser || dbUser || {});
+  const isPremium = hasPremiumAccess(localUser || dbUser || {});
 
   useEffect(() => {
     refreshUser().then(setLocalUser);

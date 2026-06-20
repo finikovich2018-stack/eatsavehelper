@@ -7,7 +7,7 @@ import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { dataApi } from '@/lib/client-api';
 import { useDataAuth } from '@/lib/use-data-auth';
 import { FREE_FRIDGE_ITEMS, FREE_SCANS_PER_MONTH } from '@/lib/constants';
-import { isPremiumActive } from '@/lib/user-utils';
+import { hasPremiumAccess } from '@/lib/user-utils';
 import { formatLocalDate } from '@/lib/utils';
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -30,7 +30,7 @@ export default function ScanPage() {
   const { t, dateLocale } = useI18n();
   const testUserId = user?.id;
   const [userProfile, setUserProfile] = useState<any>(null);
-  const isPremium = isPremiumActive(userProfile || dbUser || {});
+  const isPremium = hasPremiumAccess(userProfile || dbUser || {});
   const [fridgeCount, setFridgeCount] = useState(0);
   const [image, setImage] = useState<string | null>(null);
   const [items, setItems] = useState<ParsedItem[]>([]);

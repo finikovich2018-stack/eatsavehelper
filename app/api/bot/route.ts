@@ -170,6 +170,7 @@ export async function POST(req: NextRequest) {
       const username = from.username;
       const locale = botLocale(from.language_code);
       const msg = botMsg(locale);
+      const startPayload = body.message.text.split(/\s+/)[1] || '';
 
       await supabase.from('users').upsert(
         {
@@ -184,6 +185,20 @@ export async function POST(req: NextRequest) {
         first_name: firstName,
         username: username || null,
       });
+
+      if (startPayload.startsWith('join_')) {
+        await sendMessage(chatId, msg.familyInviteOpen, {
+          reply_markup: {
+            inline_keyboard: [[
+              {
+                text: msg.openApp,
+                url: `https://t.me/EatSavehelper_bot?startapp=${startPayload}`,
+              },
+            ]],
+          },
+        });
+        return NextResponse.json({ ok: true });
+      }
 
       await sendMessage(chatId, msg.start(firstName), {
         reply_markup: {

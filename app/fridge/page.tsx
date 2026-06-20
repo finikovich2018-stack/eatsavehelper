@@ -9,7 +9,7 @@ import { useDataAuth } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
-import { isPremiumActive } from '@/lib/user-utils';
+import { isPremiumActive, hasPremiumAccess } from '@/lib/user-utils';
 import type { TranslationKey } from '@/lib/i18n/translations';
 
 const CATEGORY_KEYS = ['all', 'dairy', 'meat', 'veg', 'grains', 'other'] as const;
@@ -68,7 +68,7 @@ function FridgePageContent() {
   const { dbUser, refreshUser } = useTelegram();
   const { t } = useI18n();
   const [localUser, setLocalUser] = useState<typeof dbUser>(null);
-  const isPremium = isPremiumActive(localUser || dbUser || {});
+  const isPremium = hasPremiumAccess(localUser || dbUser || {});
 
   useEffect(() => {
     refreshUser().then(setLocalUser);

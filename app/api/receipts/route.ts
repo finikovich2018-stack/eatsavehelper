@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ensureHouseholdContext } from '@/lib/household';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { verifyApiUser } from '@/lib/verify-api-user';
 
@@ -16,6 +17,8 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseAdmin();
     const userId = auth.userId;
     const { op } = body;
+    const household = await ensureHouseholdContext(supabase, userId);
+    const hid = household.householdId;
 
     if (op === 'list') {
       const days = Number(body.days) || 7;
@@ -25,7 +28,7 @@ export async function POST(req: NextRequest) {
       const { data, error } = await supabase
         .from('receipts')
         .select('*')
-        .eq('telegram_user_id', userId)
+        .eq('household_id', hid)
         .gte('scanned_at', since.toISOString())
         .order('scanned_at', { ascending: false });
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -36,7 +39,7 @@ export async function POST(req: NextRequest) {
       const { count, error } = await supabase
         .from('receipts')
         .select('*', { count: 'exact', head: true })
-        .eq('telegram_user_id', userId);
+        .eq('household_id', hid);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ count: count || 0 });
     }
@@ -46,7 +49,7 @@ export async function POST(req: NextRequest) {
       if (!row) return NextResponse.json({ error: 'Missing row' }, { status: 400 });
       const { error } = await supabase
         .from('receipts')
-        .insert({ ...row, telegram_user_id: userId });
+        .insert({ ...row, telegram_user_id: userId, household_id: hid });
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ ok: true });
     }
@@ -58,7 +61,7 @@ export async function POST(req: NextRequest) {
         .from('receipts')
         .delete()
         .eq('id', id)
-        .eq('telegram_user_id', userId);
+        .eq('household_id', hid);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ ok: true });
     }

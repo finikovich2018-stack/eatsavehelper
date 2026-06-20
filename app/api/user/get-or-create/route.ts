@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { ensureHouseholdContext, hasEffectivePremium } from '@/lib/household';
 import { normalizeUser } from '@/lib/user-utils';
 import { syncUserProfile } from '@/lib/sync-user-profile';
 import { verifyApiUser } from '@/lib/verify-api-user';
@@ -19,6 +20,14 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseAdmin();
     const currentMonth = new Date().toISOString().slice(0, 7);
     const userId = auth.userId;
+
+    const respondWithUser = async (userRow: Record<string, unknown>) => {
+      await ensureHouseholdContext(supabase, userId).catch(() => null);
+      const effectivePremium = await hasEffectivePremium(supabase, userId);
+      return NextResponse.json({
+        user: { ...normalizeUser(userRow), effective_premium: effectivePremium },
+      });
+    };
 
     const { data: existing } = await supabase
       .from('users')
@@ -64,7 +73,7 @@ export async function POST(req: NextRequest) {
           .select('*')
           .eq('telegram_user_id', userId)
           .maybeSingle();
-        return NextResponse.json({ user: normalizeUser(fresh || updated || user) });
+        return respondWithUser(fresh || updated || user);
       }
 
       await syncUserProfile(supabase, userId, auth.tgUser);
@@ -73,7 +82,7 @@ export async function POST(req: NextRequest) {
         .select('*')
         .eq('telegram_user_id', userId)
         .maybeSingle();
-      return NextResponse.json({ user: normalizeUser(fresh || user) });
+      return respondWithUser(fresh || user);
     }
 
     const { data: newUser, error } = await supabase
@@ -101,7 +110,7 @@ export async function POST(req: NextRequest) {
       .eq('telegram_user_id', userId)
       .maybeSingle();
 
-    return NextResponse.json({ user: normalizeUser(fresh || newUser) });
+    return respondWithUser(fresh || newUser);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Error';
     console.error('Error:', message);

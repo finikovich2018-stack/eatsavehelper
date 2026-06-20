@@ -137,4 +137,27 @@ export const dataApi = {
     count: (auth: AuthPayload) =>
       apiPost<{ count: number }>('/api/shopping-list', withAuth(auth, { op: 'count' })),
   },
+  household: {
+    get: (auth: AuthPayload) =>
+      apiPost<{
+        role: 'owner' | 'member';
+        members: { telegram_user_id: number; first_name: string | null; username: string | null; role: string }[];
+        memberCount: number;
+        maxMembers: number;
+        canInvite: boolean;
+        ownerHasPremium: boolean;
+      }>('/api/household', withAuth(auth, { op: 'get' })),
+    invite: (auth: AuthPayload) =>
+      apiPost<{ ok: true; link: string; token: string; expiresAt: string }>(
+        '/api/household',
+        withAuth(auth, { op: 'invite' })
+      ),
+    leave: (auth: AuthPayload) =>
+      apiPost<{ ok: true }>('/api/household', withAuth(auth, { op: 'leave' })),
+    removeMember: (auth: AuthPayload, memberTelegramUserId: number) =>
+      apiPost<{ ok: true }>(
+        '/api/household',
+        withAuth(auth, { op: 'remove_member', member_telegram_user_id: memberTelegramUserId })
+      ),
+  },
 };

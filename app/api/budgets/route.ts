@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ensureHouseholdContext } from '@/lib/household';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { verifyApiUser } from '@/lib/verify-api-user';
 
@@ -16,6 +17,8 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseAdmin();
     const userId = auth.userId;
     const { op } = body;
+    const household = await ensureHouseholdContext(supabase, userId);
+    const hid = household.householdId;
 
     if (op === 'list') {
       const { month } = body;
@@ -23,7 +26,7 @@ export async function POST(req: NextRequest) {
       const { data, error } = await supabase
         .from('budgets')
         .select('amount, currency')
-        .eq('telegram_user_id', userId)
+        .eq('household_id', hid)
         .eq('month', month);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ items: data || [] });
@@ -34,16 +37,30 @@ export async function POST(req: NextRequest) {
       if (!month || amount == null || !currency) {
         return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
       }
-      const { error } = await supabase.from('budgets').upsert(
-        {
-          telegram_user_id: userId,
+      const { data: existing } = await supabase
+        .from('budgets')
+        .select('id')
+        .eq('household_id', hid)
+        .eq('month', month)
+        .eq('currency', currency)
+        .maybeSingle();
+
+      if (existing?.id) {
+        const { error } = await supabase
+          .from('budgets')
+          .update({ amount: Number(amount) })
+          .eq('id', existing.id);
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      } else {
+        const { error } = await supabase.from('budgets').insert({
+          telegram_user_id: household.ownerTelegramId,
+          household_id: hid,
           month,
           amount: Number(amount),
           currency,
-        },
-        { onConflict: 'telegram_user_id,month,currency' }
-      );
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+        });
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      }
       return NextResponse.json({ ok: true });
     }
 

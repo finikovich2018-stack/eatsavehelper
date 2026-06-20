@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ensureHouseholdContext } from '@/lib/household';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { verifyApiUser } from '@/lib/verify-api-user';
 
@@ -23,12 +24,14 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseAdmin();
     const userId = auth.userId;
     const { op } = body;
+    const household = await ensureHouseholdContext(supabase, userId);
+    const hid = household.householdId;
 
     if (op === 'list') {
       const { data, error } = await supabase
         .from('shopping_list_items')
         .select('*')
-        .eq('telegram_user_id', userId)
+        .eq('household_id', hid)
         .order('checked', { ascending: true })
         .order('created_at', { ascending: false });
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -39,7 +42,7 @@ export async function POST(req: NextRequest) {
       const { count, error } = await supabase
         .from('shopping_list_items')
         .select('*', { count: 'exact', head: true })
-        .eq('telegram_user_id', userId)
+        .eq('household_id', hid)
         .eq('checked', false);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ count: count || 0 });
@@ -59,7 +62,7 @@ export async function POST(req: NextRequest) {
         const { data: existing } = await supabase
           .from('shopping_list_items')
           .select('id')
-          .eq('telegram_user_id', userId)
+          .eq('household_id', hid)
           .eq('checked', false)
           .ilike('name', name)
           .maybeSingle();
@@ -73,6 +76,7 @@ export async function POST(req: NextRequest) {
           .from('shopping_list_items')
           .insert({
             telegram_user_id: userId,
+            household_id: hid,
             name,
             quantity: row.quantity || null,
             source: row.source || 'manual',
@@ -95,7 +99,7 @@ export async function POST(req: NextRequest) {
         .from('shopping_list_items')
         .update({ checked: Boolean(checked) })
         .eq('id', id)
-        .eq('telegram_user_id', userId)
+        .eq('household_id', hid)
         .select('*')
         .maybeSingle();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -109,7 +113,7 @@ export async function POST(req: NextRequest) {
         .from('shopping_list_items')
         .delete()
         .eq('id', id)
-        .eq('telegram_user_id', userId);
+        .eq('household_id', hid);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ ok: true });
     }
@@ -118,7 +122,7 @@ export async function POST(req: NextRequest) {
       const { error } = await supabase
         .from('shopping_list_items')
         .delete()
-        .eq('telegram_user_id', userId)
+        .eq('household_id', hid)
         .eq('checked', true);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ ok: true });

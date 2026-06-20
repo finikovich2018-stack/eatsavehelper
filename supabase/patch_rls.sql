@@ -14,6 +14,9 @@ DROP POLICY IF EXISTS "deny_anon_budgets" ON budgets;
 DROP POLICY IF EXISTS "deny_anon_receipts" ON receipts;
 DROP POLICY IF EXISTS "deny_anon_recipes" ON saved_recipes;
 DROP POLICY IF EXISTS "deny_anon_shopping" ON shopping_list_items;
+DROP POLICY IF EXISTS "deny_anon_households" ON households;
+DROP POLICY IF EXISTS "deny_anon_household_members" ON household_members;
+DROP POLICY IF EXISTS "deny_anon_household_invites" ON household_invites;
 
 CREATE POLICY "deny_anon_users" ON users FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
 CREATE POLICY "deny_anon_fridge" ON fridge_items FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
@@ -22,6 +25,9 @@ CREATE POLICY "deny_anon_budgets" ON budgets FOR ALL TO anon, authenticated USIN
 CREATE POLICY "deny_anon_receipts" ON receipts FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
 CREATE POLICY "deny_anon_recipes" ON saved_recipes FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
 CREATE POLICY "deny_anon_shopping" ON shopping_list_items FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+CREATE POLICY "deny_anon_households" ON households FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+CREATE POLICY "deny_anon_household_members" ON household_members FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+CREATE POLICY "deny_anon_household_invites" ON household_invites FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
 
 -- premium_payments table (if not exists yet)
 CREATE TABLE IF NOT EXISTS premium_payments (

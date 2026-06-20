@@ -8,7 +8,7 @@ import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_AI_RECIPES_PER_MONTH } from '@/lib/constants';
 import { findMissingIngredients } from '@/lib/shopping-utils';
-import { isPremiumActive } from '@/lib/user-utils';
+import { hasPremiumAccess, isPremiumActive } from '@/lib/user-utils';
 import type { Locale } from '@/lib/i18n/translations';
 
 type Recipe = {
@@ -81,7 +81,7 @@ export default function RecipesPage() {
     });
   }, [refreshUser]);
 
-  const isPremium = isPremiumActive(userProfile || dbUser || {});
+  const isPremium = hasPremiumAccess(userProfile || dbUser || {});
 
   const getAIRecipes = async () => {
     if (!auth) return;

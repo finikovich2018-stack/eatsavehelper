@@ -14,6 +14,7 @@ export interface DbUser {
   scans_this_month?: number;
   ai_recipes_this_month?: number;
   achievement_bonus_month?: string | null;
+  effective_premium?: boolean;
 }
 
 interface TelegramData {
@@ -95,6 +96,26 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
           const profile = await loadDbUser(rawInitData, tgUser.id);
           setDbUser(profile);
           registerChatForNotifications(tgUser.id, tgUser.id, rawInitData);
+
+          const startParam = tgApp.initDataUnsafe?.start_param as string | undefined;
+          if (startParam?.startsWith('join_') && profile) {
+            try {
+              await fetch('/api/household/join', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  initData: rawInitData,
+                  telegram_user_id: tgUser.id,
+                  token: startParam,
+                }),
+              });
+              const refreshed = await loadDbUser(rawInitData, tgUser.id);
+              if (refreshed) setDbUser(refreshed);
+            } catch (e) {
+              console.error('Household join failed:', e);
+            }
+          }
+
           setLoading(false);
         };
 

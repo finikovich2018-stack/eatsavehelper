@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
+import { ensureHouseholdContext, hasEffectivePremium } from '@/lib/household';
 import { getUserWithLimits } from '@/lib/usage-limits';
-import { isPremiumActive } from '@/lib/user-utils';
 import { verifyApiUser } from '@/lib/verify-api-user';
 
 export const runtime = 'nodejs';
@@ -19,12 +19,13 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseAdmin();
     const userId = auth.userId;
     const { op } = body;
+    const household = await ensureHouseholdContext(supabase, userId);
 
     if (op === 'list') {
       const { data, error } = await supabase
         .from('fridge_items')
         .select('*')
-        .eq('telegram_user_id', userId)
+        .eq('household_id', household.householdId)
         .order('expiry_date', { ascending: true });
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ items: data || [] });
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
       const { count, error } = await supabase
         .from('fridge_items')
         .select('*', { count: 'exact', head: true })
-        .eq('telegram_user_id', userId);
+        .eq('household_id', household.householdId);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ count: count || 0 });
     }
@@ -46,11 +47,12 @@ export async function POST(req: NextRequest) {
       }
 
       const user = await getUserWithLimits(supabase, userId);
-      if (!user || !isPremiumActive(user)) {
+      const premium = await hasEffectivePremium(supabase, userId);
+      if (!user || !premium) {
         const { count } = await supabase
           .from('fridge_items')
           .select('*', { count: 'exact', head: true })
-          .eq('telegram_user_id', userId);
+          .eq('household_id', household.householdId);
         if ((count || 0) + items.length > FREE_FRIDGE_ITEMS) {
           return NextResponse.json(
             { error: 'Fridge limit reached', code: 'fridge_limit', limit: FREE_FRIDGE_ITEMS },
@@ -62,6 +64,7 @@ export async function POST(req: NextRequest) {
       const rows = items.map((item) => ({
         ...item,
         telegram_user_id: userId,
+        household_id: household.householdId,
       }));
       const { data, error } = await supabase.from('fridge_items').insert(rows).select();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -75,7 +78,7 @@ export async function POST(req: NextRequest) {
         .from('fridge_items')
         .delete()
         .eq('id', id)
-        .eq('telegram_user_id', userId);
+        .eq('household_id', household.householdId);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ ok: true });
     }

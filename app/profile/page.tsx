@@ -9,7 +9,7 @@ import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { PREMIUM_PRICE_STARS } from '@/lib/constants';
 import { ACHIEVEMENT_BONUS_DAYS, computeAchievements } from '@/lib/achievements';
-import { isPremiumActive } from '@/lib/user-utils';
+import { hasPremiumAccess, isPremiumActive } from '@/lib/user-utils';
 import { formatLocalDate } from '@/lib/utils';
 import type { TranslationKey } from '@/lib/i18n/translations';
 
@@ -72,6 +72,15 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [claimBusy, setClaimBusy] = useState(false);
+  const [household, setHousehold] = useState<{
+    role: 'owner' | 'member';
+    members: { telegram_user_id: number; first_name: string | null; username: string | null; role: string }[];
+    memberCount: number;
+    maxMembers: number;
+    canInvite: boolean;
+    ownerHasPremium: boolean;
+  } | null>(null);
+  const [familyBusy, setFamilyBusy] = useState(false);
 
   const loadUserProfile = useCallback(async () => {
     if (!user?.id) return null;
@@ -147,10 +156,81 @@ export default function ProfilePage() {
     }
   };
 
+  const loadHousehold = useCallback(async () => {
+    if (!auth) return;
+    try {
+      const data = await dataApi.household.get(auth);
+      setHousehold(data);
+    } catch {
+      setHousehold(null);
+    }
+  }, [auth]);
+
+  const inviteToFamily = async () => {
+    if (!auth || familyBusy) return;
+    if (!household?.canInvite) {
+      alert(t('family.premiumRequired'));
+      return;
+    }
+    setFamilyBusy(true);
+    try {
+      const data = await dataApi.household.invite(auth);
+      const link = data.link;
+      const tg = (window as { Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } } })
+        .Telegram?.WebApp;
+      if (tg?.openTelegramLink) {
+        tg.openTelegramLink(
+          `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('EatSave — семейный холодильник')}`
+        );
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(link);
+        alert(t('family.linkCopied'));
+      } else {
+        alert(link);
+      }
+      await loadHousehold();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t('common.error'));
+    } finally {
+      setFamilyBusy(false);
+    }
+  };
+
+  const leaveFamily = async () => {
+    if (!auth || familyBusy) return;
+    if (!confirm(t('family.leaveConfirm'))) return;
+    setFamilyBusy(true);
+    try {
+      await dataApi.household.leave(auth);
+      await loadHousehold();
+      await refreshUser();
+      window.location.reload();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t('common.error'));
+    } finally {
+      setFamilyBusy(false);
+    }
+  };
+
+  const removeFamilyMember = async (memberId: number) => {
+    if (!auth || familyBusy) return;
+    if (!confirm(t('family.removeConfirm'))) return;
+    setFamilyBusy(true);
+    try {
+      await dataApi.household.removeMember(auth, memberId);
+      await loadHousehold();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t('common.error'));
+    } finally {
+      setFamilyBusy(false);
+    }
+  };
+
   useEffect(() => {
     loadUserProfile();
     loadStats();
-  }, [loadUserProfile, loadStats]);
+    loadHousehold();
+  }, [loadUserProfile, loadStats, loadHousehold]);
 
   useEffect(() => {
     if (!auth) return;
@@ -164,7 +244,7 @@ export default function ProfilePage() {
       .catch(() => setIsAdmin(false));
   }, [auth]);
 
-  const isPremium = isPremiumActive(userProfile || dbUser || {});
+  const isPremium = hasPremiumAccess(userProfile || dbUser || {});
   const premiumUntil = (userProfile || dbUser)?.premium_until;
   const notificationsEnabled = userProfile?.notifications_enabled !== false;
 
@@ -420,6 +500,73 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
+
+        {household && (
+          <div className="space-y-4">
+            <h2 className="font-semibold text-foreground text-lg">{t('family.title')}</h2>
+            <div className="bg-surface border border-border rounded-2xl p-5 space-y-4">
+              <p className="text-sm text-muted">
+                {t('family.desc', { max: household.maxMembers })}
+              </p>
+              <p className="text-sm font-medium text-accent">
+                {t('family.members', {
+                  count: household.memberCount,
+                  max: household.maxMembers,
+                })}
+              </p>
+              <div className="space-y-2">
+                {household.members.map((m) => (
+                  <div
+                    key={m.telegram_user_id}
+                    className="flex items-center justify-between gap-2 py-2 border-b border-border/40 last:border-0"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm truncate">
+                        {m.first_name || `@${m.username}` || m.telegram_user_id}
+                        {m.telegram_user_id === user?.id && ` · ${t('family.you')}`}
+                      </div>
+                      <div className="text-xs text-muted">
+                        {m.role === 'owner' ? t('family.owner') : t('family.member')}
+                      </div>
+                    </div>
+                    {household.role === 'owner' &&
+                      m.role !== 'owner' &&
+                      m.telegram_user_id !== user?.id && (
+                        <button
+                          type="button"
+                          disabled={familyBusy}
+                          onClick={() => removeFamilyMember(m.telegram_user_id)}
+                          className="text-xs text-red-400 shrink-0"
+                        >
+                          {t('family.remove')}
+                        </button>
+                      )}
+                  </div>
+                ))}
+              </div>
+              {household.canInvite && (
+                <button
+                  type="button"
+                  disabled={familyBusy}
+                  onClick={inviteToFamily}
+                  className="w-full bg-accent text-background font-medium py-3 rounded-xl disabled:opacity-60"
+                >
+                  {t('family.invite')}
+                </button>
+              )}
+              {household.role === 'member' && (
+                <button
+                  type="button"
+                  disabled={familyBusy}
+                  onClick={leaveFamily}
+                  className="w-full border border-border text-muted py-3 rounded-xl disabled:opacity-60"
+                >
+                  {t('family.leave')}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3">

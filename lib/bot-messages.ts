@@ -31,6 +31,8 @@ const MESSAGES = {
     expiryReminder: (name: string, items: string) =>
       `Привет, ${name}! Завтра истекает срок годности:\n\n${items}`,
     openApp: '📱 Открыть EatSave',
+    familyInviteOpen:
+      '👨‍👩‍👧 Вас пригласили в семью EatSave!\n\nОткройте приложение — общий холодильник, бюджет и список покупок.',
   },
   en: {
     start: (name: string) =>
@@ -57,6 +59,8 @@ const MESSAGES = {
     expiryReminder: (name: string, items: string) =>
       `Hi, ${name}! These items expire tomorrow:\n\n${items}`,
     openApp: '📱 Open EatSave',
+    familyInviteOpen:
+      '👨‍👩‍👧 You were invited to an EatSave family!\n\nOpen the app for a shared fridge, budget and shopping list.',
   },
 } as const;
 

@@ -228,6 +228,21 @@ const ru = {
   'ach.claimBonus': 'Получить +3 дня Premium',
   'ach.bonusClaimed': 'Бонус получен в этом месяце',
   'ach.bonusSuccess': '+{days} дня Premium добавлены!',
+
+  // Family
+  'family.title': '👨‍👩‍👧 Семья',
+  'family.desc': 'Общий холодильник, бюджет и список покупок (до {max} человек)',
+  'family.members': '{count}/{max} участников',
+  'family.invite': 'Пригласить в семью',
+  'family.linkCopied': 'Ссылка скопирована — отправьте близким в Telegram',
+  'family.premiumRequired': 'Нужен Premium у владельца семьи',
+  'family.leave': 'Выйти из семьи',
+  'family.remove': 'Удалить',
+  'family.owner': 'владелец',
+  'family.member': 'участник',
+  'family.leaveConfirm': 'Выйти из семьи? Ваш личный холодильник будет отдельным.',
+  'family.removeConfirm': 'Удалить участника из семьи?',
+  'family.you': 'вы',
 } as const;
 
 const en: Record<TranslationKey, string> = {
@@ -447,6 +462,20 @@ const en: Record<TranslationKey, string> = {
   'ach.claimBonus': 'Claim +3 days Premium',
   'ach.bonusClaimed': 'Bonus claimed this month',
   'ach.bonusSuccess': '+{days} days Premium added!',
+
+  'family.title': '👨‍👩‍👧 Family',
+  'family.desc': 'Shared fridge, budget and shopping list (up to {max} people)',
+  'family.members': '{count}/{max} members',
+  'family.invite': 'Invite to family',
+  'family.linkCopied': 'Link copied — send it to family in Telegram',
+  'family.premiumRequired': 'Household owner needs Premium',
+  'family.leave': 'Leave family',
+  'family.remove': 'Remove',
+  'family.owner': 'owner',
+  'family.member': 'member',
+  'family.leaveConfirm': 'Leave this family? You will get a separate fridge.',
+  'family.removeConfirm': 'Remove this member from the family?',
+  'family.you': 'you',
 };
 
 export const translations = { ru, en };

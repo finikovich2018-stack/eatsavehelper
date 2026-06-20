@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { applyDataScope, resolveDataScope, scopedInsert } from '@/lib/data-scope';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
-import { ensureHouseholdContext, hasEffectivePremium } from '@/lib/household';
+import { hasEffectivePremium } from '@/lib/household';
 import { getUserWithLimits } from '@/lib/usage-limits';
 import { verifyApiUser } from '@/lib/verify-api-user';
 
@@ -19,23 +20,24 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseAdmin();
     const userId = auth.userId;
     const { op } = body;
-    const household = await ensureHouseholdContext(supabase, userId);
+    const scope = await resolveDataScope(supabase, userId);
 
     if (op === 'list') {
-      const { data, error } = await supabase
-        .from('fridge_items')
-        .select('*')
-        .eq('household_id', household.householdId)
-        .order('expiry_date', { ascending: true });
+      const query = applyDataScope(
+        supabase.from('fridge_items').select('*'),
+        scope
+      );
+      const { data, error } = await query.order('expiry_date', { ascending: true });
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ items: data || [] });
     }
 
     if (op === 'count') {
-      const { count, error } = await supabase
-        .from('fridge_items')
-        .select('*', { count: 'exact', head: true })
-        .eq('household_id', household.householdId);
+      const query = applyDataScope(
+        supabase.from('fridge_items').select('*', { count: 'exact', head: true }),
+        scope
+      );
+      const { count, error } = await query;
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ count: count || 0 });
     }
@@ -49,10 +51,11 @@ export async function POST(req: NextRequest) {
       const user = await getUserWithLimits(supabase, userId);
       const premium = await hasEffectivePremium(supabase, userId);
       if (!user || !premium) {
-        const { count } = await supabase
-          .from('fridge_items')
-          .select('*', { count: 'exact', head: true })
-          .eq('household_id', household.householdId);
+        const countQuery = applyDataScope(
+          supabase.from('fridge_items').select('*', { count: 'exact', head: true }),
+          scope
+        );
+        const { count } = await countQuery;
         if ((count || 0) + items.length > FREE_FRIDGE_ITEMS) {
           return NextResponse.json(
             { error: 'Fridge limit reached', code: 'fridge_limit', limit: FREE_FRIDGE_ITEMS },
@@ -61,12 +64,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const rows = items.map((item) => ({
-        ...item,
-        telegram_user_id: userId,
-        household_id: household.householdId,
-      }));
-      const { data, error } = await supabase.from('fridge_items').insert(rows).select();
+      const { data, error } = await scopedInsert(supabase, 'fridge_items', scope, items);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ items: data });
     }
@@ -74,11 +72,8 @@ export async function POST(req: NextRequest) {
     if (op === 'delete') {
       const { id } = body;
       if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
-      const { error } = await supabase
-        .from('fridge_items')
-        .delete()
-        .eq('id', id)
-        .eq('household_id', household.householdId);
+      const query = applyDataScope(supabase.from('fridge_items').delete().eq('id', id), scope);
+      const { error } = await query;
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ ok: true });
     }

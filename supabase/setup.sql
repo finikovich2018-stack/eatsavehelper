@@ -142,7 +142,10 @@ BEGIN
     (f.expiry_date - CURRENT_DATE)::INT AS days_left,
     u.telegram_chat_id
   FROM fridge_items f
-  JOIN users u ON f.telegram_user_id = u.telegram_user_id
+  JOIN users u ON (
+    (f.household_id IS NOT NULL AND u.household_id = f.household_id)
+    OR (f.household_id IS NULL AND f.telegram_user_id = u.telegram_user_id)
+  )
   WHERE f.expiry_date = target_date
     AND u.notifications_enabled = true
     AND u.telegram_chat_id IS NOT NULL;

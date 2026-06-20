@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ensureHouseholdContext } from '@/lib/household';
+import { applyDataScope, resolveDataScope, scopedInsert } from '@/lib/data-scope';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { verifyApiUser } from '@/lib/verify-api-user';
 
@@ -17,29 +17,27 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseAdmin();
     const userId = auth.userId;
     const { op } = body;
-    const household = await ensureHouseholdContext(supabase, userId);
-    const hid = household.householdId;
+    const scope = await resolveDataScope(supabase, userId);
 
     if (op === 'list') {
       const days = Number(body.days) || 7;
       const since = new Date();
       since.setDate(since.getDate() - days);
 
-      const { data, error } = await supabase
-        .from('receipts')
-        .select('*')
-        .eq('household_id', hid)
+      const query = applyDataScope(supabase.from('receipts').select('*'), scope)
         .gte('scanned_at', since.toISOString())
         .order('scanned_at', { ascending: false });
+      const { data, error } = await query;
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ items: data || [] });
     }
 
     if (op === 'count') {
-      const { count, error } = await supabase
-        .from('receipts')
-        .select('*', { count: 'exact', head: true })
-        .eq('household_id', hid);
+      const query = applyDataScope(
+        supabase.from('receipts').select('*', { count: 'exact', head: true }),
+        scope
+      );
+      const { count, error } = await query;
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ count: count || 0 });
     }
@@ -47,9 +45,7 @@ export async function POST(req: NextRequest) {
     if (op === 'insert') {
       const row = body.row as Record<string, unknown>;
       if (!row) return NextResponse.json({ error: 'Missing row' }, { status: 400 });
-      const { error } = await supabase
-        .from('receipts')
-        .insert({ ...row, telegram_user_id: userId, household_id: hid });
+      const { error } = await scopedInsert(supabase, 'receipts', scope, [row]);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ ok: true });
     }
@@ -57,11 +53,8 @@ export async function POST(req: NextRequest) {
     if (op === 'delete') {
       const { id } = body;
       if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
-      const { error } = await supabase
-        .from('receipts')
-        .delete()
-        .eq('id', id)
-        .eq('household_id', hid);
+      const query = applyDataScope(supabase.from('receipts').delete().eq('id', id), scope);
+      const { error } = await query;
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ ok: true });
     }

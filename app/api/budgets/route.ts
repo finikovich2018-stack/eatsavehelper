@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { applyDataScope, resolveDataScope } from '@/lib/data-scope';
 import { ensureHouseholdContext } from '@/lib/household';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { verifyApiUser } from '@/lib/verify-api-user';
@@ -17,17 +18,16 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseAdmin();
     const userId = auth.userId;
     const { op } = body;
-    const household = await ensureHouseholdContext(supabase, userId);
-    const hid = household.householdId;
+    const scope = await resolveDataScope(supabase, userId);
 
     if (op === 'list') {
       const { month } = body;
       if (!month) return NextResponse.json({ error: 'Missing month' }, { status: 400 });
-      const { data, error } = await supabase
-        .from('budgets')
-        .select('amount, currency')
-        .eq('household_id', hid)
-        .eq('month', month);
+      const query = applyDataScope(
+        supabase.from('budgets').select('amount, currency'),
+        scope
+      ).eq('month', month);
+      const { data, error } = await query;
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ items: data || [] });
     }
@@ -37,13 +37,20 @@ export async function POST(req: NextRequest) {
       if (!month || amount == null || !currency) {
         return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
       }
-      const { data: existing } = await supabase
-        .from('budgets')
-        .select('id')
-        .eq('household_id', hid)
+
+      let ownerId = userId;
+      if (scope.householdId) {
+        const ctx = await ensureHouseholdContext(supabase, userId);
+        ownerId = ctx.ownerTelegramId;
+      }
+
+      const existingQuery = applyDataScope(
+        supabase.from('budgets').select('id'),
+        scope
+      )
         .eq('month', month)
-        .eq('currency', currency)
-        .maybeSingle();
+        .eq('currency', currency);
+      const { data: existing } = await existingQuery.maybeSingle();
 
       if (existing?.id) {
         const { error } = await supabase
@@ -52,14 +59,25 @@ export async function POST(req: NextRequest) {
           .eq('id', existing.id);
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       } else {
-        const { error } = await supabase.from('budgets').insert({
-          telegram_user_id: household.ownerTelegramId,
-          household_id: hid,
+        const row: Record<string, unknown> = {
+          telegram_user_id: ownerId,
           month,
           amount: Number(amount),
           currency,
-        });
-        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+        };
+        if (scope.householdId) row.household_id = scope.householdId;
+        const { error } = await supabase.from('budgets').insert(row);
+        if (error && scope.householdId && error.message.includes('household_id')) {
+          const { error: retry } = await supabase.from('budgets').insert({
+            telegram_user_id: ownerId,
+            month,
+            amount: Number(amount),
+            currency,
+          });
+          if (retry) return NextResponse.json({ error: retry.message }, { status: 500 });
+        } else if (error) {
+          return NextResponse.json({ error: error.message }, { status: 500 });
+        }
       }
       return NextResponse.json({ ok: true });
     }

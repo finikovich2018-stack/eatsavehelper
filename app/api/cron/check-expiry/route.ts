@@ -72,8 +72,17 @@ export async function GET(req: Request) {
 
   const items = (rows || []) as ExpiringRow[];
 
+  const dryRun = new URL(req.url).searchParams.get('dry_run') === '1';
+
   if (items.length === 0) {
-    return NextResponse.json({ ok: true, message: 'No expiring items tomorrow', users_notified: 0 });
+    return NextResponse.json({
+      ok: true,
+      dry_run: dryRun,
+      message: 'No expiring items tomorrow',
+      target_date: targetDate,
+      users_notified: 0,
+      preview: [],
+    });
   }
 
   const byUser: Record<number, { name: string; items: ExpiringRow[] }> = {};
@@ -84,6 +93,23 @@ export async function GET(req: Request) {
       byUser[row.user_telegram_id] = { name: row.first_name || 'друг', items: [] };
     }
     byUser[row.user_telegram_id].items.push(row);
+  }
+
+  const preview = Object.entries(byUser).map(([userId, user]) => ({
+    telegram_user_id: Number(userId),
+    chat_id: user.items[0].chat_id,
+    items: user.items.map((i) => i.item_name),
+  }));
+
+  if (dryRun) {
+    return NextResponse.json({
+      ok: true,
+      dry_run: true,
+      target_date: targetDate,
+      would_notify: preview.length,
+      items_found: items.length,
+      preview,
+    });
   }
 
   let sent = 0;

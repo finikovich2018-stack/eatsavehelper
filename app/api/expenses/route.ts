@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ensureHouseholdContext } from '@/lib/household';
+import { applyDataScope, resolveDataScope, scopedInsert } from '@/lib/data-scope';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { verifyApiUser } from '@/lib/verify-api-user';
 
@@ -17,15 +17,13 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseAdmin();
     const userId = auth.userId;
     const { op } = body;
-    const household = await ensureHouseholdContext(supabase, userId);
-    const hid = household.householdId;
+    const scope = await resolveDataScope(supabase, userId);
 
     if (op === 'list') {
-      let query = supabase
-        .from('expenses')
-        .select('*')
-        .eq('household_id', hid)
-        .order('date', { ascending: false });
+      let query = applyDataScope(supabase.from('expenses').select('*'), scope).order(
+        'date',
+        { ascending: false }
+      );
 
       if (body.monthStart) {
         query = query.gte('date', body.monthStart);
@@ -39,23 +37,16 @@ export async function POST(req: NextRequest) {
     if (op === 'insert') {
       const item = body.item as Record<string, unknown>;
       if (!item) return NextResponse.json({ error: 'Missing item' }, { status: 400 });
-      const { data, error } = await supabase
-        .from('expenses')
-        .insert({ ...item, telegram_user_id: userId, household_id: hid })
-        .select()
-        .single();
+      const { data, error } = await scopedInsert(supabase, 'expenses', scope, [item]);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ item: data });
+      return NextResponse.json({ item: (data || [])[0] });
     }
 
     if (op === 'delete') {
       const { id } = body;
       if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
-      const { error } = await supabase
-        .from('expenses')
-        .delete()
-        .eq('id', id)
-        .eq('household_id', hid);
+      const query = applyDataScope(supabase.from('expenses').delete().eq('id', id), scope);
+      const { error } = await query;
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ ok: true });
     }

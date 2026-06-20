@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ensureHouseholdContext } from '@/lib/household';
+import { applyDataScope, resolveDataScope, scopedInsert } from '@/lib/data-scope';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { verifyApiUser } from '@/lib/verify-api-user';
 
@@ -24,26 +24,29 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseAdmin();
     const userId = auth.userId;
     const { op } = body;
-    const household = await ensureHouseholdContext(supabase, userId);
-    const hid = household.householdId;
+    const scope = await resolveDataScope(supabase, userId);
 
     if (op === 'list') {
-      const { data, error } = await supabase
-        .from('shopping_list_items')
-        .select('*')
-        .eq('household_id', hid)
+      const query = applyDataScope(
+        supabase.from('shopping_list_items').select('*'),
+        scope
+      )
         .order('checked', { ascending: true })
         .order('created_at', { ascending: false });
+      const { data, error } = await query;
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ items: data || [] });
     }
 
     if (op === 'count') {
-      const { count, error } = await supabase
-        .from('shopping_list_items')
-        .select('*', { count: 'exact', head: true })
-        .eq('household_id', hid)
-        .eq('checked', false);
+      const query = applyDataScope(
+        supabase
+          .from('shopping_list_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('checked', false),
+        scope
+      );
+      const { count, error } = await query;
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ count: count || 0 });
     }
@@ -59,34 +62,28 @@ export async function POST(req: NextRequest) {
         const name = String(row.name || '').trim();
         if (!name) continue;
 
-        const { data: existing } = await supabase
-          .from('shopping_list_items')
-          .select('id')
-          .eq('household_id', hid)
-          .eq('checked', false)
-          .ilike('name', name)
-          .maybeSingle();
+        const existingQuery = applyDataScope(
+          supabase.from('shopping_list_items').select('id').eq('checked', false).ilike('name', name),
+          scope
+        );
+        const { data: existing } = await existingQuery.maybeSingle();
 
         if (existing) {
           inserted.push(existing);
           continue;
         }
 
-        const { data, error } = await supabase
-          .from('shopping_list_items')
-          .insert({
-            telegram_user_id: userId,
-            household_id: hid,
+        const { data, error } = await scopedInsert(supabase, 'shopping_list_items', scope, [
+          {
             name,
             quantity: row.quantity || null,
             source: row.source || 'manual',
             fridge_item_id: row.fridge_item_id || null,
-          })
-          .select('*')
-          .single();
+          },
+        ]);
 
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-        if (data) inserted.push(data);
+        if (data?.[0]) inserted.push(data[0]);
       }
 
       return NextResponse.json({ items: inserted });
@@ -95,13 +92,11 @@ export async function POST(req: NextRequest) {
     if (op === 'toggle') {
       const { id, checked } = body;
       if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
-      const { data, error } = await supabase
-        .from('shopping_list_items')
-        .update({ checked: Boolean(checked) })
-        .eq('id', id)
-        .eq('household_id', hid)
-        .select('*')
-        .maybeSingle();
+      const query = applyDataScope(
+        supabase.from('shopping_list_items').update({ checked: Boolean(checked) }).eq('id', id),
+        scope
+      );
+      const { data, error } = await query.select('*').maybeSingle();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ item: data });
     }
@@ -109,21 +104,21 @@ export async function POST(req: NextRequest) {
     if (op === 'delete') {
       const { id } = body;
       if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
-      const { error } = await supabase
-        .from('shopping_list_items')
-        .delete()
-        .eq('id', id)
-        .eq('household_id', hid);
+      const query = applyDataScope(
+        supabase.from('shopping_list_items').delete().eq('id', id),
+        scope
+      );
+      const { error } = await query;
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ ok: true });
     }
 
     if (op === 'clear_checked') {
-      const { error } = await supabase
-        .from('shopping_list_items')
-        .delete()
-        .eq('household_id', hid)
-        .eq('checked', true);
+      const query = applyDataScope(
+        supabase.from('shopping_list_items').delete().eq('checked', true),
+        scope
+      );
+      const { error } = await query;
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ ok: true });
     }

@@ -116,6 +116,22 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
+          if (startParam?.startsWith('ref_') && profile) {
+            try {
+              await fetch('/api/referral/claim', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  initData: rawInitData,
+                  telegram_user_id: tgUser.id,
+                  token: startParam,
+                }),
+              });
+            } catch (e) {
+              console.error('Referral claim failed:', e);
+            }
+          }
+
           setLoading(false);
         };
 

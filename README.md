@@ -60,7 +60,16 @@ npm run dev
 
 4. SQL Editor → `supabase/patch_users_columns.sql` → **Run** (имена пользователей в admin)
 
-5. Скопируйте URL и ключи в `.env.local` и Vercel
+5. Дополнительные патчи (по порядку, если ещё не запускали):
+
+   - `supabase/patch_achievements.sql` — достижения и бонус +3 дня
+   - `supabase/patch_shopping_list.sql` — список покупок
+   - `supabase/patch_household.sql` — семейный Premium
+   - `supabase/patch_data_recovery.sql` — восстановление данных после миграции семьи
+   - `supabase/patch_expiry_notifications.sql` — push всем членам семьи
+   - `supabase/patch_referrals.sql` — «Пригласи друга → +3 дня Premium»
+
+6. Скопируйте URL и ключи в `.env.local` и Vercel
 
 
 
@@ -108,13 +117,12 @@ node scripts/setup.mjs --apply --direct
 
 
 
-Cron каждый день в **9:00 UTC**:
-
-
+Cron каждый день в **9:00 UTC** (Vercel Cron или [cron-job.org](https://cron-job.org)):
 
 - Эндпоинт: `/api/cron/check-expiry`
-
-- [cron-job.org](https://cron-job.org) → `Authorization: Bearer CRON_SECRET`
+- Заголовок: `Authorization: Bearer CRON_SECRET`
+- Тест без отправки: `/api/cron/check-expiry?dry_run=1`
+- Требует `patch_expiry_notifications.sql` + `patch_household.sql` в Supabase
 
 
 

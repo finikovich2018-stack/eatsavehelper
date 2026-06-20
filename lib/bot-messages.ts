@@ -33,6 +33,10 @@ const MESSAGES = {
     openApp: '📱 Открыть EatSave',
     familyInviteOpen:
       '👨‍👩‍👧 Вас пригласили в семью EatSave!\n\nОткройте приложение — общий холодильник, бюджет и список покупок.',
+    referralInviteOpen:
+      '🎁 Вас пригласили в EatSave!\n\nОткройте приложение — друг получит +3 дня Premium, когда вы начнёте пользоваться.',
+    referralReward: (days: number, until: string) =>
+      `🎉 По вашей ссылке пришёл новый друг!\n\n+${days} дня Premium${until ? ` — активен до ${until}` : ''}. Спасибо, что делитесь EatSave!`,
   },
   en: {
     start: (name: string) =>
@@ -61,6 +65,10 @@ const MESSAGES = {
     openApp: '📱 Open EatSave',
     familyInviteOpen:
       '👨‍👩‍👧 You were invited to an EatSave family!\n\nOpen the app for a shared fridge, budget and shopping list.',
+    referralInviteOpen:
+      '🎁 You were invited to EatSave!\n\nOpen the app — your friend gets +3 days Premium when you start using it.',
+    referralReward: (days: number, until: string) =>
+      `🎉 A new friend joined via your link!\n\n+${days} days Premium${until ? ` — active until ${until}` : ''}. Thanks for sharing EatSave!`,
   },
 } as const;
 

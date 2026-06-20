@@ -160,4 +160,14 @@ export const dataApi = {
         withAuth(auth, { op: 'remove_member', member_telegram_user_id: memberTelegramUserId })
       ),
   },
+  referral: {
+    get: (auth: AuthPayload) =>
+      apiPost<{
+        code: string;
+        link: string;
+        invited: number;
+        bonusDays: number;
+        bonusPerInvite: number;
+      }>('/api/referral', withAuth(auth)),
+  },
 };

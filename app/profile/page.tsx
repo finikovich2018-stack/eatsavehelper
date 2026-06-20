@@ -7,7 +7,7 @@ import { dataApi } from '@/lib/client-api';
 import { useDataAuth } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
-import { PREMIUM_PRICE_STARS } from '@/lib/constants';
+import { PREMIUM_PRICE_STARS, REFERRAL_BONUS_DAYS } from '@/lib/constants';
 import { ACHIEVEMENT_BONUS_DAYS, computeAchievements } from '@/lib/achievements';
 import { hasPremiumAccess, isPremiumActive } from '@/lib/user-utils';
 import { formatLocalDate } from '@/lib/utils';
@@ -81,6 +81,13 @@ export default function ProfilePage() {
     ownerHasPremium: boolean;
   } | null>(null);
   const [familyBusy, setFamilyBusy] = useState(false);
+  const [referral, setReferral] = useState<{
+    link: string;
+    invited: number;
+    bonusDays: number;
+    bonusPerInvite: number;
+  } | null>(null);
+  const [referralBusy, setReferralBusy] = useState(false);
 
   const loadUserProfile = useCallback(async () => {
     if (!user?.id) return null;
@@ -166,6 +173,42 @@ export default function ProfilePage() {
     }
   }, [auth]);
 
+  const loadReferral = useCallback(async () => {
+    if (!auth) return;
+    try {
+      const data = await dataApi.referral.get(auth);
+      setReferral(data);
+    } catch {
+      setReferral(null);
+    }
+  }, [auth]);
+
+  const inviteFriend = async () => {
+    if (!auth || referralBusy) return;
+    setReferralBusy(true);
+    try {
+      const data = referral || (await dataApi.referral.get(auth));
+      setReferral(data);
+      const link = data.link;
+      const tg = (window as { Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } } })
+        .Telegram?.WebApp;
+      if (tg?.openTelegramLink) {
+        tg.openTelegramLink(
+          `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(t('referral.shareText'))}`
+        );
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(link);
+        alert(t('referral.linkCopied'));
+      } else {
+        alert(link);
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t('common.error'));
+    } finally {
+      setReferralBusy(false);
+    }
+  };
+
   const inviteToFamily = async () => {
     if (!auth || familyBusy) return;
     if (!household?.canInvite) {
@@ -230,7 +273,8 @@ export default function ProfilePage() {
     loadUserProfile();
     loadStats();
     loadHousehold();
-  }, [loadUserProfile, loadStats, loadHousehold]);
+    loadReferral();
+  }, [loadUserProfile, loadStats, loadHousehold, loadReferral]);
 
   useEffect(() => {
     if (!auth) return;
@@ -564,6 +608,34 @@ export default function ProfilePage() {
                   {t('family.leave')}
                 </button>
               )}
+            </div>
+          </div>
+        )}
+
+        {referral && (
+          <div className="space-y-4">
+            <h2 className="font-semibold text-foreground text-lg">{t('referral.title')}</h2>
+            <div className="bg-surface border border-border rounded-2xl p-5 space-y-4">
+              <p className="text-sm text-muted">
+                {t('referral.desc', { days: referral.bonusPerInvite || REFERRAL_BONUS_DAYS })}
+              </p>
+              <div className="flex flex-wrap gap-3 text-sm">
+                <span className="text-accent font-medium">
+                  {t('referral.invited', { count: referral.invited })}
+                </span>
+                <span className="text-muted">·</span>
+                <span className="text-accent font-medium">
+                  {t('referral.earned', { days: referral.bonusDays })}
+                </span>
+              </div>
+              <button
+                type="button"
+                disabled={referralBusy}
+                onClick={inviteFriend}
+                className="w-full bg-accent text-background font-medium py-3 rounded-xl disabled:opacity-60"
+              >
+                {t('referral.invite')}
+              </button>
             </div>
           </div>
         )}

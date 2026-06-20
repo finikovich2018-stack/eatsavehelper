@@ -243,6 +243,14 @@ const ru = {
   'family.leaveConfirm': 'Выйти из семьи? Ваш личный холодильник будет отдельным.',
   'family.removeConfirm': 'Удалить участника из семьи?',
   'family.you': 'вы',
+
+  'referral.title': '🎁 Пригласи друга',
+  'referral.desc': 'Отправьте ссылку другу — когда он зарегистрируется, вы получите +{days} дня Premium',
+  'referral.invited': 'Приглашено: {count}',
+  'referral.earned': 'Premium получено: +{days} дн.',
+  'referral.invite': 'Поделиться ссылкой',
+  'referral.linkCopied': 'Ссылка скопирована — отправьте другу в Telegram',
+  'referral.shareText': 'EatSave — умный холодильник и бюджет на продукты',
 } as const;
 
 const en: Record<TranslationKey, string> = {
@@ -476,6 +484,14 @@ const en: Record<TranslationKey, string> = {
   'family.leaveConfirm': 'Leave this family? You will get a separate fridge.',
   'family.removeConfirm': 'Remove this member from the family?',
   'family.you': 'you',
+
+  'referral.title': '🎁 Invite a friend',
+  'referral.desc': 'Share your link — when a friend signs up, you get +{days} days Premium',
+  'referral.invited': 'Invited: {count}',
+  'referral.earned': 'Premium earned: +{days} days',
+  'referral.invite': 'Share link',
+  'referral.linkCopied': 'Link copied — send it to a friend in Telegram',
+  'referral.shareText': 'EatSave — smart fridge and grocery budget',
 };
 
 export const translations = { ru, en };

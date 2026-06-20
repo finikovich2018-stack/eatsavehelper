@@ -200,6 +200,20 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      if (startPayload.startsWith('ref_')) {
+        await sendMessage(chatId, msg.referralInviteOpen, {
+          reply_markup: {
+            inline_keyboard: [[
+              {
+                text: msg.openApp,
+                url: `https://t.me/EatSavehelper_bot?startapp=${startPayload}`,
+              },
+            ]],
+          },
+        });
+        return NextResponse.json({ ok: true });
+      }
+
       await sendMessage(chatId, msg.start(firstName), {
         reply_markup: {
           inline_keyboard: [[{ text: msg.openApp, web_app: { url: getAppHomeUrl() } }]],

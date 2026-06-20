@@ -7,6 +7,7 @@ import {
   markLatestPaymentActivated,
 } from '@/lib/premium-payments';
 import { botLocale, botMsg } from '@/lib/bot-messages';
+import { FEEDBACK_CHANNEL_URL } from '@/lib/constants';
 import { syncUserProfile } from '@/lib/sync-user-profile';
 import { getAppHomeUrl } from '@/lib/app-url';
 import { getBotToken } from '@/lib/bot-token';
@@ -56,6 +57,28 @@ async function sendMessage(chatId: number, text: string, extra?: Record<string, 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, text, ...extra }),
   });
+}
+
+function feedbackReplyMarkup(locale: ReturnType<typeof botLocale>) {
+  const msg = botMsg(locale);
+  return {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: msg.openChannel, url: FEEDBACK_CHANNEL_URL }],
+        [{ text: msg.openApp, web_app: { url: getAppHomeUrl() } }],
+      ],
+    },
+  };
+}
+
+async function sendFeedbackChannelReply(chatId: number, locale: ReturnType<typeof botLocale>) {
+  const msg = botMsg(locale);
+  await sendMessage(chatId, msg.feedbackChannel, feedbackReplyMarkup(locale));
+}
+
+async function sendHelpReply(chatId: number, locale: ReturnType<typeof botLocale>) {
+  const msg = botMsg(locale);
+  await sendMessage(chatId, msg.help, feedbackReplyMarkup(locale));
 }
 
 async function answerPreCheckout(queryId: string, ok: boolean, errorMessage?: string) {
@@ -230,6 +253,24 @@ export async function POST(req: NextRequest) {
         botMsg(locale).status(Boolean(data?.is_premium), data?.notifications_enabled !== false)
       );
       return NextResponse.json({ ok: true });
+    }
+
+    if (
+      body.message?.text === '/help' ||
+      body.message?.text?.startsWith('/help@') ||
+      body.message?.text === '/feedback' ||
+      body.message?.text?.startsWith('/feedback@')
+    ) {
+      const chatId = body.message.from.id;
+      const locale = botLocale(body.message.from.language_code);
+      await sendHelpReply(chatId, locale);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (body.message?.from) {
+      const chatId = body.message.from.id;
+      const locale = botLocale(body.message.from.language_code);
+      await sendFeedbackChannelReply(chatId, locale);
     }
 
     return NextResponse.json({ ok: true });

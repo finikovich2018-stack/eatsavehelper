@@ -146,6 +146,8 @@ async function runDirectSetup() {
         { command: 'subscribe', description: 'Включить напоминания' },
         { command: 'unsubscribe', description: 'Выключить напоминания' },
         { command: 'activate', description: 'Активировать Premium после оплаты' },
+        { command: 'feedback', description: 'Отзывы и вопросы о приложении' },
+        { command: 'help', description: 'Команды и канал для отзывов' },
       ],
     }),
   });

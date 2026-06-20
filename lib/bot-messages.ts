@@ -23,6 +23,11 @@ const MESSAGES = {
       `📊 Статус EatSave\n\nPremium: ${premium ? '✅ активен' : '❌ нет'}\nУведомления: ${notifications ? '✅ вкл' : '🔕 выкл'}`,
     activateOk: '✅ Premium активирован! Откройте приложение.',
     activateFail: '❌ Не найдена недавняя оплата Stars. Оплатите Premium в приложении или напишите в поддержку.',
+    help:
+      '📖 Команды:\n/start — приложение\n/status — Premium\n/subscribe — напоминания\n/feedback — отзывы\n\n💬 Вопросы и отзывы о приложении — в нашем канале:',
+    feedbackChannel:
+      'Спасибо за сообщение! 💬\n\nОтзывы, идеи и вопросы о EatSave пишите в канале — там можно оставить комментарий и обсудить приложение с другими.\n\nhttps://t.me/EatSavehelper',
+    openChannel: '💬 Канал EatSave',
     expiryReminder: (name: string, items: string) =>
       `Привет, ${name}! Завтра истекает срок годности:\n\n${items}`,
     openApp: '📱 Открыть EatSave',
@@ -44,6 +49,11 @@ const MESSAGES = {
       `📊 EatSave status\n\nPremium: ${premium ? '✅ active' : '❌ none'}\nNotifications: ${notifications ? '✅ on' : '🔕 off'}`,
     activateOk: '✅ Premium activated! Open the app.',
     activateFail: '❌ No recent Stars payment found. Pay for Premium in the app or contact support.',
+    help:
+      '📖 Commands:\n/start — open app\n/status — Premium\n/subscribe — reminders\n/feedback — feedback\n\n💬 Questions and feedback — in our channel:',
+    feedbackChannel:
+      'Thanks for your message! 💬\n\nShare feedback, ideas, and questions about EatSave in our channel — leave a comment and discuss the app with others.\n\nhttps://t.me/EatSavehelper',
+    openChannel: '💬 EatSave channel',
     expiryReminder: (name: string, items: string) =>
       `Hi, ${name}! These items expire tomorrow:\n\n${items}`,
     openApp: '📱 Open EatSave',

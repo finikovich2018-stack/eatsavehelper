@@ -2,19 +2,15 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getAppHomeUrl } from '@/lib/app-url';
 import { getBotToken } from '@/lib/bot-token';
+import {
+  buildFoodReminderMessage,
+  fetchFoodReminders,
+  reminderPreview,
+} from '@/lib/food-reminders';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
-
-type ExpiringRow = {
-  user_telegram_id: number;
-  first_name: string | null;
-  item_name: string;
-  expiry_date: string;
-  days_left: number;
-  chat_id: number;
-};
 
 async function sendMessage(chatId: number, text: string) {
   const botToken = getBotToken();
@@ -57,49 +53,34 @@ export async function GET(req: Request) {
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const targetDate = tomorrow.toISOString().split('T')[0];
+  const dryRun = new URL(req.url).searchParams.get('dry_run') === '1';
+  const { users, targetDate, rpcErrors } = await fetchFoodReminders(supabase);
 
-  const { data: rows, error } = await supabase.rpc('get_expiring_items', {
-    target_date: targetDate,
-  });
-
-  if (error) {
-    console.error('get_expiring_items error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (rpcErrors.length > 0 && users.length === 0) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'Database functions missing or failed',
+        rpc_errors: rpcErrors,
+        hint: 'Run supabase/patch_food_reminders.sql in Supabase SQL Editor',
+      },
+      { status: 500 }
+    );
   }
 
-  const items = (rows || []) as ExpiringRow[];
+  const preview = users.map(reminderPreview);
 
-  const dryRun = new URL(req.url).searchParams.get('dry_run') === '1';
-
-  if (items.length === 0) {
+  if (users.length === 0) {
     return NextResponse.json({
       ok: true,
       dry_run: dryRun,
-      message: 'No expiring items tomorrow',
+      message: 'Nothing to remind today',
       target_date: targetDate,
       users_notified: 0,
       preview: [],
+      rpc_errors: rpcErrors.length ? rpcErrors : undefined,
     });
   }
-
-  const byUser: Record<number, { name: string; items: ExpiringRow[] }> = {};
-
-  for (const row of items) {
-    if (!row.chat_id) continue;
-    if (!byUser[row.user_telegram_id]) {
-      byUser[row.user_telegram_id] = { name: row.first_name || 'друг', items: [] };
-    }
-    byUser[row.user_telegram_id].items.push(row);
-  }
-
-  const preview = Object.entries(byUser).map(([userId, user]) => ({
-    telegram_user_id: Number(userId),
-    chat_id: user.items[0].chat_id,
-    items: user.items.map((i) => i.item_name),
-  }));
 
   if (dryRun) {
     return NextResponse.json({
@@ -107,25 +88,17 @@ export async function GET(req: Request) {
       dry_run: true,
       target_date: targetDate,
       would_notify: preview.length,
-      items_found: items.length,
       preview,
+      rpc_errors: rpcErrors.length ? rpcErrors : undefined,
+      sample_message: buildFoodReminderMessage(users[0]),
     });
   }
 
   let sent = 0;
-  for (const [, user] of Object.entries(byUser)) {
-    const chatId = user.items[0].chat_id;
-    const lines = user.items
-      .map((i) => `• <b>${i.item_name}</b>`)
-      .join('\n');
-
-    const text =
-      `⏰ <b>EatSave — напоминание</b>\n\n` +
-      `Привет, ${user.name}! Завтра истекает срок годности:\n\n` +
-      `${lines}\n\n` +
-      `Используйте продукты сегодня 🍽️`;
-
-    const ok = await sendMessage(chatId, text);
+  for (const user of users) {
+    const text = buildFoodReminderMessage(user);
+    if (!text) continue;
+    const ok = await sendMessage(user.chat_id, text);
     if (ok) sent++;
   }
 
@@ -133,6 +106,7 @@ export async function GET(req: Request) {
     ok: true,
     target_date: targetDate,
     users_notified: sent,
-    items_found: items.length,
+    users_with_reminders: users.length,
+    rpc_errors: rpcErrors.length ? rpcErrors : undefined,
   });
 }

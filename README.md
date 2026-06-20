@@ -67,6 +67,7 @@ npm run dev
    - `supabase/patch_household.sql` — семейный Premium
    - `supabase/patch_data_recovery.sql` — восстановление данных после миграции семьи
    - `supabase/patch_expiry_notifications.sql` — push всем членам семьи
+   - `supabase/patch_food_reminders.sql` — просрочка + список покупок в push
    - `supabase/patch_referrals.sql` — «Пригласи друга → +3 дня Premium»
 
 6. Скопируйте URL и ключи в `.env.local` и Vercel

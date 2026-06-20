@@ -295,7 +295,7 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen bg-background text-foreground pb-24">
       <TopBar title={t('profile.title')} />
-      <div className="max-w-mobile mx-auto px-4 py-8 space-y-8">
+      <div className="max-w-mobile mx-auto px-4 py-6 space-y-6">
 
         <div className="bg-gradient-to-br from-surface/80 to-background border border-accent/20 rounded-3xl p-8 overflow-hidden relative">
           <div className="absolute top-0 right-0 w-48 h-48 bg-accent/5 rounded-full -mr-24 -mt-24 pointer-events-none" />
@@ -344,40 +344,40 @@ export default function ProfilePage() {
             <p className="text-muted text-sm">{t('common.loading')}</p>
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-surface border border-border rounded-2xl p-5 text-center hover:border-accent/50 transition-colors group">
-                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">❄️</div>
-                <div className="text-3xl font-bold text-accent mb-1">{stats.fridgeCount}</div>
-                <div className="text-sm text-muted">{t('profile.products')}</div>
-                <div className="text-xs text-muted/60 mt-2">{t('profile.inFridge')}</div>
+              <div className="bg-surface border border-border rounded-2xl p-4 text-center">
+                <div className="text-2xl mb-1">❄️</div>
+                <div className="text-2xl font-bold text-accent mb-0.5">{stats.fridgeCount}</div>
+                <div className="text-xs text-muted">{t('profile.products')}</div>
+                <div className="text-[10px] text-muted/60 mt-1">{t('profile.inFridge')}</div>
               </div>
-              <div className="bg-surface border border-border rounded-2xl p-5 text-center hover:border-accent/50 transition-colors group">
-                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">💰</div>
+              <div className="bg-surface border border-border rounded-2xl p-4 text-center">
+                <div className="text-2xl mb-1">💰</div>
                 {Object.keys(stats.byCurrency).length === 0 ? (
-                  <div className="text-3xl font-bold text-accent mb-1">0 ₽</div>
+                  <div className="text-2xl font-bold text-accent mb-0.5">0 ₽</div>
                 ) : (
-                  <div className="space-y-1">
+                  <div className="space-y-0.5">
                     {Object.entries(stats.byCurrency).map(([cur, amount]) => {
                       const sym = CURRENCY_SYMBOLS[cur] || cur;
                       return (
-                        <div key={cur} className="text-xl font-bold text-accent">
+                        <div key={cur} className="text-lg font-bold text-accent">
                           {cur === 'RUB' ? amount.toLocaleString() : amount.toFixed(2)} {sym}
                         </div>
                       );
                     })}
                   </div>
                 )}
-                <div className="text-sm text-muted mt-1">{t('profile.spent')}</div>
-                <div className="text-xs text-muted/60 mt-1">{t('profile.inMonth', { month: monthName })}</div>
+                <div className="text-xs text-muted mt-1">{t('profile.spent')}</div>
+                <div className="text-[10px] text-muted/60">{t('profile.inMonth', { month: monthName })}</div>
               </div>
-              <div className="bg-surface border border-border rounded-2xl p-5 text-center hover:border-accent/50 transition-colors group">
-                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">🧾</div>
-                <div className="text-3xl font-bold text-accent mb-1">{stats.receiptCount}</div>
-                <div className="text-sm text-muted">{t('profile.receiptsCount')}</div>
+              <div className="bg-surface border border-border rounded-2xl p-4 text-center">
+                <div className="text-2xl mb-1">🧾</div>
+                <div className="text-2xl font-bold text-accent mb-0.5">{stats.receiptCount}</div>
+                <div className="text-xs text-muted">{t('profile.receiptsCount')}</div>
               </div>
-              <div className="bg-surface border border-border rounded-2xl p-5 text-center hover:border-accent/50 transition-colors group">
-                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">🍳</div>
-                <div className="text-3xl font-bold text-accent mb-1">{stats.aiRecipeCount}</div>
-                <div className="text-sm text-muted">{t('profile.aiRecipesCount')}</div>
+              <div className="bg-surface border border-border rounded-2xl p-4 text-center">
+                <div className="text-2xl mb-1">🍳</div>
+                <div className="text-2xl font-bold text-accent mb-0.5">{stats.aiRecipeCount}</div>
+                <div className="text-xs text-muted">{t('profile.aiRecipesCount')}</div>
               </div>
             </div>
           )}

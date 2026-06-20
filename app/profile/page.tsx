@@ -8,7 +8,7 @@ import { useDataAuth } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { PREMIUM_PRICE_STARS } from '@/lib/constants';
-import { computeAchievements } from '@/lib/achievements';
+import { ACHIEVEMENT_BONUS_DAYS, computeAchievements } from '@/lib/achievements';
 import { isPremiumActive } from '@/lib/user-utils';
 import { formatLocalDate } from '@/lib/utils';
 import type { TranslationKey } from '@/lib/i18n/translations';
@@ -25,6 +25,7 @@ type UserProfile = {
   is_premium?: boolean;
   premium_until?: string | null;
   notifications_enabled?: boolean;
+  achievement_bonus_month?: string | null;
 };
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -70,6 +71,7 @@ export default function ProfilePage() {
   });
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [claimBusy, setClaimBusy] = useState(false);
 
   const loadUserProfile = useCallback(async () => {
     if (!user?.id) return null;
@@ -292,6 +294,42 @@ export default function ProfilePage() {
     [stats, monthStartDate]
   );
 
+  const unlockedCount = achievements.filter((a) => a.unlocked).length;
+  const allAchievementsUnlocked = unlockedCount === achievements.length;
+  const currentMonthKey = new Date().toISOString().slice(0, 7);
+  const bonusClaimedThisMonth =
+    (userProfile || dbUser)?.achievement_bonus_month === currentMonthKey;
+
+  const claimAchievementBonus = async () => {
+    if (!initData || claimBusy) return;
+    setClaimBusy(true);
+    try {
+      const res = await fetch('/api/achievements/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData, telegram_user_id: user?.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || t('common.error'));
+        return;
+      }
+      if (data.user) {
+        setUserProfile(data.user);
+        await refreshUser();
+      }
+      if (data.alreadyClaimed) {
+        alert(t('ach.bonusClaimed'));
+      } else {
+        alert(t('ach.bonusSuccess', { days: ACHIEVEMENT_BONUS_DAYS }));
+      }
+    } catch {
+      alert(t('common.networkError'));
+    } finally {
+      setClaimBusy(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-background text-foreground pb-24">
       <TopBar title={t('profile.title')} />
@@ -384,9 +422,52 @@ export default function ProfilePage() {
         </div>
 
         <div className="space-y-4">
-          <h2 className="font-semibold text-foreground text-lg">
-            {t('profile.achievements')}
-          </h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-semibold text-foreground text-lg">
+              {t('profile.achievements')}
+            </h2>
+            {!loading && (
+              <span className="text-sm text-muted shrink-0">
+                {t('ach.monthProgress', { unlocked: unlockedCount, total: achievements.length })}
+              </span>
+            )}
+          </div>
+
+          {!loading && (
+            <div className="h-2 bg-border rounded-full overflow-hidden">
+              <div
+                className="h-full bg-accent transition-all duration-500 rounded-full"
+                style={{ width: `${(unlockedCount / achievements.length) * 100}%` }}
+              />
+            </div>
+          )}
+
+          {!loading && allAchievementsUnlocked && (
+            <div className="bg-gradient-to-r from-accent/20 via-accent/10 to-transparent border border-accent/40 rounded-2xl p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="text-3xl">🏆</span>
+                <div>
+                  <p className="font-bold text-accent">{t('ach.masterTitle')}</p>
+                  <p className="text-sm text-muted mt-0.5">{t('ach.masterDesc')}</p>
+                </div>
+              </div>
+              {bonusClaimedThisMonth ? (
+                <p className="text-sm text-center text-accent font-medium py-1">
+                  {t('ach.bonusClaimed')}
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  disabled={claimBusy}
+                  onClick={claimAchievementBonus}
+                  className="w-full bg-accent hover:bg-accent/90 text-background font-bold py-3 rounded-xl transition active:scale-[0.98] disabled:opacity-60"
+                >
+                  {t('ach.claimBonus')}
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             {achievements.map((a) => (
               <div

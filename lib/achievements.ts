@@ -127,3 +127,4 @@ export function computeAchievements(input: {
 }
 
 export { DEFAULT_BUDGET_RUB, SAVER_TARGET_RUB, CHEF_TARGET_RECIPES, BUDGET_STREAK_DAYS };
+export const ACHIEVEMENT_BONUS_DAYS = 3;

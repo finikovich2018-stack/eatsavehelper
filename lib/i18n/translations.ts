@@ -199,6 +199,12 @@ const ru = {
   'ach.saver.desc': 'Сэкономить 2000₽',
   'ach.unlocked': '✓ Получено',
   'ach.progress': '{current}/{target}',
+  'ach.monthProgress': '{unlocked}/{total} в этом месяце',
+  'ach.masterTitle': 'Мастер месяца',
+  'ach.masterDesc': 'Все 4 достижения — бонус +3 дня Premium',
+  'ach.claimBonus': 'Получить +3 дня Premium',
+  'ach.bonusClaimed': 'Бонус получен в этом месяце',
+  'ach.bonusSuccess': '+{days} дня Premium добавлены!',
 } as const;
 
 const en: Record<TranslationKey, string> = {
@@ -390,6 +396,12 @@ const en: Record<TranslationKey, string> = {
   'ach.saver.desc': 'Save ₽2000',
   'ach.unlocked': '✓ Unlocked',
   'ach.progress': '{current}/{target}',
+  'ach.monthProgress': '{unlocked}/{total} this month',
+  'ach.masterTitle': 'Master of the month',
+  'ach.masterDesc': 'All 4 achievements — +3 days Premium bonus',
+  'ach.claimBonus': 'Claim +3 days Premium',
+  'ach.bonusClaimed': 'Bonus claimed this month',
+  'ach.bonusSuccess': '+{days} days Premium added!',
 };
 
 export const translations = { ru, en };

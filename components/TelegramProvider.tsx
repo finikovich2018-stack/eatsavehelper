@@ -13,6 +13,7 @@ export interface DbUser {
   premium_until?: string | null;
   scans_this_month?: number;
   ai_recipes_this_month?: number;
+  achievement_bonus_month?: string | null;
 }
 
 interface TelegramData {

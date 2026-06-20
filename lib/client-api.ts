@@ -50,6 +50,16 @@ export type ApiSavedRecipe = {
   created_at?: string;
 };
 
+export type ApiShoppingItem = {
+  id: string;
+  name: string;
+  quantity?: string | null;
+  checked?: boolean;
+  source?: string;
+  fridge_item_id?: string | null;
+  created_at?: string;
+};
+
 async function apiPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
   const res = await fetch(path, {
     method: 'POST',
@@ -109,5 +119,22 @@ export const dataApi = {
       apiPost<{ ok: true }>('/api/saved-recipes', withAuth(auth, { op: 'delete', id })),
     count: (auth: AuthPayload, source?: string) =>
       apiPost<{ count: number }>('/api/saved-recipes', withAuth(auth, { op: 'count', source })),
+  },
+  shopping: {
+    list: (auth: AuthPayload) =>
+      apiPost<{ items: ApiShoppingItem[] }>('/api/shopping-list', withAuth(auth, { op: 'list' })),
+    insert: (
+      auth: AuthPayload,
+      items: { name: string; quantity?: string; source?: string; fridge_item_id?: string }[]
+    ) =>
+      apiPost<{ items: ApiShoppingItem[] }>('/api/shopping-list', withAuth(auth, { op: 'insert', items })),
+    toggle: (auth: AuthPayload, id: string, checked: boolean) =>
+      apiPost<{ item: ApiShoppingItem }>('/api/shopping-list', withAuth(auth, { op: 'toggle', id, checked })),
+    delete: (auth: AuthPayload, id: string) =>
+      apiPost<{ ok: true }>('/api/shopping-list', withAuth(auth, { op: 'delete', id })),
+    clearChecked: (auth: AuthPayload) =>
+      apiPost<{ ok: true }>('/api/shopping-list', withAuth(auth, { op: 'clear_checked' })),
+    count: (auth: AuthPayload) =>
+      apiPost<{ count: number }>('/api/shopping-list', withAuth(auth, { op: 'count' })),
   },
 };

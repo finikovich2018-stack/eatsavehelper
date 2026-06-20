@@ -10,6 +10,7 @@ const ru = {
   'nav.scan': 'Сканер',
   'nav.budget': 'Бюджет',
   'nav.profile': 'Профиль',
+  'nav.shopping': 'Покупки',
 
   // Common
   'common.loading': 'Загрузка...',
@@ -38,6 +39,8 @@ const ru = {
   'home.products': 'продуктов',
   'home.expiringCount': 'скоро истекают',
   'home.recipesCount': 'рецептов',
+  'home.shoppingList': 'Список покупок',
+  'home.shoppingCount': 'в списке',
 
   // Fridge
   'fridge.title': '❄️ Холодильник',
@@ -61,6 +64,9 @@ const ru = {
   'fridge.expiresToday': '⚠️ Сегодня истекает',
   'fridge.daysLeft': '📅 Ещё {n} дн.',
   'fridge.limitAlert': 'Бесплатный лимит: {limit} продуктов. Купите Premium для безлимита!',
+  'fridge.toShoppingList': 'В список',
+  'fridge.outOfStock': 'Законч.',
+  'fridge.addedToList': 'Добавлено в список покупок',
   'cat.all': '📦 Все',
   'cat.dairy': '🥛 Молочное',
   'cat.meat': '🥩 Мясо',
@@ -95,6 +101,20 @@ const ru = {
   'scan.partialSaved': 'Добавлено {added} из {total}. Освободите место для остальных или купите Premium.',
   'scan.addCount': '➕ Добавить {count} в холодильник',
 
+  // Shopping
+  'shopping.title': '🛒 Список покупок',
+  'shopping.add': '+ Добавить',
+  'shopping.itemName': 'Название (молоко, яйца...)',
+  'shopping.quantity': 'Количество (необязательно)',
+  'shopping.empty': 'Список пуст',
+  'shopping.emptyHint': 'Добавьте продукты вручную или из холодильника',
+  'shopping.toBuy': 'Купить',
+  'shopping.bought': 'Куплено',
+  'shopping.clearBought': 'Очистить купленное',
+  'shopping.toFridge': 'В холодильник',
+  'shopping.addedToFridge': 'Добавлено в холодильник',
+  'shopping.itemsCount': '{count} в списке',
+
   // Recipes
   'recipes.title': '👨‍🍳 Рецепты',
   'recipes.whatToCook': '✨ Что приготовить?',
@@ -113,6 +133,9 @@ const ru = {
   'recipes.limitAlert': 'Бесплатный лимит: {limit} AI рецепта/месяц. Купите Premium!',
   'recipes.delete': 'Удалить рецепт',
   'recipes.deleteConfirm': 'Удалить этот рецепт?',
+  'recipes.addMissingToList': '🛒 Добавить недостающее в список',
+  'recipes.allInFridge': 'Все ингредиенты уже в холодильнике',
+  'recipes.addedMissing': 'Добавлено в список: {count}',
 
   // Budget
   'budget.title': '💰 Бюджет',
@@ -214,6 +237,7 @@ const en: Record<TranslationKey, string> = {
   'nav.scan': 'Scan',
   'nav.budget': 'Budget',
   'nav.profile': 'Profile',
+  'nav.shopping': 'Shopping',
 
   'common.loading': 'Loading...',
   'common.save': 'Save',
@@ -240,6 +264,8 @@ const en: Record<TranslationKey, string> = {
   'home.products': 'products',
   'home.expiringCount': 'expiring soon',
   'home.recipesCount': 'recipes',
+  'home.shoppingList': 'Shopping list',
+  'home.shoppingCount': 'in list',
 
   'fridge.title': '❄️ Fridge',
   'fridge.add': '+ Add',
@@ -262,6 +288,9 @@ const en: Record<TranslationKey, string> = {
   'fridge.expiresToday': '⚠️ Expires today',
   'fridge.daysLeft': '📅 {n} days left',
   'fridge.limitAlert': 'Free limit: {limit} products. Get Premium for unlimited!',
+  'fridge.toShoppingList': 'To list',
+  'fridge.outOfStock': 'Out',
+  'fridge.addedToList': 'Added to shopping list',
   'cat.all': '📦 All',
   'cat.dairy': '🥛 Dairy',
   'cat.meat': '🥩 Meat',
@@ -295,6 +324,19 @@ const en: Record<TranslationKey, string> = {
   'scan.partialSaved': 'Added {added} of {total}. Free up space for the rest or get Premium.',
   'scan.addCount': '➕ Add {count} to fridge',
 
+  'shopping.title': '🛒 Shopping list',
+  'shopping.add': '+ Add',
+  'shopping.itemName': 'Name (milk, eggs...)',
+  'shopping.quantity': 'Quantity (optional)',
+  'shopping.empty': 'List is empty',
+  'shopping.emptyHint': 'Add items manually or from the fridge',
+  'shopping.toBuy': 'To buy',
+  'shopping.bought': 'Bought',
+  'shopping.clearBought': 'Clear bought',
+  'shopping.toFridge': 'To fridge',
+  'shopping.addedToFridge': 'Added to fridge',
+  'shopping.itemsCount': '{count} in list',
+
   'recipes.title': '👨‍🍳 Recipes',
   'recipes.whatToCook': '✨ What to cook?',
   'recipes.premiumUnlimited': '⭐ Premium — unlimited',
@@ -312,6 +354,9 @@ const en: Record<TranslationKey, string> = {
   'recipes.limitAlert': 'Free limit: {limit} AI recipes/month. Get Premium!',
   'recipes.delete': 'Delete recipe',
   'recipes.deleteConfirm': 'Delete this recipe?',
+  'recipes.addMissingToList': '🛒 Add missing to shopping list',
+  'recipes.allInFridge': 'All ingredients are already in the fridge',
+  'recipes.addedMissing': 'Added to list: {count}',
 
   'budget.title': '💰 Budget',
   'budget.spentMonth': 'Spent this month',

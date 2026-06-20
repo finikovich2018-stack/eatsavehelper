@@ -13,6 +13,7 @@ DROP POLICY IF EXISTS "deny_anon_expenses" ON expenses;
 DROP POLICY IF EXISTS "deny_anon_budgets" ON budgets;
 DROP POLICY IF EXISTS "deny_anon_receipts" ON receipts;
 DROP POLICY IF EXISTS "deny_anon_recipes" ON saved_recipes;
+DROP POLICY IF EXISTS "deny_anon_shopping" ON shopping_list_items;
 
 CREATE POLICY "deny_anon_users" ON users FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
 CREATE POLICY "deny_anon_fridge" ON fridge_items FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
@@ -20,6 +21,7 @@ CREATE POLICY "deny_anon_expenses" ON expenses FOR ALL TO anon, authenticated US
 CREATE POLICY "deny_anon_budgets" ON budgets FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
 CREATE POLICY "deny_anon_receipts" ON receipts FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
 CREATE POLICY "deny_anon_recipes" ON saved_recipes FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+CREATE POLICY "deny_anon_shopping" ON shopping_list_items FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
 
 -- premium_payments table (if not exists yet)
 CREATE TABLE IF NOT EXISTS premium_payments (

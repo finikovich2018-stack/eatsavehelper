@@ -76,6 +76,17 @@ CREATE TABLE IF NOT EXISTS saved_recipes (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS shopping_list_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  telegram_user_id BIGINT NOT NULL,
+  name TEXT NOT NULL,
+  quantity TEXT,
+  checked BOOLEAN DEFAULT false,
+  source TEXT DEFAULT 'manual',
+  fridge_item_id UUID,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- ─── Extra columns (safe) ───────────────────────────────────
 ALTER TABLE fridge_items ADD COLUMN IF NOT EXISTS telegram_user_id BIGINT;
 ALTER TABLE fridge_items ADD COLUMN IF NOT EXISTS user_id UUID;
@@ -90,6 +101,7 @@ CREATE INDEX IF NOT EXISTS idx_expenses_tgid ON expenses(telegram_user_id);
 CREATE INDEX IF NOT EXISTS idx_budgets_tgid_month ON budgets(telegram_user_id, month);
 CREATE INDEX IF NOT EXISTS idx_receipts_tgid ON receipts(telegram_user_id);
 CREATE INDEX IF NOT EXISTS idx_saved_recipes_tgid ON saved_recipes(telegram_user_id);
+CREATE INDEX IF NOT EXISTS idx_shopping_list_tgid ON shopping_list_items(telegram_user_id);
 
 -- ─── RLS: run supabase/patch_rls.sql after deploy to lock anon access ───
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -98,6 +110,7 @@ ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE receipts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE saved_recipes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shopping_list_items ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "users_all" ON users;
 DROP POLICY IF EXISTS "fridge_all" ON fridge_items;
@@ -105,6 +118,7 @@ DROP POLICY IF EXISTS "expenses_all" ON expenses;
 DROP POLICY IF EXISTS "budgets_all" ON budgets;
 DROP POLICY IF EXISTS "receipts_all" ON receipts;
 DROP POLICY IF EXISTS "saved_recipes_all" ON saved_recipes;
+DROP POLICY IF EXISTS "shopping_list_all" ON shopping_list_items;
 
 CREATE POLICY "users_all" ON users FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "fridge_all" ON fridge_items FOR ALL USING (true) WITH CHECK (true);
@@ -112,6 +126,7 @@ CREATE POLICY "expenses_all" ON expenses FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "budgets_all" ON budgets FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "receipts_all" ON receipts FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "saved_recipes_all" ON saved_recipes FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "shopping_list_all" ON shopping_list_items FOR ALL USING (true) WITH CHECK (true);
 
 -- ─── Notification helper ─────────────────────────────────────
 CREATE OR REPLACE FUNCTION get_expiring_items(target_date DATE)

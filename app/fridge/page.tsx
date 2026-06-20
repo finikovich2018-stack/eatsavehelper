@@ -134,23 +134,49 @@ function FridgePageContent() {
     setItems(items.filter((i) => i.id !== id));
   }
 
+  async function addToShoppingList(item: Item, removeFromFridge = false) {
+    if (!auth) return;
+    try {
+      await dataApi.shopping.insert(auth, [{
+        name: item.name,
+        quantity: item.quantity,
+        source: 'fridge',
+        fridge_item_id: item.id,
+      }]);
+      if (removeFromFridge) {
+        await dataApi.fridge.delete(auth, item.id);
+        setItems(items.filter((i) => i.id !== item.id));
+      } else {
+        alert(t('fridge.addedToList'));
+      }
+    } catch {
+      alert(t('common.networkError'));
+    }
+  }
+
   return (
     <main className="min-h-screen bg-background text-foreground pb-24">
       <TopBar title={t('fridge.title')} />
       <div className="max-w-mobile mx-auto px-4 py-4">
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="grid grid-cols-3 gap-3 mb-4">
           <button
             onClick={() => setShowForm(!showForm)}
             disabled={atFridgeLimit}
-            className="bg-accent text-background py-3 rounded-2xl font-medium disabled:opacity-50"
+            className="bg-accent text-background py-3 rounded-2xl font-medium disabled:opacity-50 text-sm"
           >
             {t('fridge.add')}
           </button>
           <Link
             href="/scan"
-            className="bg-surface border border-border py-3 rounded-2xl font-medium text-center active:scale-[0.98] transition"
+            className="bg-surface border border-border py-3 rounded-2xl font-medium text-center active:scale-[0.98] transition text-sm"
           >
             {t('fridge.scanReceipt')}
+          </Link>
+          <Link
+            href="/shopping"
+            className="bg-surface border border-accent/40 py-3 rounded-2xl font-medium text-center active:scale-[0.98] transition text-sm text-accent"
+          >
+            🛒
           </Link>
         </div>
 
@@ -281,12 +307,28 @@ function FridgePageContent() {
                           : t('fridge.daysLeft', { n: days })}
                     </div>
                   </div>
-                  <button
-                    onClick={() => removeItem(item.id)}
-                    className="text-muted hover:text-red-400 text-xl px-2"
-                  >
-                    ✕
-                  </button>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => addToShoppingList(item)}
+                      className="text-xs text-accent font-medium px-2 py-1 border border-accent/30 rounded-lg"
+                    >
+                      🛒
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => addToShoppingList(item, true)}
+                      className="text-[10px] text-muted px-1"
+                    >
+                      {t('fridge.outOfStock')}
+                    </button>
+                    <button
+                      onClick={() => removeItem(item.id)}
+                      className="text-muted hover:text-red-400 text-xl px-2"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
               );
             })}

@@ -1,0 +1,240 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import TopBar from '@/components/layout/TopBar';
+import { dataApi, type ApiShoppingItem } from '@/lib/client-api';
+import { useDataAuth } from '@/lib/use-data-auth';
+import { useTelegram } from '@/components/TelegramProvider';
+import { useI18n } from '@/lib/i18n/LanguageProvider';
+import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
+import { defaultExpiryDate } from '@/lib/shopping-utils';
+import { isPremiumActive } from '@/lib/user-utils';
+
+export default function ShoppingPage() {
+  const auth = useDataAuth();
+  const { dbUser, refreshUser } = useTelegram();
+  const { t } = useI18n();
+  const [items, setItems] = useState<ApiShoppingItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name: '', quantity: '' });
+  const [localUser, setLocalUser] = useState<typeof dbUser>(null);
+  const isPremium = isPremiumActive(localUser || dbUser || {});
+
+  useEffect(() => {
+    refreshUser().then(setLocalUser);
+  }, [refreshUser]);
+
+  const loadItems = useCallback(async () => {
+    if (!auth) return;
+    setLoading(true);
+    try {
+      const { items: rows } = await dataApi.shopping.list(auth);
+      setItems(rows || []);
+    } finally {
+      setLoading(false);
+    }
+  }, [auth]);
+
+  useEffect(() => {
+    loadItems();
+  }, [loadItems]);
+
+  const pending = useMemo(() => items.filter((i) => !i.checked), [items]);
+  const bought = useMemo(() => items.filter((i) => i.checked), [items]);
+
+  async function addItem() {
+    if (!form.name.trim() || !auth) return;
+    const { items: inserted } = await dataApi.shopping.insert(auth, [
+      { name: form.name.trim(), quantity: form.quantity.trim() || undefined, source: 'manual' },
+    ]);
+    const row = (inserted || [])[0];
+    if (row) {
+      setItems((prev) => {
+        const without = prev.filter((p) => p.id !== row.id);
+        return [row, ...without];
+      });
+    }
+    setForm({ name: '', quantity: '' });
+    setShowForm(false);
+  }
+
+  async function toggleItem(item: ApiShoppingItem) {
+    if (!auth) return;
+    const { item: updated } = await dataApi.shopping.toggle(auth, item.id, !item.checked);
+    if (updated) {
+      setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+    }
+  }
+
+  async function removeItem(id: string) {
+    if (!auth) return;
+    await dataApi.shopping.delete(auth, id);
+    setItems((prev) => prev.filter((i) => i.id !== id));
+  }
+
+  async function clearBought() {
+    if (!auth || bought.length === 0) return;
+    await dataApi.shopping.clearChecked(auth);
+    setItems((prev) => prev.filter((i) => !i.checked));
+  }
+
+  async function moveToFridge(item: ApiShoppingItem) {
+    if (!auth) return;
+    try {
+      if (!isPremium) {
+        const { count } = await dataApi.fridge.count(auth);
+        if ((count || 0) >= FREE_FRIDGE_ITEMS) {
+          alert(t('fridge.limitAlert', { limit: FREE_FRIDGE_ITEMS }));
+          return;
+        }
+      }
+      await dataApi.fridge.insert(auth, [{
+        name: item.name,
+        quantity: item.quantity || '',
+        expiry_date: defaultExpiryDate(7),
+        category: 'other',
+        icon: '📦',
+      }]);
+      await dataApi.shopping.delete(auth, item.id);
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+      alert(t('shopping.addedToFridge'));
+    } catch {
+      alert(t('common.networkError'));
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-background text-foreground pb-24">
+      <TopBar title={t('shopping.title')} />
+      <div className="max-w-mobile mx-auto px-4 py-4">
+        <div className="flex gap-3 mb-4">
+          <button
+            type="button"
+            onClick={() => setShowForm(!showForm)}
+            className="flex-1 bg-accent text-background py-3 rounded-2xl font-medium"
+          >
+            {t('shopping.add')}
+          </button>
+        </div>
+
+        {!loading && pending.length > 0 && (
+          <p className="text-xs text-muted mb-4 text-center">
+            {t('shopping.itemsCount', { count: pending.length })}
+          </p>
+        )}
+
+        {showForm && (
+          <div className="bg-surface border border-border rounded-2xl p-4 mb-4 space-y-3">
+            <input
+              placeholder={t('shopping.itemName')}
+              className="w-full bg-background border border-border rounded-xl px-4 py-3 placeholder-muted outline-none"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+            <input
+              placeholder={t('shopping.quantity')}
+              className="w-full bg-background border border-border rounded-xl px-4 py-3 placeholder-muted outline-none"
+              value={form.quantity}
+              onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+            />
+            <button
+              type="button"
+              onClick={addItem}
+              className="w-full bg-accent text-background py-3 rounded-xl font-medium"
+            >
+              {t('common.save')}
+            </button>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="text-center text-muted py-10">{t('common.loading')}</div>
+        ) : items.length === 0 ? (
+          <div className="text-center text-muted py-20">
+            <div className="text-5xl mb-4">🛒</div>
+            <div>{t('shopping.empty')}</div>
+            <div className="text-sm mt-2">{t('shopping.emptyHint')}</div>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {pending.length > 0 && (
+              <section>
+                <h2 className="font-semibold text-sm text-muted mb-3">{t('shopping.toBuy')}</h2>
+                <div className="space-y-2">
+                  {pending.map((item) => (
+                    <div
+                      key={item.id}
+                      className="bg-surface border border-border rounded-2xl p-4 flex items-center gap-3"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleItem(item)}
+                        className="w-7 h-7 rounded-full border-2 border-accent shrink-0"
+                        aria-label={t('shopping.bought')}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium">{item.name}</div>
+                        {item.quantity && (
+                          <div className="text-xs text-muted mt-0.5">{item.quantity}</div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(item.id)}
+                        className="text-muted hover:text-red-400 px-2 shrink-0"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {bought.length > 0 && (
+              <section>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-semibold text-sm text-muted">{t('shopping.bought')}</h2>
+                  <button
+                    type="button"
+                    onClick={clearBought}
+                    className="text-xs text-accent font-medium"
+                  >
+                    {t('shopping.clearBought')}
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {bought.map((item) => (
+                    <div
+                      key={item.id}
+                      className="bg-surface/60 border border-border/60 rounded-2xl p-4 flex items-center gap-3 opacity-80"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleItem(item)}
+                        className="w-7 h-7 rounded-full bg-accent text-background text-sm shrink-0 flex items-center justify-center"
+                      >
+                        ✓
+                      </button>
+                      <div className="flex-1 min-w-0 line-through text-muted">
+                        <div>{item.name}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => moveToFridge(item)}
+                        className="text-xs text-accent font-medium shrink-0 px-2 py-1 border border-accent/30 rounded-lg"
+                      >
+                        {t('shopping.toFridge')}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}

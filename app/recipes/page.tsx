@@ -7,6 +7,7 @@ import { useDataAuth } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_AI_RECIPES_PER_MONTH } from '@/lib/constants';
+import { findMissingIngredients } from '@/lib/shopping-utils';
 import { isPremiumActive } from '@/lib/user-utils';
 import type { Locale } from '@/lib/i18n/translations';
 
@@ -178,6 +179,26 @@ export default function RecipesPage() {
     ? '∞'
     : Math.max(0, FREE_AI_RECIPES_PER_MONTH - (userProfile?.ai_recipes_this_month || 0));
 
+  const addMissingToShoppingList = async (ingredients: string[]) => {
+    if (!auth) return;
+    try {
+      const { items } = await dataApi.fridge.list(auth);
+      const fridgeNames = ((items || []) as FridgeItem[]).map((i) => i.name);
+      const missing = findMissingIngredients(ingredients, fridgeNames);
+      if (missing.length === 0) {
+        alert(t('recipes.allInFridge'));
+        return;
+      }
+      await dataApi.shopping.insert(
+        auth,
+        missing.map((name) => ({ name, source: 'recipe' }))
+      );
+      alert(t('recipes.addedMissing', { count: missing.length }));
+    } catch {
+      alert(t('common.networkError'));
+    }
+  };
+
   if (selectedSaved) {
     const steps = Array.isArray(selectedSaved.steps) ? selectedSaved.steps : [];
     return (
@@ -208,6 +229,13 @@ export default function RecipesPage() {
               <p className="text-sm text-muted leading-relaxed">{steps.join('\n')}</p>
             </div>
           )}
+          <button
+            type="button"
+            onClick={() => addMissingToShoppingList(selectedSaved.ingredients || [])}
+            className="w-full bg-accent/10 border border-accent/40 text-accent font-medium py-3 rounded-2xl mb-3"
+          >
+            {t('recipes.addMissingToList')}
+          </button>
           <button
             onClick={() => deleteSavedRecipe(selectedSaved.id)}
             className="w-full bg-red-500/10 border border-red-500/30 text-red-400 font-medium py-3 rounded-2xl mb-3"
@@ -248,6 +276,13 @@ export default function RecipesPage() {
               ))}
             </ul>
           </div>
+          <button
+            type="button"
+            onClick={() => addMissingToShoppingList(selected.ingredients)}
+            className="w-full bg-accent/10 border border-accent/40 text-accent font-medium py-3 rounded-2xl mb-4"
+          >
+            {t('recipes.addMissingToList')}
+          </button>
           <button
             onClick={() => setSelected(null)}
             className="w-full bg-surface border border-border font-medium py-3 rounded-2xl"

@@ -43,7 +43,7 @@ export default function HomePage() {
   const { t, dateLocale } = useI18n();
   const [expiring, setExpiring] = useState<FridgeItem[]>([]);
   const [budget, setBudget] = useState<BudgetSummary>({ spent: 0, limit: 15000, currency: 'RUB' });
-  const [stats, setStats] = useState({ products: 0, expiringSoon: 0, recipes: 0 });
+  const [stats, setStats] = useState({ products: 0, expiringSoon: 0, recipes: 0, shopping: 0 });
   const [loading, setLoading] = useState(true);
 
   const monthName = new Date().toLocaleString(dateLocale, { month: 'long' });
@@ -68,6 +68,7 @@ export default function HomePage() {
           return days >= 0 && days <= 3;
         }).length,
         recipes: 0,
+        shopping: 0,
       });
 
       const monthStart = getMonthStart();
@@ -97,7 +98,12 @@ export default function HomePage() {
       });
 
       const { count: recipeCount } = await dataApi.recipes.count(auth);
-      setStats((prev) => ({ ...prev, recipes: recipeCount || 0 }));
+      const { count: shoppingCount } = await dataApi.shopping.count(auth);
+      setStats((prev) => ({
+        ...prev,
+        recipes: recipeCount || 0,
+        shopping: shoppingCount || 0,
+      }));
     } catch (error) {
       console.error('Home load error:', error);
     } finally {
@@ -187,14 +193,14 @@ export default function HomePage() {
               <div className="text-2xl mb-1">👨‍🍳</div>
               {t('home.recipes')}
             </Link>
-            <Link href="/profile" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition">
-              <div className="text-2xl mb-1">📊</div>
-              {t('home.stats')}
+            <Link href="/shopping" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition">
+              <div className="text-2xl mb-1">🛒</div>
+              {t('home.shoppingList')}
             </Link>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-2">
           <Link
             href="/fridge"
             className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition"
@@ -215,6 +221,13 @@ export default function HomePage() {
           >
             <div className="text-xl font-bold text-accent">{stats.recipes}</div>
             <div className="text-xs text-muted mt-1">{t('home.recipesCount')}</div>
+          </Link>
+          <Link
+            href="/shopping"
+            className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition"
+          >
+            <div className="text-xl font-bold text-accent">{stats.shopping}</div>
+            <div className="text-xs text-muted mt-1">{t('home.shoppingCount')}</div>
           </Link>
         </div>
       </div>

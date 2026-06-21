@@ -33,15 +33,7 @@ export async function resolveDataScope(
     return { householdId: null, memberIds: [userId], userId };
   }
 
-  const { data: members } = await supabase
-    .from('household_members')
-    .select('telegram_user_id')
-    .eq('household_id', householdId);
-
-  const memberIds = (members || []).map((m) => m.telegram_user_id);
-  if (!memberIds.includes(userId)) memberIds.push(userId);
-
-  return { householdId, memberIds, userId };
+  return { householdId, memberIds: [userId], userId };
 }
 
 type FilterBuilder = PostgrestFilterBuilder<any, any, any, any, any>;

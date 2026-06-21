@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import TopBar from '@/components/layout/TopBar';
 import { dataApi } from '@/lib/client-api';
+import { readHomeCache, writeHomeCache } from '@/lib/home-cache';
 import { useDataAuth } from '@/lib/use-data-auth';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 
@@ -38,6 +39,55 @@ function getMonthStart() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
+function buildHomeState(data: {
+  expiringItems: { id: string; name: string; icon?: string | null; expiry_date?: string | null; quantity?: string | null }[];
+  productCount: number;
+  expiringSoonCount: number;
+  expenses: { amount: number; currency: string }[];
+  budgets: { amount: number; currency: string }[];
+  recipeCount: number;
+  shoppingCount: number;
+}) {
+  const expiring = (data.expiringItems || []).map((item) => ({
+    id: item.id,
+    name: item.name,
+    icon: item.icon || '📦',
+    expiry_date: item.expiry_date || '',
+    quantity: item.quantity || '',
+  }));
+  const stats = {
+    products: data.productCount || 0,
+    expiringSoon: data.expiringSoonCount || 0,
+    recipes: data.recipeCount || 0,
+    shopping: data.shoppingCount || 0,
+  };
+
+  const byCurrency: Record<string, number> = {};
+  (data.expenses || []).forEach((row) => {
+    const cur = row.currency || 'RUB';
+    byCurrency[cur] = (byCurrency[cur] || 0) + Number(row.amount || 0);
+  });
+
+  const budgetRows = data.budgets || [];
+  const limits: Record<string, number> = { ...DEFAULT_LIMITS };
+  budgetRows.forEach((row) => {
+    limits[row.currency] = Number(row.amount);
+  });
+
+  const primaryCur =
+    Object.keys(byCurrency)[0] ||
+    (budgetRows as { currency: string }[])?.[0]?.currency ||
+    'RUB';
+
+  const budget = {
+    spent: byCurrency[primaryCur] || 0,
+    limit: limits[primaryCur] || DEFAULT_LIMITS[primaryCur] || 15000,
+    currency: primaryCur,
+  };
+
+  return { expiring, stats, budget };
+}
+
 export default function HomePage() {
   const auth = useDataAuth();
   const { t, dateLocale } = useI18n();
@@ -51,51 +101,27 @@ export default function HomePage() {
 
   const loadData = useCallback(async () => {
     if (!auth) return;
-    setFridgeLoading(true);
-    setStatsLoading(true);
+
+    const cached = readHomeCache(auth.telegram_user_id);
+    if (cached) {
+      setExpiring(cached.expiring);
+      setBudget(cached.budget);
+      setStats(cached.stats);
+      setFridgeLoading(false);
+      setStatsLoading(false);
+    } else {
+      setFridgeLoading(true);
+      setStatsLoading(true);
+    }
 
     try {
       const monthStart = getMonthStart();
       const data = await dataApi.home.summary(auth, monthStart);
-
-      const allItems = (data.fridgeItems || []) as FridgeItem[];
-      const soon = allItems.filter((item) => {
-        const days = daysLeft(item.expiry_date);
-        return days >= 0 && days <= 3;
-      });
-
-      setExpiring(soon.slice(0, 5));
-      setStats({
-        products: allItems.length,
-        expiringSoon: soon.length,
-        recipes: data.recipeCount || 0,
-        shopping: data.shoppingCount || 0,
-      });
-      setFridgeLoading(false);
-
-      const monthExpenses = (data.expenses || []) as { amount: number; currency: string }[];
-      const byCurrency: Record<string, number> = {};
-      monthExpenses.forEach((row) => {
-        const cur = row.currency || 'RUB';
-        byCurrency[cur] = (byCurrency[cur] || 0) + Number(row.amount || 0);
-      });
-
-      const budgetRows = data.budgets || [];
-      const limits: Record<string, number> = { ...DEFAULT_LIMITS };
-      budgetRows.forEach((row: { amount: number; currency: string }) => {
-        limits[row.currency] = Number(row.amount);
-      });
-
-      const primaryCur =
-        Object.keys(byCurrency)[0] ||
-        (budgetRows as { currency: string }[])?.[0]?.currency ||
-        'RUB';
-
-      setBudget({
-        spent: byCurrency[primaryCur] || 0,
-        limit: limits[primaryCur] || DEFAULT_LIMITS[primaryCur] || 15000,
-        currency: primaryCur,
-      });
+      const snapshot = buildHomeState(data);
+      setExpiring(snapshot.expiring);
+      setStats(snapshot.stats);
+      setBudget(snapshot.budget);
+      writeHomeCache(auth.telegram_user_id, snapshot);
     } catch (error) {
       console.error('Home load error:', error);
     } finally {

@@ -81,7 +81,9 @@ export const dataApi = {
   home: {
     summary: (auth: AuthPayload, monthStart?: string) =>
       apiPost<{
-        fridgeItems: ApiFridgeItem[];
+        expiringItems: ApiFridgeItem[];
+        productCount: number;
+        expiringSoonCount: number;
         expenses: ApiExpense[];
         budgets: ApiBudgetRow[];
         recipeCount: number;

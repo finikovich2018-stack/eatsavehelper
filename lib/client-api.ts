@@ -78,6 +78,16 @@ export function withAuth(auth: AuthPayload, extra: Record<string, unknown> = {})
 }
 
 export const dataApi = {
+  home: {
+    summary: (auth: AuthPayload, monthStart?: string) =>
+      apiPost<{
+        fridgeItems: ApiFridgeItem[];
+        expenses: ApiExpense[];
+        budgets: ApiBudgetRow[];
+        recipeCount: number;
+        shoppingCount: number;
+      }>('/api/home', withAuth(auth, { monthStart })),
+  },
   fridge: {
     list: (auth: AuthPayload) =>
       apiPost<{ items: ApiFridgeItem[] }>('/api/fridge', withAuth(auth, { op: 'list' })),

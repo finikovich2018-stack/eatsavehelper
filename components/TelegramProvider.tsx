@@ -93,46 +93,42 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
           tgApp.expand();
           setInitData(rawInitData);
           setUser(tgUser);
+          setLoading(false);
+
           const profile = await loadDbUser(rawInitData, tgUser.id);
-          setDbUser(profile);
-          registerChatForNotifications(tgUser.id, tgUser.id, rawInitData);
+          if (profile) setDbUser(profile);
+
+          void registerChatForNotifications(tgUser.id, tgUser.id, rawInitData);
 
           const startParam = tgApp.initDataUnsafe?.start_param as string | undefined;
           if (startParam?.startsWith('join_') && profile) {
-            try {
-              await fetch('/api/household/join', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  initData: rawInitData,
-                  telegram_user_id: tgUser.id,
-                  token: startParam,
-                }),
-              });
-              const refreshed = await loadDbUser(rawInitData, tgUser.id);
-              if (refreshed) setDbUser(refreshed);
-            } catch (e) {
-              console.error('Household join failed:', e);
-            }
+            void fetch('/api/household/join', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                initData: rawInitData,
+                telegram_user_id: tgUser.id,
+                token: startParam,
+              }),
+            })
+              .then(() => loadDbUser(rawInitData, tgUser.id))
+              .then((refreshed) => {
+                if (refreshed) setDbUser(refreshed);
+              })
+              .catch((e) => console.error('Household join failed:', e));
           }
 
           if (startParam?.startsWith('ref_') && profile) {
-            try {
-              await fetch('/api/referral/claim', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  initData: rawInitData,
-                  telegram_user_id: tgUser.id,
-                  token: startParam,
-                }),
-              });
-            } catch (e) {
-              console.error('Referral claim failed:', e);
-            }
+            void fetch('/api/referral/claim', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                initData: rawInitData,
+                telegram_user_id: tgUser.id,
+                token: startParam,
+              }),
+            }).catch((e) => console.error('Referral claim failed:', e));
           }
-
-          setLoading(false);
         };
 
         if (tg?.initDataUnsafe?.user && tg.initData) {

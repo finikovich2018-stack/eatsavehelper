@@ -44,31 +44,21 @@ export default function HomePage() {
   const [expiring, setExpiring] = useState<FridgeItem[]>([]);
   const [budget, setBudget] = useState<BudgetSummary>({ spent: 0, limit: 15000, currency: 'RUB' });
   const [stats, setStats] = useState({ products: 0, expiringSoon: 0, recipes: 0, shopping: 0 });
-  const [loading, setLoading] = useState(true);
+  const [fridgeLoading, setFridgeLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   const monthName = new Date().toLocaleString(dateLocale, { month: 'long' });
 
   const loadData = useCallback(async () => {
     if (!auth) return;
-    setLoading(true);
+    setFridgeLoading(true);
+    setStatsLoading(true);
 
     try {
       const monthStart = getMonthStart();
-      const [
-        fridgeRes,
-        expenseRes,
-        budgetRes,
-        recipeRes,
-        shoppingRes,
-      ] = await Promise.all([
-        dataApi.fridge.list(auth),
-        dataApi.expenses.list(auth, { monthStart }),
-        dataApi.budgets.list(auth, monthStart),
-        dataApi.recipes.count(auth),
-        dataApi.shopping.count(auth),
-      ]);
+      const data = await dataApi.home.summary(auth, monthStart);
 
-      const allItems = (fridgeRes.items || []) as FridgeItem[];
+      const allItems = (data.fridgeItems || []) as FridgeItem[];
       const soon = allItems.filter((item) => {
         const days = daysLeft(item.expiry_date);
         return days >= 0 && days <= 3;
@@ -78,18 +68,19 @@ export default function HomePage() {
       setStats({
         products: allItems.length,
         expiringSoon: soon.length,
-        recipes: recipeRes.count || 0,
-        shopping: shoppingRes.count || 0,
+        recipes: data.recipeCount || 0,
+        shopping: data.shoppingCount || 0,
       });
+      setFridgeLoading(false);
 
-      const monthExpenses = (expenseRes.items || []) as { amount: number; currency: string }[];
+      const monthExpenses = (data.expenses || []) as { amount: number; currency: string }[];
       const byCurrency: Record<string, number> = {};
       monthExpenses.forEach((row) => {
         const cur = row.currency || 'RUB';
         byCurrency[cur] = (byCurrency[cur] || 0) + Number(row.amount || 0);
       });
 
-      const budgetRows = budgetRes.items || [];
+      const budgetRows = data.budgets || [];
       const limits: Record<string, number> = { ...DEFAULT_LIMITS };
       budgetRows.forEach((row: { amount: number; currency: string }) => {
         limits[row.currency] = Number(row.amount);
@@ -108,7 +99,8 @@ export default function HomePage() {
     } catch (error) {
       console.error('Home load error:', error);
     } finally {
-      setLoading(false);
+      setFridgeLoading(false);
+      setStatsLoading(false);
     }
   }, [auth]);
 
@@ -128,22 +120,28 @@ export default function HomePage() {
           <div className="flex justify-between items-start mb-3">
             <div>
               <div className="text-xs text-muted">{t('home.budgetFor', { month: monthName })}</div>
-              <div className="text-2xl font-bold mt-1">
-                {budget.spent.toLocaleString()} / {budget.limit.toLocaleString()} {symbol}
-              </div>
+              {statsLoading ? (
+                <div className="text-2xl font-bold mt-1 text-muted animate-pulse">...</div>
+              ) : (
+                <div className="text-2xl font-bold mt-1">
+                  {budget.spent.toLocaleString()} / {budget.limit.toLocaleString()} {symbol}
+                </div>
+              )}
             </div>
             <Link href="/budget" className="text-xs text-accent font-medium">{t('common.change')}</Link>
           </div>
           <div className="bg-background/60 rounded-full h-3 mb-2">
             <div
               className={`h-3 rounded-full transition-all ${percent > 80 ? 'bg-red-500' : percent > 60 ? 'bg-yellow-500' : 'bg-accent'}`}
-              style={{ width: `${percent}%` }}
+              style={{ width: statsLoading ? '0%' : `${percent}%` }}
             />
           </div>
           <div className="text-xs text-muted">
-            {remaining >= 0
-              ? t('home.remaining', { amount: remaining.toLocaleString(), symbol })
-              : t('home.overBudget', { amount: Math.abs(remaining).toLocaleString(), symbol })}
+            {statsLoading
+              ? '...'
+              : remaining >= 0
+                ? t('home.remaining', { amount: remaining.toLocaleString(), symbol })
+                : t('home.overBudget', { amount: Math.abs(remaining).toLocaleString(), symbol })}
           </div>
         </div>
 
@@ -152,8 +150,15 @@ export default function HomePage() {
             <h2 className="font-semibold">{t('home.expiringSoon')}</h2>
             <Link href="/fridge" className="text-xs text-accent">{t('common.all')}</Link>
           </div>
-          {loading ? (
-            <p className="text-sm text-muted">{t('common.loading')}</p>
+          {fridgeLoading ? (
+            <div className="space-y-2">
+              {[1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="bg-surface border border-border rounded-2xl p-4 h-16 animate-pulse"
+                />
+              ))}
+            </div>
           ) : expiring.length === 0 ? (
             <div className="bg-surface border border-border rounded-2xl p-5 text-center text-muted text-sm">
               {t('home.noExpiring')}
@@ -206,28 +211,28 @@ export default function HomePage() {
             href="/fridge"
             className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition"
           >
-            <div className="text-xl font-bold text-accent">{stats.products}</div>
+            <div className="text-xl font-bold text-accent">{statsLoading ? '…' : stats.products}</div>
             <div className="text-xs text-muted mt-1">{t('home.products')}</div>
           </Link>
           <Link
             href="/fridge?filter=expiring"
             className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition"
           >
-            <div className="text-xl font-bold text-yellow-400">{stats.expiringSoon}</div>
+            <div className="text-xl font-bold text-yellow-400">{statsLoading ? '…' : stats.expiringSoon}</div>
             <div className="text-xs text-muted mt-1">{t('home.expiringCount')}</div>
           </Link>
           <Link
             href="/recipes"
             className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition"
           >
-            <div className="text-xl font-bold text-accent">{stats.recipes}</div>
+            <div className="text-xl font-bold text-accent">{statsLoading ? '…' : stats.recipes}</div>
             <div className="text-xs text-muted mt-1">{t('home.recipesCount')}</div>
           </Link>
           <Link
             href="/shopping"
             className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition"
           >
-            <div className="text-xl font-bold text-accent">{stats.shopping}</div>
+            <div className="text-xl font-bold text-accent">{statsLoading ? '…' : stats.shopping}</div>
             <div className="text-xs text-muted mt-1">{t('home.shoppingCount')}</div>
           </Link>
         </div>

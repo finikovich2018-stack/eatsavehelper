@@ -277,34 +277,57 @@ export default function ScanPage() {
               </p>
             )}
             <div className="space-y-3 mb-4">
-              {items.map((item, i) => (
-                <div key={i} className="bg-background border border-border rounded-xl p-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      className="flex-1 bg-surface border border-border rounded-lg px-3 py-2 text-sm outline-none"
-                      value={item.name}
-                      onChange={(e) => updateItem(i, 'name', e.target.value)}
-                    />
-                    <button onClick={() => removeItem(i)} className="text-muted hover:text-red-400 px-2">✕</button>
+              {items.map((item, i) => {
+                const symbol = CURRENCY_SYMBOLS[currency] || currency;
+                return (
+                  <div key={i} className="bg-background border border-border rounded-xl p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl shrink-0">{item.icon || '📦'}</span>
+                      <input
+                        className="flex-1 bg-surface border border-border rounded-lg px-3 py-2 text-sm outline-none min-w-0"
+                        value={item.name}
+                        onChange={(e) => updateItem(i, 'name', e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeItem(i)}
+                        className="text-muted hover:text-red-400 px-2 shrink-0"
+                        aria-label="Remove"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="relative w-1/2">
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder={t('scan.price')}
+                          className="w-full bg-surface border border-border rounded-lg px-3 py-2 pr-8 text-sm outline-none"
+                          value={item.price ?? ''}
+                          onChange={(e) => updateItem(i, 'price', parseFloat(e.target.value) || 0)}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted pointer-events-none">
+                          {symbol}
+                        </span>
+                      </div>
+                      <div className="relative w-1/2">
+                        <input
+                          type="number"
+                          min={1}
+                          placeholder={t('scan.expiryDays')}
+                          className="w-full bg-surface border border-border rounded-lg px-3 py-2 pr-10 text-sm outline-none"
+                          value={item.expiry_days ?? 7}
+                          onChange={(e) => updateItem(i, 'expiry_days', parseInt(e.target.value, 10) || 7)}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted pointer-events-none">
+                          {t('scan.daysShort')}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      placeholder={t('scan.price')}
-                      className="w-1/2 bg-surface border border-border rounded-lg px-3 py-2 text-sm outline-none"
-                      value={item.price ?? ''}
-                      onChange={(e) => updateItem(i, 'price', parseFloat(e.target.value) || 0)}
-                    />
-                    <input
-                      type="number"
-                      placeholder={t('scan.expiryDays')}
-                      className="w-1/2 bg-surface border border-border rounded-lg px-3 py-2 text-sm outline-none"
-                      value={item.expiry_days ?? 7}
-                      onChange={(e) => updateItem(i, 'expiry_days', parseInt(e.target.value, 10) || 7)}
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <button
               onClick={addToFridge}

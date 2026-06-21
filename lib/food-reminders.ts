@@ -139,8 +139,17 @@ export function buildFoodReminderMessage(user: ReminderUser): string | null {
 
   if (sections.length === 0) return null;
 
+  let headerIcon = '🔔';
+  if (user.toBuy.length > 0 && user.expiringTomorrow.length === 0 && user.expired.length === 0) {
+    headerIcon = '🛒';
+  } else if (user.expiringTomorrow.length > 0 && user.toBuy.length === 0 && user.expired.length === 0) {
+    headerIcon = '⏰';
+  } else if (user.expired.length > 0 && user.toBuy.length === 0 && user.expiringTomorrow.length === 0) {
+    headerIcon = '❌';
+  }
+
   return (
-    `📦 <b>EatSave — напоминание</b>\n\n` +
+    `${headerIcon} <b>EatSave — напоминание</b>\n\n` +
     `Привет, ${name}!\n\n` +
     `${sections.join('\n\n')}\n\n` +
     `Откройте приложение, чтобы обновить холодильник и список покупок.`

@@ -25,7 +25,7 @@ async function sendMessage(chatId: number, text: string) {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [[
-          { text: '📦 Открыть EatSave', web_app: { url: getAppHomeUrl() } },
+          { text: '📱 Открыть EatSave', web_app: { url: getAppHomeUrl() } },
         ]],
       },
     }),

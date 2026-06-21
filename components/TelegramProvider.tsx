@@ -1,5 +1,6 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { prefetchHomeSummary } from "@/lib/home-summary";
 
 interface TelegramUser {
   id: number;
@@ -94,6 +95,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
           setInitData(rawInitData);
           setUser(tgUser);
           setLoading(false);
+          prefetchHomeSummary(rawInitData, tgUser.id);
 
           const profile = await loadDbUser(rawInitData, tgUser.id);
           if (profile) setDbUser(profile);

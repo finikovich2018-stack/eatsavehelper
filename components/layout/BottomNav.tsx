@@ -7,7 +7,6 @@ import type { TranslationKey } from "@/lib/i18n/translations";
 const tabs: { href: string; icon: string; labelKey: TranslationKey }[] = [
   { href: "/home", icon: "🏠", labelKey: "nav.home" },
   { href: "/fridge", icon: "❄️", labelKey: "nav.fridge" },
-  { href: "/shopping", icon: "🛒", labelKey: "nav.shopping" },
   { href: "/recipes", icon: "👨‍🍳", labelKey: "nav.recipes" },
   { href: "/scan", icon: "📷", labelKey: "nav.scan" },
   { href: "/budget", icon: "💰", labelKey: "nav.budget" },

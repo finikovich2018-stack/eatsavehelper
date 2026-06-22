@@ -461,84 +461,72 @@ export default function ProfilePage() {
 
         <div className="bg-gradient-to-br from-surface/80 to-background border border-accent/20 rounded-3xl p-8 overflow-hidden relative">
           <div className="absolute top-0 right-0 w-48 h-48 bg-accent/5 rounded-full -mr-24 -mt-24 pointer-events-none" />
-          <div className="relative z-10 space-y-6">
-            <div className="flex items-start justify-between gap-6">
-              <div className="flex-1 space-y-3">
-                <div className="text-6xl">👤</div>
-                <div>
-                  <h1 className="text-3xl font-bold text-foreground leading-tight">
-                    {user?.first_name || t('profile.user')}
-                  </h1>
-                  {user?.username && (
-                    <p className="text-accent font-medium mt-1">@{user.username}</p>
-                  )}
-                </div>
-              </div>
-              <div className="flex-shrink-0">
-                {isPremium ? (
-                  <div className="bg-accent/20 rounded-2xl px-5 py-3 border border-accent/50 text-center">
-                    <span className="text-accent font-bold text-sm block">{t('profile.premiumActive')}</span>
-                    <span className="text-xs text-muted mt-1 block">
-                      {premiumUntil
-                        ? t('profile.premiumUntil', {
-                            date: new Date(premiumUntil).toLocaleDateString(dateLocale),
-                          })
-                        : t('profile.premiumOn')}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="bg-surface border border-border rounded-2xl px-5 py-3 text-center">
-                    <span className="text-muted text-sm block font-medium">{t('profile.standard')}</span>
-                    <span className="text-xs text-muted/70 mt-1 block">{t('profile.plan')}</span>
-                  </div>
-                )}
-              </div>
+          <div className="flex flex-col items-center text-center relative">
+            <div className="w-24 h-24 rounded-full bg-accent/20 border-2 border-accent/40 flex items-center justify-center text-4xl mb-4">
+              👤
             </div>
-            <div className="h-1 bg-gradient-to-r from-accent/40 to-accent/0 rounded-full" />
+            <h1 className="text-2xl font-bold text-foreground">
+              {user?.first_name || t('profile.user')}
+            </h1>
+            {user?.username && (
+              <p className="text-accent font-medium mt-1">@{user.username}</p>
+            )}
+            {isPremium ? (
+              <div className="bg-accent/20 rounded-2xl px-5 py-3 border border-accent/50 text-center mt-4">
+                <span className="text-accent font-bold text-sm block">{t('profile.premiumActive')}</span>
+                <span className="text-xs text-muted mt-1 block">
+                  {premiumUntil
+                    ? t('profile.premiumUntil', {
+                        date: new Date(premiumUntil).toLocaleDateString(dateLocale),
+                      })
+                    : t('profile.premiumOn')}
+                </span>
+              </div>
+            ) : (
+              <div className="bg-surface border border-border rounded-2xl px-5 py-3 text-center mt-4">
+                <span className="text-muted text-sm block font-medium">{t('profile.standard')}</span>
+                <span className="text-xs text-muted/70 mt-1 block">{t('profile.plan')}</span>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="space-y-4">
-          <h2 className="font-semibold text-foreground text-lg">
-            {t('profile.stats')}
-          </h2>
           {loading ? (
             <p className="text-muted text-sm">{t('common.loading')}</p>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-surface border border-border rounded-2xl p-4 text-center">
-                <div className="text-2xl mb-1">❄️</div>
-                <div className="text-2xl font-bold text-accent mb-0.5">{stats.fridgeCount}</div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-surface border border-border rounded-2xl p-5 text-center">
+                <div className="text-3xl mb-2">❄️</div>
+                <div className="text-3xl font-bold text-accent mb-1">{stats.fridgeCount}</div>
                 <div className="text-xs text-muted">{t('profile.products')}</div>
-                <div className="text-[10px] text-muted/60 mt-1">{t('profile.inFridge')}</div>
               </div>
-              <div className="bg-surface border border-border rounded-2xl p-4 text-center">
-                <div className="text-2xl mb-1">💰</div>
+              <div className="bg-surface border border-border rounded-2xl p-5 text-center">
+                <div className="text-3xl mb-2">💰</div>
                 {Object.keys(stats.byCurrency).length === 0 ? (
-                  <div className="text-2xl font-bold text-accent mb-0.5">0 ₽</div>
+                  <div className="text-3xl font-bold text-accent mb-1">0 ₽</div>
                 ) : (
                   <div className="space-y-0.5">
                     {Object.entries(stats.byCurrency).map(([cur, amount]) => {
                       const sym = CURRENCY_SYMBOLS[cur] || cur;
                       return (
-                        <div key={cur} className="text-lg font-bold text-accent">
+                        <div key={cur} className="text-2xl font-bold text-accent">
                           {cur === 'RUB' ? amount.toLocaleString() : amount.toFixed(2)} {sym}
                         </div>
                       );
                     })}
                   </div>
                 )}
-                <div className="text-xs text-muted mt-1">{t('profile.spent')}</div>
-                <div className="text-[10px] text-muted/60">{t('profile.inMonth', { month: monthName })}</div>
+                <div className="text-xs text-muted">{t('profile.spent')}</div>
               </div>
-              <div className="bg-surface border border-border rounded-2xl p-4 text-center">
-                <div className="text-2xl mb-1">🧾</div>
-                <div className="text-2xl font-bold text-accent mb-0.5">{stats.receiptCount}</div>
+              <div className="bg-surface border border-border rounded-2xl p-5 text-center">
+                <div className="text-3xl mb-2">🧾</div>
+                <div className="text-3xl font-bold text-accent mb-1">{stats.receiptCount}</div>
                 <div className="text-xs text-muted">{t('profile.receiptsCount')}</div>
               </div>
-              <div className="bg-surface border border-border rounded-2xl p-4 text-center">
-                <div className="text-2xl mb-1">🍳</div>
-                <div className="text-2xl font-bold text-accent mb-0.5">{stats.aiRecipeCount}</div>
+              <div className="bg-surface border border-border rounded-2xl p-5 text-center">
+                <div className="text-3xl mb-2">🍳</div>
+                <div className="text-3xl font-bold text-accent mb-1">{stats.aiRecipeCount}</div>
                 <div className="text-xs text-muted">{t('profile.aiRecipesCount')}</div>
               </div>
             </div>

@@ -1,3 +1,5 @@
+import { greetingWithName } from '@/lib/greeting';
+
 type BotLocale = 'ru' | 'en';
 
 export function botLocale(languageCode?: string): BotLocale {
@@ -8,7 +10,7 @@ export function botLocale(languageCode?: string): BotLocale {
 const MESSAGES = {
   ru: {
     start: (name: string) =>
-      `Привет, ${name}! 👋\n\nЯ EatSave — умный холодильник и бюджет на продукты. Откройте приложение, чтобы отслеживать сроки годности и получать напоминания.`,
+      `${greetingWithName(name, 'ru')} 👋\n\nЯ EatSave — умный холодильник и бюджет на продукты. Откройте приложение, чтобы отслеживать сроки годности и получать напоминания.`,
     premiumActivated:
       '⭐ Premium активирован на 30 дней! Спасибо за поддержку EatSave.',
     premiumGranted: (days: number, until: string, extended?: boolean) =>
@@ -38,7 +40,7 @@ const MESSAGES = {
     openChannel: '💬 Комментарий в канале',
     writeToBot: '✉️ Написать боту',
     expiryReminder: (name: string, items: string) =>
-      `Привет, ${name}! Завтра истекает срок годности:\n\n${items}`,
+      `${greetingWithName(name, 'ru')}\n\nЗавтра истекает срок годности:\n\n${items}`,
     openApp: '📱 Открыть EatSave',
     familyInviteOpen:
       '👨‍👩‍👧 Вас пригласили в семью EatSave!\n\nОткройте приложение — общий холодильник, бюджет и список покупок.',
@@ -49,7 +51,7 @@ const MESSAGES = {
   },
   en: {
     start: (name: string) =>
-      `Hi, ${name}! 👋\n\nI'm EatSave — smart fridge & grocery budget. Open the app to track expiry dates and get reminders.`,
+      `${greetingWithName(name, 'en')} 👋\n\nI'm EatSave — smart fridge & grocery budget. Open the app to track expiry dates and get reminders.`,
     premiumActivated:
       '⭐ Premium activated for 30 days! Thank you for supporting EatSave.',
     premiumGranted: (days: number, until: string, extended?: boolean) =>
@@ -79,7 +81,7 @@ const MESSAGES = {
     openChannel: '💬 Comment in channel',
     writeToBot: '✉️ Message the bot',
     expiryReminder: (name: string, items: string) =>
-      `Hi, ${name}! These items expire tomorrow:\n\n${items}`,
+      `${greetingWithName(name, 'en')}\n\nThese items expire tomorrow:\n\n${items}`,
     openApp: '📱 Open EatSave',
     familyInviteOpen:
       '👨‍👩‍👧 You were invited to an EatSave family!\n\nOpen the app for a shared fridge, budget and shopping list.',

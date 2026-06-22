@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { greetingWithName } from '@/lib/greeting';
 
 export type ReminderUser = {
   telegram_user_id: number;
@@ -150,7 +151,7 @@ export function buildFoodReminderMessage(user: ReminderUser): string | null {
 
   return (
     `${headerIcon} <b>EatSave — напоминание</b>\n\n` +
-    `Привет, ${name}!\n\n` +
+    `${greetingWithName(name)}\n\n` +
     `${sections.join('\n\n')}\n\n` +
     `Откройте приложение, чтобы обновить холодильник и список покупок.`
   );

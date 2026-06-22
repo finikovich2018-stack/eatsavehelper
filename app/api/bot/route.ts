@@ -7,7 +7,7 @@ import {
   markLatestPaymentActivated,
 } from '@/lib/premium-payments';
 import { botLocale, botMsg } from '@/lib/bot-messages';
-import { FEEDBACK_CHANNEL_URL } from '@/lib/constants';
+import { getFeedbackCommentUrl, relayFeedbackToAdmins } from '@/lib/bot-feedback';
 import { syncUserProfile } from '@/lib/sync-user-profile';
 import { getAppHomeUrl } from '@/lib/app-url';
 import { getBotToken } from '@/lib/bot-token';
@@ -17,7 +17,15 @@ export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
 type TelegramUpdate = {
+  callback_query?: {
+    id: string;
+    from: { id: number; first_name?: string; username?: string; language_code?: string };
+    message?: { chat: { id: number } };
+    data?: string;
+  };
   message?: {
+    message_id?: number;
+    chat?: { id: number };
     from: { id: number; first_name?: string; username?: string; language_code?: string };
     text?: string;
     successful_payment?: {
@@ -48,7 +56,11 @@ function checkWebhookSecret(req: NextRequest): boolean {
   return req.headers.get('x-telegram-bot-api-secret-token') === secret;
 }
 
-async function sendMessage(chatId: number, text: string, extra?: Record<string, unknown>) {
+async function sendMessage(
+  chatId: number,
+  text: string,
+  extra?: Record<string, unknown>
+) {
   const botToken = getBotToken();
   if (!botToken) return;
 
@@ -59,26 +71,41 @@ async function sendMessage(chatId: number, text: string, extra?: Record<string, 
   });
 }
 
-function feedbackReplyMarkup(locale: ReturnType<typeof botLocale>) {
+async function answerCallbackQuery(queryId: string, text?: string) {
+  const botToken = getBotToken();
+  if (!botToken) return;
+
+  await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ callback_query_id: queryId, text, show_alert: false }),
+  });
+}
+
+function feedbackChoiceMarkup(locale: ReturnType<typeof botLocale>) {
   const msg = botMsg(locale);
   return {
     reply_markup: {
       inline_keyboard: [
-        [{ text: msg.openChannel, url: FEEDBACK_CHANNEL_URL }],
+        [{ text: msg.writeToBot, callback_data: 'feedback:bot' }],
+        [{ text: msg.openChannel, url: getFeedbackCommentUrl() }],
         [{ text: msg.openApp, web_app: { url: getAppHomeUrl() } }],
       ],
     },
   };
 }
 
-async function sendFeedbackChannelReply(chatId: number, locale: ReturnType<typeof botLocale>) {
+async function sendFeedbackChoiceReply(chatId: number, locale: ReturnType<typeof botLocale>) {
   const msg = botMsg(locale);
-  await sendMessage(chatId, msg.feedbackChannel, feedbackReplyMarkup(locale));
+  await sendMessage(chatId, msg.feedbackChoose, {
+    parse_mode: 'HTML',
+    ...feedbackChoiceMarkup(locale),
+  });
 }
 
 async function sendHelpReply(chatId: number, locale: ReturnType<typeof botLocale>) {
   const msg = botMsg(locale);
-  await sendMessage(chatId, msg.help, feedbackReplyMarkup(locale));
+  await sendMessage(chatId, msg.help, feedbackChoiceMarkup(locale));
 }
 
 async function answerPreCheckout(queryId: string, ok: boolean, errorMessage?: string) {
@@ -160,6 +187,16 @@ export async function POST(req: NextRequest) {
       } else {
         console.error('Premium payment ignored:', payment);
       }
+      return NextResponse.json({ ok: true });
+    }
+
+    if (body.callback_query?.data === 'feedback:bot') {
+      const query = body.callback_query;
+      const chatId = query.message?.chat.id ?? query.from.id;
+      const locale = botLocale(query.from.language_code);
+      const msg = botMsg(locale);
+      await answerCallbackQuery(query.id);
+      await sendMessage(chatId, msg.feedbackWriteHere);
       return NextResponse.json({ ok: true });
     }
 
@@ -284,22 +321,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    if (
-      body.message?.text === '/help' ||
-      body.message?.text?.startsWith('/help@') ||
-      body.message?.text === '/feedback' ||
-      body.message?.text?.startsWith('/feedback@')
-    ) {
+    if (body.message?.text === '/help' || body.message?.text?.startsWith('/help@')) {
       const chatId = body.message.from.id;
       const locale = botLocale(body.message.from.language_code);
       await sendHelpReply(chatId, locale);
       return NextResponse.json({ ok: true });
     }
 
-    if (body.message?.from) {
+    if (body.message?.text === '/feedback' || body.message?.text?.startsWith('/feedback@')) {
       const chatId = body.message.from.id;
       const locale = botLocale(body.message.from.language_code);
-      await sendFeedbackChannelReply(chatId, locale);
+      await sendFeedbackChoiceReply(chatId, locale);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (body.message?.from && body.message.message_id) {
+      const from = body.message.from;
+      const chatId = from.id;
+      const locale = botLocale(from.language_code);
+      const msg = botMsg(locale);
+      const text = body.message.text?.trim() || '';
+
+      if (text.startsWith('/')) {
+        await sendFeedbackChoiceReply(chatId, locale);
+        return NextResponse.json({ ok: true });
+      }
+
+      const relayed = await relayFeedbackToAdmins(
+        BOT_TOKEN,
+        body.message.chat?.id ?? chatId,
+        body.message.message_id,
+        from
+      );
+
+      if (relayed) {
+        await sendMessage(chatId, msg.feedbackReceived, feedbackChoiceMarkup(locale));
+      } else {
+        await sendMessage(chatId, msg.feedbackNoAdmin, feedbackChoiceMarkup(locale));
+      }
     }
 
     return NextResponse.json({ ok: true });

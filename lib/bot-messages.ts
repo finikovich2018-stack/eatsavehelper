@@ -24,10 +24,19 @@ const MESSAGES = {
     activateOk: '✅ Premium активирован! Откройте приложение.',
     activateFail: '❌ Не найдена недавняя оплата Stars. Оплатите Premium в приложении или напишите в поддержку.',
     help:
-      '📖 Команды:\n/start — приложение\n/status — Premium\n/subscribe — напоминания\n/feedback — отзывы\n\n💬 Вопросы и отзывы о приложении — в нашем канале:',
+      '📖 Команды:\n/start — приложение\n/status — Premium\n/subscribe — напоминания\n/feedback — отзыв или вопрос\n\n💬 Отзывы — двумя способами (выберите кнопку ниже):',
+    feedbackChoose:
+      '💬 Куда написать отзыв или вопрос?\n\n✉️ <b>Бот</b> — лично разработчику (ответ придёт сюда)\n💬 <b>Канал</b> — комментарий под постом (видят другие)',
+    feedbackWriteHere:
+      '✉️ Напишите сообщение в этот чат — передам разработчику.\n\nМожно текст, скрин или фото.',
+    feedbackReceived:
+      '✅ Сообщение получено! Ответим здесь в боте.',
+    feedbackNoAdmin:
+      'Спасибо! Сейчас личная поддержка недоступна — оставьте комментарий в канале (кнопка ниже).',
     feedbackChannel:
-      'Спасибо за сообщение! 💬\n\nОтзывы, идеи и вопросы о EatSave пишите в канале — там можно оставить комментарий и обсудить приложение с другими.\n\nhttps://t.me/EatSavehelper',
-    openChannel: '💬 Канал EatSave',
+      '💬 Комментарий в канале — нажмите кнопку ниже и напишите под постом.',
+    openChannel: '💬 Комментарий в канале',
+    writeToBot: '✉️ Написать боту',
     expiryReminder: (name: string, items: string) =>
       `Привет, ${name}! Завтра истекает срок годности:\n\n${items}`,
     openApp: '📱 Открыть EatSave',
@@ -56,10 +65,19 @@ const MESSAGES = {
     activateOk: '✅ Premium activated! Open the app.',
     activateFail: '❌ No recent Stars payment found. Pay for Premium in the app or contact support.',
     help:
-      '📖 Commands:\n/start — open app\n/status — Premium\n/subscribe — reminders\n/feedback — feedback\n\n💬 Questions and feedback — in our channel:',
+      '📖 Commands:\n/start — open app\n/status — Premium\n/subscribe — reminders\n/feedback — feedback or question\n\n💬 Two ways to reach us (pick a button):',
+    feedbackChoose:
+      '💬 Where should we read your feedback?\n\n✉️ <b>Bot</b> — private message to the developer (reply here)\n💬 <b>Channel</b> — comment under our post (public)',
+    feedbackWriteHere:
+      '✉️ Send your message in this chat — I will forward it to the developer.\n\nText, screenshot, or photo works.',
+    feedbackReceived:
+      '✅ Message received! We will reply here in the bot.',
+    feedbackNoAdmin:
+      'Thanks! Private support is unavailable right now — please leave a comment in the channel (button below).',
     feedbackChannel:
-      'Thanks for your message! 💬\n\nShare feedback, ideas, and questions about EatSave in our channel — leave a comment and discuss the app with others.\n\nhttps://t.me/EatSavehelper',
-    openChannel: '💬 EatSave channel',
+      '💬 Channel comment — tap the button below and write under the post.',
+    openChannel: '💬 Comment in channel',
+    writeToBot: '✉️ Message the bot',
     expiryReminder: (name: string, items: string) =>
       `Hi, ${name}! These items expire tomorrow:\n\n${items}`,
     openApp: '📱 Open EatSave',

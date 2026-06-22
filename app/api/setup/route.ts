@@ -28,6 +28,7 @@ export async function GET() {
       workerUrl: isConfigured(process.env.NEXT_PUBLIC_WORKER_URL),
       cronSecret: isConfigured(process.env.CRON_SECRET),
       adminTelegramIds: getAdminTelegramIds().length > 0,
+      adminTelegramIdsCount: getAdminTelegramIds().length,
       appUrl: Boolean(appUrl),
     },
     urls: {
@@ -128,5 +129,7 @@ export async function POST(req: NextRequest) {
     webhookUrl,
     menuButton: menuData.ok,
     menuError: menuData.ok ? undefined : menuData.description,
+    adminIdsConfigured: getAdminTelegramIds().length,
+    feedbackRelayReady: getAdminTelegramIds().length > 0,
   });
 }

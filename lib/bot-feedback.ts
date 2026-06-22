@@ -1,4 +1,4 @@
-import { getAdminTelegramIds, isAdminTelegramId } from '@/lib/admin';
+import { getAdminTelegramIds } from '@/lib/admin';
 import { FEEDBACK_CHANNEL_URL } from '@/lib/constants';
 
 /** Post URL for channel comments (e.g. https://t.me/EatSavehelper/42). Falls back to channel. */
@@ -29,7 +29,7 @@ export async function relayFeedbackToAdmins(
   from: FeedbackFrom
 ): Promise<boolean> {
   const admins = getAdminTelegramIds();
-  if (admins.length === 0 || isAdminTelegramId(from.id)) {
+  if (admins.length === 0) {
     return false;
   }
 

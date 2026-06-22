@@ -7,3 +7,7 @@ export function getAppBaseUrl(): string {
 export function getAppHomeUrl(): string {
   return `${getAppBaseUrl()}/home`;
 }
+
+export function getAppShoppingUrl(): string {
+  return `${getAppBaseUrl()}/shopping`;
+}

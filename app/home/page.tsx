@@ -149,14 +149,14 @@ export default function HomePage() {
               <div className="text-2xl mb-1">👨‍🍳</div>
               {t('home.recipes')}
             </Link>
-            <Link href="/profile" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition">
-              <div className="text-2xl mb-1">📊</div>
-              {t('home.stats')}
+            <Link href="/shopping" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition">
+              <div className="text-2xl mb-1">🛒</div>
+              {t('home.shoppingList')}
             </Link>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-2">
           <Link
             href="/fridge"
             className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition"
@@ -177,6 +177,13 @@ export default function HomePage() {
           >
             <div className="text-xl font-bold text-accent">{stats.recipes}</div>
             <div className="text-xs text-muted mt-1">{t('home.recipesCount')}</div>
+          </Link>
+          <Link
+            href="/shopping"
+            className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition"
+          >
+            <div className="text-xl font-bold text-accent">{stats.shopping}</div>
+            <div className="text-xs text-muted mt-1">{t('home.shoppingCount')}</div>
           </Link>
         </div>
       </div>

@@ -158,19 +158,25 @@ function FridgePageContent() {
     <main className="min-h-screen bg-background text-foreground pb-24">
       <TopBar title={t('fridge.title')} />
       <div className="max-w-mobile mx-auto px-4 py-4">
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="grid grid-cols-3 gap-3 mb-4">
           <button
             onClick={() => setShowForm(!showForm)}
             disabled={atFridgeLimit}
-            className="bg-accent text-background py-3 rounded-2xl font-medium disabled:opacity-50"
+            className="bg-accent text-background py-3 rounded-2xl font-medium disabled:opacity-50 text-sm"
           >
             {t('fridge.add')}
           </button>
           <Link
             href="/scan"
-            className="bg-surface border border-border py-3 rounded-2xl font-medium text-center active:scale-[0.98] transition"
+            className="bg-surface border border-border py-3 rounded-2xl font-medium text-center active:scale-[0.98] transition text-sm"
           >
             {t('fridge.scanReceipt')}
+          </Link>
+          <Link
+            href="/shopping"
+            className="bg-surface border border-accent/40 py-3 rounded-2xl font-medium text-center active:scale-[0.98] transition text-sm text-accent"
+          >
+            🛒 {t('nav.shopping')}
           </Link>
         </div>
 

@@ -1,18 +1,20 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getAppHomeUrl } from '@/lib/app-url';
+import { getAppHomeUrl, getAppShoppingUrl } from '@/lib/app-url';
 import { getBotToken } from '@/lib/bot-token';
 import {
   buildFoodReminderMessage,
   fetchFoodReminders,
+  reminderAppPath,
   reminderPreview,
+  type ReminderUser,
 } from '@/lib/food-reminders';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-async function sendMessage(chatId: number, text: string) {
+async function sendMessage(chatId: number, text: string, appUrl = getAppHomeUrl()) {
   const botToken = getBotToken();
   if (!botToken) return false;
 
@@ -25,13 +27,17 @@ async function sendMessage(chatId: number, text: string) {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [[
-          { text: '📱 Открыть EatSave', web_app: { url: getAppHomeUrl() } },
+          { text: '📱 Открыть EatSave', web_app: { url: appUrl } },
         ]],
       },
     }),
   });
 
   return res.ok;
+}
+
+function reminderAppUrl(user: ReminderUser): string {
+  return reminderAppPath(user) === '/shopping' ? getAppShoppingUrl() : getAppHomeUrl();
 }
 
 function verifyCronAuth(req: Request): boolean {
@@ -98,7 +104,7 @@ export async function GET(req: Request) {
   for (const user of users) {
     const text = buildFoodReminderMessage(user);
     if (!text) continue;
-    const ok = await sendMessage(user.chat_id, text);
+    const ok = await sendMessage(user.chat_id, text, reminderAppUrl(user));
     if (ok) sent++;
   }
 

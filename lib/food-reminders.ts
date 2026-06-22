@@ -156,6 +156,14 @@ export function buildFoodReminderMessage(user: ReminderUser): string | null {
   );
 }
 
+export function reminderAppPath(user: ReminderUser): '/shopping' | '/home' {
+  const shoppingOnly =
+    user.toBuy.length > 0 &&
+    user.expiringTomorrow.length === 0 &&
+    user.expired.length === 0;
+  return shoppingOnly ? '/shopping' : '/home';
+}
+
 export function reminderPreview(user: ReminderUser) {
   return {
     telegram_user_id: user.telegram_user_id,

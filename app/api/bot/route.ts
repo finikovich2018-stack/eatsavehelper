@@ -130,7 +130,12 @@ function parsePremiumUserId(payload: string): number | null {
 }
 
 export async function GET() {
-  return NextResponse.json({ ok: true, message: 'EatSave bot webhook is live' });
+  return NextResponse.json({
+    ok: true,
+    message: 'EatSave bot webhook is live',
+    features: { feedbackChoice: true },
+    commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'local',
+  });
 }
 
 export async function POST(req: NextRequest) {

@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
   const webhookPayload: Record<string, unknown> = {
     url: webhookUrl,
-    allowed_updates: ['message', 'pre_checkout_query'],
+    allowed_updates: ['message', 'callback_query', 'pre_checkout_query'],
     drop_pending_updates: true,
   };
 

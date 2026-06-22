@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
 
     const payload: Record<string, unknown> = {
       url: webhookUrl,
-      allowed_updates: ['message', 'pre_checkout_query'],
+      allowed_updates: ['message', 'callback_query', 'pre_checkout_query'],
     };
 
     if (secret) {

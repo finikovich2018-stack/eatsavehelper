@@ -67,10 +67,10 @@ function buildAdminNotice(from: FeedbackFrom, message?: FeedbackMessage): string
   const preview = feedbackContentPreview(message);
 
   if (preview) {
-    return `📩 Сообщение от пользователя EatSave\n${who}\n\n${preview}`;
+    return `📩 Сообщение от пользователя EatSave\n${who}\n\n${preview}\n\n↩️ Ответьте на это сообщение — текст уйдёт пользователю.`;
   }
 
-  return `📩 Сообщение от пользователя EatSave\n${who}\n\n(медиа — см. пересланное ниже)`;
+  return `📩 Сообщение от пользователя EatSave\n${who}\n\n(медиа — см. пересланное ниже)\n\n↩️ Ответьте на это сообщение или на пересланное — текст уйдёт пользователю.`;
 }
 
 /** Forward a user message to all admins configured in ADMIN_TELEGRAM_IDS. */

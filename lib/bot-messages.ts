@@ -34,7 +34,11 @@ const MESSAGES = {
     feedbackReceived:
       '✅ Сообщение получено! Ответим здесь в боте.',
     adminFeedbackHint:
-      'ℹ️ Вы админ — бот не пересылает ваши сообщения.\n\nЧтобы ответить пользователю: откройте его профиль в Telegram по @username или id из уведомления и напишите там напрямую.',
+      '💬 Как ответить пользователю:\n\n1️⃣ Нажмите «Ответить» на уведомление 📩 или пересланное сообщение и напишите текст\n\n2️⃣ Или команда:\n/reply 123456789 ваш текст\n\n(id — число из уведомления «· id …»)',
+    adminReplySent: (userId: number) =>
+      `✅ Ответ отправлен пользователю (id ${userId}).`,
+    adminReplyFailed: (reason: string) => `❌ Не удалось отправить ответ: ${reason}`,
+    userSupportReply: (text: string) => `💬 Ответ от поддержки EatSave:\n\n${text}`,
     feedbackNoAdmin:
       'Спасибо! Сейчас личная поддержка недоступна — оставьте комментарий в канале (кнопка ниже).',
     feedbackChannel:
@@ -77,7 +81,10 @@ const MESSAGES = {
     feedbackReceived:
       '✅ Message received! We will reply here in the bot.',
     adminFeedbackHint:
-      'ℹ️ You are an admin — the bot does not relay your messages.\n\nTo reply to a user: open their Telegram profile via @username or id from the notification and message them directly.',
+      '💬 How to reply to a user:\n\n1️⃣ Tap Reply on the 📩 notification or forwarded message and type your text\n\n2️⃣ Or use:\n/reply 123456789 your text\n\n(id is the number in «· id …» from the notification)',
+    adminReplySent: (userId: number) => `✅ Reply sent to user (id ${userId}).`,
+    adminReplyFailed: (reason: string) => `❌ Could not send reply: ${reason}`,
+    userSupportReply: (text: string) => `💬 Reply from EatSave support:\n\n${text}`,
     feedbackNoAdmin:
       'Thanks! Private support is unavailable right now — please leave a comment in the channel (button below).',
     feedbackChannel:

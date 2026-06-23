@@ -8,6 +8,11 @@ import {
 } from '@/lib/premium-payments';
 import { botLocale, botMsg } from '@/lib/bot-messages';
 import { isAdminTelegramId } from '@/lib/admin';
+import {
+  parseReplyCommand,
+  resolveFeedbackUserId,
+  sendAdminReplyToUser,
+} from '@/lib/bot-admin-reply';
 import { getFeedbackCommentUrl, relayFeedbackToAdmins } from '@/lib/bot-feedback';
 import { syncUserProfile } from '@/lib/sync-user-profile';
 import { getAppHomeUrl } from '@/lib/app-url';
@@ -35,6 +40,14 @@ type TelegramUpdate = {
     voice?: unknown;
     video?: unknown;
     sticker?: { emoji?: string };
+    reply_to_message?: {
+      text?: string;
+      forward_from?: { id: number };
+      forward_origin?: {
+        type?: string;
+        sender_user?: { id: number };
+      };
+    };
     successful_payment?: {
       invoice_payload: string;
       currency: string;
@@ -136,11 +149,38 @@ function parsePremiumUserId(payload: string): number | null {
   return Number.isFinite(id) ? id : null;
 }
 
+async function handleAdminReply(
+  adminChatId: number,
+  locale: ReturnType<typeof botLocale>,
+  replyText: string,
+  targetUserId: number | null
+) {
+  const msg = botMsg(locale);
+
+  if (!targetUserId) {
+    await sendMessage(adminChatId, msg.adminFeedbackHint);
+    return;
+  }
+
+  if (!replyText) {
+    await sendMessage(adminChatId, msg.adminFeedbackHint);
+    return;
+  }
+
+  const result = await sendAdminReplyToUser(getBotToken()!, targetUserId, replyText, locale);
+  if (result.ok) {
+    await sendMessage(adminChatId, msg.adminReplySent(targetUserId));
+  } else {
+    const reason = result.description || 'unknown error';
+    await sendMessage(adminChatId, msg.adminReplyFailed(reason.slice(0, 180)));
+  }
+}
+
 export async function GET() {
   return NextResponse.json({
     ok: true,
     message: 'EatSave bot webhook is live',
-    features: { feedbackChoice: true },
+    features: { feedbackChoice: true, adminReply: true },
     commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'local',
   });
 }
@@ -347,6 +387,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    if (body.message?.from && isAdminTelegramId(body.message.from.id) && body.message.text) {
+      const adminChatId = body.message.from.id;
+      const locale = botLocale(body.message.from.language_code);
+      const replyCmd = parseReplyCommand(body.message.text.trim());
+
+      if (replyCmd) {
+        await handleAdminReply(adminChatId, locale, replyCmd.body, replyCmd.userId);
+        return NextResponse.json({ ok: true });
+      }
+    }
+
     if (body.message?.from && body.message.message_id) {
       const from = body.message.from;
       const chatId = from.id;
@@ -354,13 +405,18 @@ export async function POST(req: NextRequest) {
       const msg = botMsg(locale);
       const text = body.message.text?.trim() || '';
 
-      if (text.startsWith('/')) {
+      if (text.startsWith('/') && !text.match(/^\/reply(?:@\w+)?\s/i)) {
         await sendFeedbackChoiceReply(chatId, locale);
         return NextResponse.json({ ok: true });
       }
 
       if (isAdminTelegramId(from.id)) {
-        await sendMessage(chatId, msg.adminFeedbackHint);
+        const targetUserId = resolveFeedbackUserId(body.message.reply_to_message);
+        if (targetUserId) {
+          await handleAdminReply(chatId, locale, text, targetUserId);
+        } else {
+          await sendMessage(chatId, msg.adminFeedbackHint);
+        }
         return NextResponse.json({ ok: true });
       }
 

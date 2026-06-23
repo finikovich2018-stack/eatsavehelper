@@ -28,6 +28,12 @@ type TelegramUpdate = {
     chat?: { id: number };
     from: { id: number; first_name?: string; username?: string; language_code?: string };
     text?: string;
+    caption?: string;
+    photo?: unknown[];
+    document?: { file_name?: string };
+    voice?: unknown;
+    video?: unknown;
+    sticker?: { emoji?: string };
     successful_payment?: {
       invoice_payload: string;
       currency: string;
@@ -356,7 +362,16 @@ export async function POST(req: NextRequest) {
         BOT_TOKEN,
         body.message.chat?.id ?? chatId,
         body.message.message_id,
-        from
+        from,
+        {
+          text: body.message.text,
+          caption: body.message.caption,
+          photo: body.message.photo,
+          document: body.message.document,
+          voice: body.message.voice,
+          video: body.message.video,
+          sticker: body.message.sticker,
+        }
       );
 
       if (relayed) {

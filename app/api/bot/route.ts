@@ -7,6 +7,7 @@ import {
   markLatestPaymentActivated,
 } from '@/lib/premium-payments';
 import { botLocale, botMsg } from '@/lib/bot-messages';
+import { isAdminTelegramId } from '@/lib/admin';
 import { getFeedbackCommentUrl, relayFeedbackToAdmins } from '@/lib/bot-feedback';
 import { syncUserProfile } from '@/lib/sync-user-profile';
 import { getAppHomeUrl } from '@/lib/app-url';
@@ -355,6 +356,11 @@ export async function POST(req: NextRequest) {
 
       if (text.startsWith('/')) {
         await sendFeedbackChoiceReply(chatId, locale);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (isAdminTelegramId(from.id)) {
+        await sendMessage(chatId, msg.adminFeedbackHint);
         return NextResponse.json({ ok: true });
       }
 

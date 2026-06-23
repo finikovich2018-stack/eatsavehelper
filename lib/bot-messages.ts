@@ -33,6 +33,8 @@ const MESSAGES = {
       '✉️ Напишите сообщение в этот чат — передам разработчику.\n\nМожно текст, скрин или фото.',
     feedbackReceived:
       '✅ Сообщение получено! Ответим здесь в боте.',
+    adminFeedbackHint:
+      'ℹ️ Вы админ — бот не пересылает ваши сообщения.\n\nЧтобы ответить пользователю: откройте его профиль в Telegram по @username или id из уведомления и напишите там напрямую.',
     feedbackNoAdmin:
       'Спасибо! Сейчас личная поддержка недоступна — оставьте комментарий в канале (кнопка ниже).',
     feedbackChannel:
@@ -74,6 +76,8 @@ const MESSAGES = {
       '✉️ Send your message in this chat — I will forward it to the developer.\n\nText, screenshot, or photo works.',
     feedbackReceived:
       '✅ Message received! We will reply here in the bot.',
+    adminFeedbackHint:
+      'ℹ️ You are an admin — the bot does not relay your messages.\n\nTo reply to a user: open their Telegram profile via @username or id from the notification and message them directly.',
     feedbackNoAdmin:
       'Thanks! Private support is unavailable right now — please leave a comment in the channel (button below).',
     feedbackChannel:

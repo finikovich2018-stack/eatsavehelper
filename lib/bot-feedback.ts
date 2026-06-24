@@ -13,14 +13,18 @@ type FeedbackFrom = {
   username?: string;
 };
 
+type MediaFile = { file_id: string };
+
 export type FeedbackMessage = {
   text?: string;
   caption?: string;
-  photo?: unknown[];
-  document?: { file_name?: string };
-  voice?: unknown;
-  video?: unknown;
-  sticker?: { emoji?: string };
+  photo?: MediaFile[];
+  document?: MediaFile & { file_name?: string };
+  voice?: MediaFile;
+  video?: MediaFile;
+  video_note?: MediaFile;
+  audio?: MediaFile;
+  sticker?: MediaFile & { emoji?: string };
 };
 
 async function tgApi(
@@ -53,6 +57,8 @@ function feedbackContentPreview(message?: FeedbackMessage): string | null {
   if (message.document) return `📎 ${message.document.file_name || 'Файл'}`;
   if (message.voice) return '🎤 Голосовое сообщение';
   if (message.video) return '🎬 Видео';
+  if (message.video_note) return '🎥 Кружок';
+  if (message.audio) return '🎵 Аудио';
   if (message.sticker) {
     return message.sticker.emoji
       ? `🎭 Стикер ${message.sticker.emoji}`
@@ -70,7 +76,74 @@ function buildAdminNotice(from: FeedbackFrom, message?: FeedbackMessage): string
     return `📩 Сообщение от пользователя EatSave\n${who}\n\n${preview}\n\n↩️ Ответьте на это сообщение — текст уйдёт пользователю.`;
   }
 
-  return `📩 Сообщение от пользователя EatSave\n${who}\n\n(медиа — см. пересланное ниже)\n\n↩️ Ответьте на это сообщение или на пересланное — текст уйдёт пользователю.`;
+  return `📩 Сообщение от пользователя EatSave\n${who}\n\n(медиа — см. ниже)\n\n↩️ Ответьте на это сообщение — текст уйдёт пользователю.`;
+}
+
+async function sendMediaToAdmin(
+  botToken: string,
+  adminId: number,
+  message?: FeedbackMessage
+): Promise<{ ok: boolean; description?: string }> {
+  if (!message) return { ok: false, description: 'no message' };
+
+  const caption = message.caption?.trim() || undefined;
+
+  if (message.photo?.length) {
+    const fileId = message.photo[message.photo.length - 1].file_id;
+    return tgApi(botToken, 'sendPhoto', {
+      chat_id: adminId,
+      photo: fileId,
+      caption,
+    });
+  }
+
+  if (message.document?.file_id) {
+    return tgApi(botToken, 'sendDocument', {
+      chat_id: adminId,
+      document: message.document.file_id,
+      caption,
+    });
+  }
+
+  if (message.voice?.file_id) {
+    return tgApi(botToken, 'sendVoice', {
+      chat_id: adminId,
+      voice: message.voice.file_id,
+      caption,
+    });
+  }
+
+  if (message.video?.file_id) {
+    return tgApi(botToken, 'sendVideo', {
+      chat_id: adminId,
+      video: message.video.file_id,
+      caption,
+    });
+  }
+
+  if (message.video_note?.file_id) {
+    return tgApi(botToken, 'sendVideoNote', {
+      chat_id: adminId,
+      video_note: message.video_note.file_id,
+    });
+  }
+
+  if (message.audio?.file_id) {
+    return tgApi(botToken, 'sendAudio', {
+      chat_id: adminId,
+      audio: message.audio.file_id,
+      caption,
+    });
+  }
+
+  if (message.sticker?.file_id) {
+    return tgApi(botToken, 'sendSticker', {
+      chat_id: adminId,
+      sticker: message.sticker.file_id,
+    });
+  }
+
+  return { ok: false, description: 'unsupported media type' };
 }
 
 /** Forward a user message to all admins configured in ADMIN_TELEGRAM_IDS. */
@@ -98,20 +171,27 @@ export async function relayFeedbackToAdmins(
       message_id: messageId,
     });
 
-    if (!forwarded.ok) {
-      const copied = await tgApi(botToken, 'copyMessage', {
-        chat_id: adminId,
-        from_chat_id: sourceChatId,
-        message_id: messageId,
-      });
+    if (forwarded.ok) continue;
 
-      if (!copied.ok) {
-        await tgApi(botToken, 'sendMessage', {
-          chat_id: adminId,
-          text: '⚠️ Не удалось переслать сообщение пользователя. Попросите написать ещё раз или проверьте логи бота.',
-        });
-      }
-    }
+    const copied = await tgApi(botToken, 'copyMessage', {
+      chat_id: adminId,
+      from_chat_id: sourceChatId,
+      message_id: messageId,
+    });
+
+    if (copied.ok) continue;
+
+    const media = await sendMediaToAdmin(botToken, adminId, message);
+    if (media.ok) continue;
+
+    const preview = feedbackContentPreview(message);
+    const reason = media.description || copied.description || forwarded.description || 'unknown';
+    await tgApi(botToken, 'sendMessage', {
+      chat_id: adminId,
+      text: preview
+        ? `⚠️ Медиа не переслалось (${reason}). Текст выше — ответьте на уведомление 📩.`
+        : `⚠️ Не удалось переслать сообщение (${reason}). Попросите написать ещё раз текстом.`,
+    });
   }
 
   return true;

@@ -13,7 +13,7 @@ import {
   resolveFeedbackUserId,
   sendAdminReplyToUser,
 } from '@/lib/bot-admin-reply';
-import { getFeedbackCommentUrl, relayFeedbackToAdmins } from '@/lib/bot-feedback';
+import { getFeedbackCommentUrl, parseFeedbackMessage, relayFeedbackToAdmins } from '@/lib/bot-feedback';
 import { syncUserProfile } from '@/lib/sync-user-profile';
 import { getAppHomeUrl } from '@/lib/app-url';
 import { getBotToken } from '@/lib/bot-token';
@@ -22,6 +22,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
+type TelegramMessageLike = Record<string, unknown>;
+
 type TelegramUpdate = {
   callback_query?: {
     id: string;
@@ -29,19 +31,12 @@ type TelegramUpdate = {
     message?: { chat: { id: number } };
     data?: string;
   };
-  message?: {
+  message?: TelegramMessageLike & {
     message_id?: number;
     chat?: { id: number };
     from: { id: number; first_name?: string; username?: string; language_code?: string };
     text?: string;
     caption?: string;
-    photo?: Array<{ file_id: string }>;
-    document?: { file_id: string; file_name?: string };
-    voice?: { file_id: string };
-    video?: { file_id: string };
-    video_note?: { file_id: string };
-    audio?: { file_id: string };
-    sticker?: { file_id: string; emoji?: string };
     reply_to_message?: {
       text?: string;
       forward_from?: { id: number };
@@ -427,17 +422,7 @@ export async function POST(req: NextRequest) {
         body.message.chat?.id ?? chatId,
         body.message.message_id,
         from,
-        {
-          text: body.message.text,
-          caption: body.message.caption,
-          photo: body.message.photo,
-          document: body.message.document,
-          voice: body.message.voice,
-          video: body.message.video,
-          video_note: body.message.video_note,
-          audio: body.message.audio,
-          sticker: body.message.sticker,
-        }
+        parseFeedbackMessage(body.message as TelegramMessageLike)
       );
 
       if (relayed) {

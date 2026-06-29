@@ -51,9 +51,46 @@ export type FeedbackMessage = {
 
 type TelegramMessageLike = Record<string, unknown>;
 
+const MESSAGE_META_KEYS = new Set([
+  'message_id',
+  'from',
+  'chat',
+  'date',
+  'edit_date',
+  'reply_to_message',
+  'via_bot',
+  'entities',
+  'caption_entities',
+  'link_preview_options',
+  'effect_id',
+  'message_thread_id',
+  'is_topic_message',
+  'is_automatic_forward',
+  'reply_markup',
+  'author_signature',
+  'sender_chat',
+  'forward_origin',
+  'forward_from',
+  'forward_from_chat',
+  'forward_from_message_id',
+  'forward_signature',
+  'forward_sender_name',
+  'forward_date',
+  'has_protected_content',
+  'media_group_id',
+  'has_media_spoiler',
+  'show_caption_above_media',
+  'external_reply',
+  'quote',
+  'reply_to_story',
+]);
+
+type FoundFile = { file_id: string; source: string; mime?: string };
+
 function detectMessageKinds(msg: TelegramMessageLike): string[] {
   const keys = [
     'text',
+    'caption',
     'photo',
     'document',
     'voice',
@@ -70,8 +107,54 @@ function detectMessageKinds(msg: TelegramMessageLike): string[] {
     'game',
     'invoice',
     'story',
+    'paid_media',
+    'giveaway',
+    'giveaway_winners',
+    'web_app_data',
+    'users_shared',
+    'chat_shared',
   ];
-  return keys.filter((key) => msg[key] != null);
+  const found = keys.filter((key) => msg[key] != null);
+  if (found.length > 0) return found;
+
+  return Object.keys(msg).filter((key) => !MESSAGE_META_KEYS.has(key) && msg[key] != null);
+}
+
+function findFileIds(value: unknown, source = 'message', depth = 0): FoundFile[] {
+  if (depth > 8 || value == null) return [];
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) => findFileIds(item, `${source}[${index}]`, depth + 1));
+  }
+
+  if (typeof value !== 'object') return [];
+
+  const record = value as Record<string, unknown>;
+  const found: FoundFile[] = [];
+
+  if (typeof record.file_id === 'string') {
+    found.push({
+      file_id: record.file_id,
+      source,
+      mime: typeof record.mime_type === 'string' ? record.mime_type : undefined,
+    });
+  }
+
+  for (const [key, nested] of Object.entries(record)) {
+    if (key === 'file_id') continue;
+    found.push(...findFileIds(nested, `${source}.${key}`, depth + 1));
+  }
+
+  return found;
+}
+
+function dedupeFiles(files: FoundFile[]): FoundFile[] {
+  const seen = new Set<string>();
+  return files.filter((file) => {
+    if (seen.has(file.file_id)) return false;
+    seen.add(file.file_id);
+    return true;
+  });
 }
 
 /** Map a Telegram message object to feedback payload (pass through all supported media fields). */
@@ -164,10 +247,54 @@ function buildAdminNotice(from: FeedbackFrom, message?: FeedbackMessage): string
   return `📩 Сообщение от пользователя EatSave\n${who}\n\n(медиа — см. ниже)\n\n↩️ Ответьте на это сообщение — текст уйдёт пользователю.`;
 }
 
+async function sendFileIdToAdmin(
+  botToken: string,
+  adminId: number,
+  file: FoundFile,
+  caption?: string
+): Promise<{ ok: boolean; description?: string }> {
+  const source = file.source.toLowerCase();
+  const mime = file.mime?.toLowerCase() || '';
+
+  const attempts: Array<{ method: string; param: string }> = [];
+  if (source.includes('photo') || mime.startsWith('image/')) {
+    attempts.push({ method: 'sendPhoto', param: 'photo' });
+  } else if (source.includes('animation') || mime === 'image/gif') {
+    attempts.push({ method: 'sendAnimation', param: 'animation' });
+  } else if (source.includes('video_note')) {
+    attempts.push({ method: 'sendVideoNote', param: 'video_note' });
+  } else if (source.includes('voice')) {
+    attempts.push({ method: 'sendVoice', param: 'voice' });
+  } else if (source.includes('audio') || mime.startsWith('audio/')) {
+    attempts.push({ method: 'sendAudio', param: 'audio' });
+  } else if (source.includes('sticker')) {
+    attempts.push({ method: 'sendSticker', param: 'sticker' });
+  } else if (source.includes('video') || mime.startsWith('video/')) {
+    attempts.push({ method: 'sendVideo', param: 'video' });
+  }
+
+  attempts.push({ method: 'sendDocument', param: 'document' });
+
+  for (const attempt of attempts) {
+    const body: Record<string, unknown> = {
+      chat_id: adminId,
+      [attempt.param]: file.file_id,
+    };
+    if (caption && attempt.method !== 'sendVideoNote' && attempt.method !== 'sendSticker') {
+      body.caption = caption;
+    }
+    const sent = await tgApi(botToken, attempt.method, body);
+    if (sent.ok) return sent;
+  }
+
+  return { ok: false, description: 'file_id send failed' };
+}
+
 async function sendMediaToAdmin(
   botToken: string,
   adminId: number,
-  message?: FeedbackMessage
+  message?: FeedbackMessage,
+  raw?: TelegramMessageLike
 ): Promise<{ ok: boolean; description?: string }> {
   if (!message) return { ok: false, description: 'no message' };
 
@@ -257,13 +384,21 @@ async function sendMediaToAdmin(
 
   const preview = feedbackContentPreview(message);
   if (preview) {
-    return tgApi(botToken, 'sendMessage', {
+    const sent = await tgApi(botToken, 'sendMessage', {
       chat_id: adminId,
       text: preview,
     });
+    if (sent.ok) return sent;
   }
 
-  const kinds = message.kinds?.join(', ') || 'unknown';
+  const discovered = dedupeFiles(findFileIds(raw ?? {}));
+  for (const file of discovered) {
+    const sent = await sendFileIdToAdmin(botToken, adminId, file, caption);
+    if (sent.ok) return sent;
+  }
+
+  const kinds = message.kinds?.join(', ') || detectMessageKinds(raw ?? {}).join(', ') || 'unknown';
+  console.error('Feedback media relay failed:', { kinds, discovered: discovered.map((f) => f.source) });
   return { ok: false, description: `unsupported media type (${kinds})` };
 }
 
@@ -273,7 +408,8 @@ export async function relayFeedbackToAdmins(
   sourceChatId: number,
   messageId: number,
   from: FeedbackFrom,
-  message?: FeedbackMessage
+  message?: FeedbackMessage,
+  rawMessage?: TelegramMessageLike
 ): Promise<boolean> {
   const admins = getAdminTelegramIds();
   if (admins.length === 0) {
@@ -302,7 +438,7 @@ export async function relayFeedbackToAdmins(
 
     if (copied.ok) continue;
 
-    const media = await sendMediaToAdmin(botToken, adminId, message);
+    const media = await sendMediaToAdmin(botToken, adminId, message, rawMessage);
     if (media.ok) continue;
 
     const preview = feedbackContentPreview(message);

@@ -422,7 +422,8 @@ export async function POST(req: NextRequest) {
         body.message.chat?.id ?? chatId,
         body.message.message_id,
         from,
-        parseFeedbackMessage(body.message as TelegramMessageLike)
+        parseFeedbackMessage(body.message as TelegramMessageLike),
+        body.message as TelegramMessageLike
       );
 
       if (relayed) {

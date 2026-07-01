@@ -117,8 +117,8 @@ export default function HomePage() {
         </div>
 
         {consumeStats && consumeStats.eaten + consumeStats.wasted > 0 && (
-          <div className="bg-surface border border-border rounded-2xl p-4">
-            <div className="text-xs text-muted mb-3">{t('home.savingsSummary')}</div>
+          <Link href="/fridge" className="block bg-surface border border-border rounded-2xl p-4 active:scale-[0.99] transition">
+            <div className="text-xs text-muted mb-3">{t('home.savingsSummary')} ›</div>
             <div className="flex items-center justify-around text-center">
               <div>
                 <div className="text-xl font-bold text-accent">🍽 {consumeStats.eaten}</div>
@@ -135,7 +135,7 @@ export default function HomePage() {
                 {t('fridge.wasteFree', { n: consumeStats.wasteFreeDays })}
               </div>
             )}
-          </div>
+          </Link>
         )}
 
         <div>

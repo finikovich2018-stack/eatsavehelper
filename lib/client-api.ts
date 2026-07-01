@@ -107,6 +107,10 @@ export const dataApi = {
         '/api/fridge',
         withAuth(auth, { op: 'stats' })
       ),
+    history: (auth: AuthPayload) =>
+      apiPost<{
+        items: { id: string; name: string | null; category: string | null; action: 'eaten' | 'wasted'; logged_at: string }[];
+      }>('/api/fridge', withAuth(auth, { op: 'history' })),
     count: (auth: AuthPayload) =>
       apiPost<{ count: number }>('/api/fridge', withAuth(auth, { op: 'count' })),
   },

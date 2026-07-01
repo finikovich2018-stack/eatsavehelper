@@ -90,7 +90,7 @@ function FridgePageContent() {
   const expiringOnly = searchParams.get('filter') === 'expiring';
   const auth = useDataAuth();
   const { dbUser, refreshUser } = useTelegram();
-  const { t } = useI18n();
+  const { t, dateLocale } = useI18n();
   const [localUser, setLocalUser] = useState<typeof dbUser>(null);
   const isPremium = hasPremiumAccess(localUser || dbUser || {});
 
@@ -103,6 +103,17 @@ function FridgePageContent() {
     wasted: number;
     wasteFreeDays: number;
   } | null>(null);
+  type HistoryItem = {
+    id: string;
+    name: string | null;
+    category: string | null;
+    action: 'eaten' | 'wasted';
+    logged_at: string;
+  };
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'eaten' | 'wasted'>('all');
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
@@ -166,6 +177,20 @@ function FridgePageContent() {
     if (data) setItems([...items, data]);
     setForm({ name: '', category: 'other', expiry_date: '', quantity: '' });
     setShowForm(false);
+  }
+
+  async function openHistory() {
+    if (!auth) return;
+    setShowHistory(true);
+    setHistoryLoading(true);
+    try {
+      const { items } = await dataApi.fridge.history(auth);
+      setHistory((items || []) as HistoryItem[]);
+    } catch {
+      setHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
   }
 
   async function quickAddTemplate(tmpl: (typeof QUICK_TEMPLATES)[number]) {
@@ -362,7 +387,11 @@ function FridgePageContent() {
         </div>
 
         {consumeStats && consumeStats.eaten + consumeStats.wasted > 0 && (
-          <div className="bg-surface border border-border rounded-2xl px-4 py-3 mb-6 flex items-center justify-around text-center">
+          <button
+            type="button"
+            onClick={openHistory}
+            className="w-full bg-surface border border-border rounded-2xl px-4 py-3 mb-6 flex items-center justify-around text-center active:scale-[0.99] transition"
+          >
             <div>
               <div className="text-lg font-bold text-accent">🍽 {consumeStats.eaten}</div>
               <div className="text-xs text-muted mt-0.5">{t('fridge.statEaten')}</div>
@@ -373,13 +402,84 @@ function FridgePageContent() {
               <div className="text-xs text-muted mt-0.5">{t('fridge.statWasted')}</div>
             </div>
             <div className="h-8 w-px bg-border" />
-            <div className="text-xs text-muted self-center">{t('fridge.consumeMonth')}</div>
-          </div>
+            <div className="text-xs text-muted self-center">{t('fridge.consumeMonth')} ›</div>
+          </button>
         )}
 
         {consumeStats && consumeStats.wasteFreeDays > 0 && (
           <div className="bg-accent/10 border border-accent/30 rounded-2xl px-4 py-2.5 mb-6 text-center text-sm font-medium text-accent">
             {t('fridge.wasteFree', { n: consumeStats.wasteFreeDays })}
+          </div>
+        )}
+
+        {showHistory && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
+            <div className="bg-surface border border-border rounded-3xl p-5 max-w-sm w-full max-h-[80vh] flex flex-col">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold">{t('fridge.historyTitle')}</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowHistory(false)}
+                  className="text-muted text-xl px-2"
+                  aria-label={t('common.close')}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex gap-2 mb-3">
+                {(['all', 'eaten', 'wasted'] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setHistoryFilter(f)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                      historyFilter === f
+                        ? 'bg-accent text-background'
+                        : 'bg-background border border-border text-muted'
+                    }`}
+                  >
+                    {f === 'all' ? t('cat.all') : f === 'eaten' ? t('fridge.statEaten') : t('fridge.statWasted')}
+                  </button>
+                ))}
+              </div>
+
+              <div className="overflow-y-auto flex-1 -mx-1 px-1">
+                {historyLoading ? (
+                  <div className="text-center text-muted py-10">{t('common.loading')}</div>
+                ) : (
+                  (() => {
+                    const filtered = history.filter(
+                      (h) => historyFilter === 'all' || h.action === historyFilter
+                    );
+                    if (filtered.length === 0) {
+                      return <div className="text-center text-muted py-10">{t('fridge.historyEmpty')}</div>;
+                    }
+                    return (
+                      <div className="space-y-2">
+                        {filtered.map((h) => (
+                          <div
+                            key={h.id}
+                            className="flex items-center gap-3 bg-background border border-border rounded-xl px-3 py-2"
+                          >
+                            <span className="text-xl">{ICONS[h.category || 'other'] || '📦'}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm truncate">{h.name || '—'}</div>
+                              <div className="text-[11px] text-muted">
+                                {new Date(h.logged_at).toLocaleDateString(dateLocale)}
+                              </div>
+                            </div>
+                            <span className={`text-xs font-medium ${h.action === 'eaten' ? 'text-accent' : 'text-red-400'}`}>
+                              {h.action === 'eaten' ? `🍽 ${t('fridge.statEaten')}` : `🗑 ${t('fridge.statWasted')}`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()
+                )}
+              </div>
+            </div>
           </div>
         )}
 

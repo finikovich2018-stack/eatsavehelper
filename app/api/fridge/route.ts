@@ -152,6 +152,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ eaten, wasted, wasteFreeDays, available: true });
     }
 
+    if (op === 'history') {
+      const now = new Date();
+      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+
+      const { data, error } = await applyDataScope(
+        supabase.from('fridge_log').select('id, name, category, action, logged_at')
+          .gte('logged_at', monthStart).order('logged_at', { ascending: false }),
+        scope
+      );
+
+      if (error) return NextResponse.json({ items: [] });
+      return NextResponse.json({ items: data || [] });
+    }
+
     return NextResponse.json({ error: 'Unknown op' }, { status: 400 });
   } catch (error: unknown) {
     const status = (error as { status?: number }).status || 500;

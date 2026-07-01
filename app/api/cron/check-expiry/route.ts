@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getAppHomeUrl, getAppShoppingUrl } from '@/lib/app-url';
+import { getAppBaseUrl, getAppHomeUrl, getAppShoppingUrl } from '@/lib/app-url';
 import { getBotToken } from '@/lib/bot-token';
 import {
   buildFoodReminderMessage,
@@ -14,9 +14,20 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-async function sendMessage(chatId: number, text: string, appUrl = getAppHomeUrl()) {
+async function sendMessage(
+  chatId: number,
+  text: string,
+  appUrl = getAppHomeUrl(),
+  cookUrl?: string
+) {
   const botToken = getBotToken();
   if (!botToken) return false;
+
+  const inlineKeyboard: { text: string; web_app: { url: string } }[][] = [];
+  if (cookUrl) {
+    inlineKeyboard.push([{ text: '🍳 Что приготовить', web_app: { url: cookUrl } }]);
+  }
+  inlineKeyboard.push([{ text: '📱 Открыть EatSave', web_app: { url: appUrl } }]);
 
   const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: 'POST',
@@ -25,11 +36,7 @@ async function sendMessage(chatId: number, text: string, appUrl = getAppHomeUrl(
       chat_id: chatId,
       text,
       parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [[
-          { text: '📱 Открыть EatSave', web_app: { url: appUrl } },
-        ]],
-      },
+      reply_markup: { inline_keyboard: inlineKeyboard },
     }),
   });
 
@@ -38,6 +45,12 @@ async function sendMessage(chatId: number, text: string, appUrl = getAppHomeUrl(
 
 function reminderAppUrl(user: ReminderUser): string {
   return reminderAppPath(user) === '/shopping' ? getAppShoppingUrl() : getAppHomeUrl();
+}
+
+/** Deep link that opens Recipes and auto-generates from soon-to-expire items. */
+function cookRecipeUrl(user: ReminderUser): string | undefined {
+  const hasFood = user.expiringTomorrow.length > 0 || user.expired.length > 0;
+  return hasFood ? `${getAppBaseUrl()}/recipes?cook=expiring` : undefined;
 }
 
 function verifyCronAuth(req: Request): boolean {
@@ -105,7 +118,7 @@ export async function GET(req: Request) {
   for (const user of users) {
     const text = buildFoodReminderMessage(user);
     if (!text) continue;
-    const ok = await sendMessage(user.chat_id, text, reminderAppUrl(user));
+    const ok = await sendMessage(user.chat_id, text, reminderAppUrl(user), cookRecipeUrl(user));
     if (ok) {
       sent++;
       notifiedIds.push(user.telegram_user_id);

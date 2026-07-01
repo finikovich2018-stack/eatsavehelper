@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { dataApi } from '@/lib/client-api';
 import { useDataAuth } from '@/lib/use-data-auth';
@@ -83,7 +83,7 @@ export default function RecipesPage() {
 
   const isPremium = hasPremiumAccess(userProfile || dbUser || {});
 
-  const getAIRecipes = async () => {
+  const getAIRecipes = async (preferExpiring = false) => {
     if (!auth) return;
     if (!isPremium && (userProfile?.ai_recipes_this_month || 0) >= FREE_AI_RECIPES_PER_MONTH) {
       alert(t('recipes.limitAlert', { limit: FREE_AI_RECIPES_PER_MONTH }));
@@ -93,7 +93,13 @@ export default function RecipesPage() {
     setAiLoading(true);
     try {
       const { items } = await dataApi.fridge.list(auth);
-      const ingredients = ((items || []) as { name: string }[]).map((i) => i.name);
+      const all = (items || []) as FridgeItem[];
+      let source = all;
+      if (preferExpiring) {
+        const soon = all.filter((i) => i.expiry_date && daysLeft(i.expiry_date) <= 3);
+        if (soon.length > 0) source = soon;
+      }
+      const ingredients = source.map((i) => i.name);
       if (ingredients.length === 0) {
         setAiLoading(false);
         return;
@@ -174,6 +180,20 @@ export default function RecipesPage() {
   useEffect(() => {
     loadExpiringItems();
   }, [loadExpiringItems]);
+
+  // Deep link from the daily reminder: "🍳 Что приготовить" opens /recipes?cook=expiring
+  // and immediately generates an AI recipe focused on soon-to-expire products.
+  const cookTriggered = useRef(false);
+  useEffect(() => {
+    if (!auth || cookTriggered.current) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('cook') === 'expiring') {
+      cookTriggered.current = true;
+      window.history.replaceState({}, '', window.location.pathname);
+      getAIRecipes(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth]);
 
   const aiLeft = isPremium
     ? '∞'
@@ -299,7 +319,7 @@ export default function RecipesPage() {
       <TopBar title={t('recipes.title')} />
       <div className="max-w-mobile mx-auto px-4 py-6 space-y-6">
         <button
-          onClick={getAIRecipes}
+          onClick={() => getAIRecipes()}
           className="w-full bg-gradient-to-r from-accent/30 to-accent/10 hover:from-accent/40 hover:to-accent/20 border border-accent rounded-2xl p-5 text-left transition-all"
         >
           <div className="flex items-center justify-between">

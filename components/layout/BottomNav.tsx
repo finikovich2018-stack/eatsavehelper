@@ -18,7 +18,7 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { t } = useI18n();
 
-  if (pathname.startsWith('/marketing')) {
+  if (pathname.startsWith('/marketing') || pathname.startsWith('/tutorial-manual')) {
     return null;
   }
 

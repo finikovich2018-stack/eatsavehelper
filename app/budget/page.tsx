@@ -36,6 +36,21 @@ const CURRENCY_OPTIONS: { value: string; key: TranslationKey }[] = [
   { value: 'KZT', key: 'cur.kzt' },
 ];
 
+// Expense categories: the emoji is stored in expenses.category; labels are i18n.
+const EXPENSE_CATEGORIES: { emoji: string; key: TranslationKey }[] = [
+  { emoji: '🛒', key: 'expcat.groceries' },
+  { emoji: '🥛', key: 'expcat.dairy' },
+  { emoji: '🍗', key: 'expcat.meat' },
+  { emoji: '🥦', key: 'expcat.veg' },
+  { emoji: '🍞', key: 'expcat.bakery' },
+  { emoji: '🍽', key: 'expcat.cafe' },
+  { emoji: '📦', key: 'expcat.other' },
+];
+
+const EXPENSE_CATEGORY_LABEL: Record<string, TranslationKey> = Object.fromEntries(
+  EXPENSE_CATEGORIES.map((c) => [c.emoji, c.key])
+);
+
 function getCurrentMonth() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
@@ -62,7 +77,7 @@ export default function BudgetPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showBudgetForm, setShowBudgetForm] = useState(false);
-  const [form, setForm] = useState({ name: '', amount: '', currency: 'RUB' });
+  const [form, setForm] = useState({ name: '', amount: '', currency: 'RUB', category: '🛒' });
   const [budgetForm, setBudgetForm] = useState({ amount: '15000', currency: 'RUB' });
 
   const monthStart = getCurrentMonth();
@@ -111,11 +126,11 @@ export default function BudgetPage() {
       name: form.name,
       amount: Number(form.amount),
       date: formatLocalDate(),
-      category: '🛒',
+      category: form.category || '🛒',
       currency: form.currency,
     });
     if (item) setExpenses([item as Expense, ...expenses]);
-    setForm({ name: '', amount: '', currency: 'RUB' });
+    setForm({ name: '', amount: '', currency: 'RUB', category: '🛒' });
     setShowForm(false);
   }
 
@@ -174,6 +189,23 @@ export default function BudgetPage() {
     () => [...monthExpenses].sort((a, b) => Number(b.amount) - Number(a.amount)).slice(0, 3),
     [monthExpenses]
   );
+
+  const categoryBreakdown = useMemo(() => {
+    const totals: Record<string, number> = {};
+    monthExpenses
+      .filter((e) => (e.currency || 'RUB') === primaryCur)
+      .forEach((e) => {
+        const cat = e.category || '📦';
+        totals[cat] = (totals[cat] || 0) + Number(e.amount);
+      });
+    const sum = Object.values(totals).reduce((a, b) => a + b, 0);
+    return {
+      sum,
+      rows: Object.entries(totals)
+        .map(([emoji, amount]) => ({ emoji, amount, pct: sum > 0 ? (amount / sum) * 100 : 0 }))
+        .sort((a, b) => b.amount - a.amount),
+    };
+  }, [monthExpenses, primaryCur]);
 
   return (
     <main className="min-h-screen bg-background text-foreground pb-24">
@@ -268,6 +300,36 @@ export default function BudgetPage() {
               {savedEstimate.toLocaleString()} {CURRENCY_SYMBOLS[primaryCur] || primaryCur}
             </span>
             <span className="text-sm text-muted">{t('budget.savingsEnd')}</span>
+          </div>
+        )}
+
+        {categoryBreakdown.rows.length > 1 && (
+          <div className="bg-surface border border-border rounded-2xl p-4 mb-4">
+            <h3 className="text-sm font-medium text-muted mb-3">{t('budget.byCategory')}</h3>
+            <div className="space-y-3">
+              {categoryBreakdown.rows.map((row) => {
+                const symbol = CURRENCY_SYMBOLS[primaryCur] || primaryCur;
+                const label = EXPENSE_CATEGORY_LABEL[row.emoji];
+                return (
+                  <div key={row.emoji}>
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span>
+                        {row.emoji} {label ? t(label) : t('expcat.other')}
+                      </span>
+                      <span className="text-muted">
+                        {Math.round(row.amount).toLocaleString()} {symbol} · {row.pct.toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="bg-background/60 rounded-full h-2">
+                      <div
+                        className="h-2 rounded-full bg-accent transition-all"
+                        style={{ width: `${row.pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -371,6 +433,22 @@ export default function BudgetPage() {
               value={form.amount}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
             />
+            <div className="flex flex-wrap gap-2">
+              {EXPENSE_CATEGORIES.map(({ emoji, key }) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => setForm({ ...form, category: emoji })}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                    form.category === emoji
+                      ? 'bg-accent text-background'
+                      : 'bg-background border border-border text-muted'
+                  }`}
+                >
+                  {emoji} {t(key)}
+                </button>
+              ))}
+            </div>
             <select
               className="w-full bg-background border border-border rounded-xl px-4 py-3 outline-none"
               value={form.currency}

@@ -56,6 +56,10 @@ const MESSAGES = {
       `🎉 По вашей ссылке пришёл новый друг!\n\n+${days} дня Premium${until ? ` — активен до ${until}` : ''}. Спасибо, что делитесь EatSave!`,
     referralMilestone: (days: number, until: string) =>
       `🏆 Веха достигнута! Вы пригласили ещё одну тройку друзей.\n\n+${days} дней Premium${until ? ` — активен до ${until}` : ''}. Продолжайте в том же духе!`,
+    budgetAlert: (pct: number) =>
+      `⚠️ Вы потратили ${pct}% месячного бюджета в EatSave. Планируйте покупки аккуратно, чтобы уложиться.`,
+    budgetOver: () =>
+      `🚨 Месячный бюджет превышен. Загляните в EatSave — посмотрите, на что уходят деньги.`,
   },
   en: {
     start: (name: string) =>
@@ -104,6 +108,10 @@ const MESSAGES = {
       `🎉 A new friend joined via your link!\n\n+${days} days Premium${until ? ` — active until ${until}` : ''}. Thanks for sharing EatSave!`,
     referralMilestone: (days: number, until: string) =>
       `🏆 Milestone reached! You've invited another three friends.\n\n+${days} days Premium${until ? ` — active until ${until}` : ''}. Keep it up!`,
+    budgetAlert: (pct: number) =>
+      `⚠️ You've spent ${pct}% of your monthly EatSave budget. Plan your purchases carefully to stay on track.`,
+    budgetOver: () =>
+      `🚨 Monthly budget exceeded. Open EatSave to see where your money goes.`,
   },
 } as const;
 

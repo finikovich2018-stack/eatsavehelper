@@ -205,6 +205,18 @@ function FridgePageContent() {
     }
   }
 
+  async function clearHistory() {
+    if (!auth || history.length === 0) return;
+    if (!confirm(t('fridge.clearHistoryConfirm'))) return;
+    setHistory([]);
+    setConsumeStats(null);
+    try {
+      await dataApi.fridge.clearHistory(auth);
+    } finally {
+      loadStats();
+    }
+  }
+
   async function quickAddTemplate(tmpl: (typeof QUICK_TEMPLATES)[number]) {
     if (!auth) return;
     if (atFridgeLimit) {
@@ -514,6 +526,16 @@ function FridgePageContent() {
                   })()
                 )}
               </div>
+
+              {history.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearHistory}
+                  className="mt-3 w-full text-sm font-medium text-red-400 border border-red-400/30 rounded-xl py-2.5 active:scale-[0.99] transition"
+                >
+                  🗑 {t('fridge.clearHistory')}
+                </button>
+              )}
             </div>
           </div>
         )}

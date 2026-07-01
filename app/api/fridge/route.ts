@@ -215,6 +215,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ items: data || [] });
     }
 
+    if (op === 'clear_history') {
+      const now = new Date();
+      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+      const { error } = await applyDataScope(
+        supabase.from('fridge_log').delete().gte('logged_at', monthStart),
+        scope
+      );
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true });
+    }
+
     return NextResponse.json({ error: 'Unknown op' }, { status: 400 });
   } catch (error: unknown) {
     const status = (error as { status?: number }).status || 500;

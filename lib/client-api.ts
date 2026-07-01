@@ -123,6 +123,8 @@ export const dataApi = {
           currency?: string | null;
         }[];
       }>('/api/fridge', withAuth(auth, { op: 'history' })),
+    clearHistory: (auth: AuthPayload) =>
+      apiPost<{ ok: true }>('/api/fridge', withAuth(auth, { op: 'clear_history' })),
     count: (auth: AuthPayload) =>
       apiPost<{ count: number }>('/api/fridge', withAuth(auth, { op: 'count' })),
   },

@@ -16,6 +16,20 @@ function stripMarkdown(text: string): string {
   return text.replace(/```json\s*|```/gi, '').trim();
 }
 
+/**
+ * Remove backslashes that don't start a valid JSON escape (e.g. the AI writing
+ * "Loempia\'s"). Leaves legal escapes (\" \\ \/ \b \f \n \r \t \uXXXX) intact so
+ * JSON.parse succeeds and names come out clean.
+ */
+function fixInvalidEscapes(text: string): string {
+  return text.replace(/\\(?!["\\/bfnrtu])/g, '');
+}
+
+/** Strip any leftover backslash before a quote/apostrophe in a product name. */
+function cleanName(name: string): string {
+  return name.replace(/\\(['"])/g, '$1').trim();
+}
+
 function balanceBrackets(raw: string): string {
   let s = raw.trim();
   let braces = 0;
@@ -66,7 +80,7 @@ function trimToLastCompleteItem(raw: string): string {
 }
 
 function normalizeItem(raw: Record<string, unknown>): ParsedReceiptItem | null {
-  const name = String(raw.name || '').trim();
+  const name = cleanName(String(raw.name || ''));
   if (!name) return null;
 
   return {
@@ -103,7 +117,7 @@ function extractItemsWithRegex(text: string): ParsedReceiptItem[] {
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
     items.push({
-      name: match[1].replace(/\\"/g, '"').slice(0, 120),
+      name: cleanName(match[1]).slice(0, 120),
       quantity: Math.max(1, Number(match[2]) || 1),
       price: Number(match[3]) || 0,
       expiry_days: Math.max(1, Number(match[4]) || 7),
@@ -122,7 +136,7 @@ function detectCurrency(text: string): string {
 
 /** Parse Claude receipt JSON with repair for truncated or slightly malformed output. */
 export function parseReceiptJson(text: string): ParsedReceipt {
-  const cleaned = stripMarkdown(text);
+  const cleaned = fixInvalidEscapes(stripMarkdown(text));
   const start = cleaned.indexOf('{');
   if (start < 0) throw new Error('JSON не найден в ответе AI');
 

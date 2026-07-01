@@ -413,8 +413,8 @@ function FridgePageContent() {
         )}
 
         {showHistory && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
-            <div className="bg-surface border border-border rounded-3xl p-5 max-w-sm w-full max-h-[80vh] flex flex-col">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+            <div className="bg-surface border border-border rounded-3xl p-5 max-w-sm w-full max-h-[75vh] flex flex-col">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-semibold">{t('fridge.historyTitle')}</h2>
                 <button

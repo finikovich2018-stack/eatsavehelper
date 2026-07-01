@@ -18,3 +18,6 @@ export const HOUSEHOLD_BOT_USERNAME = 'EatSavehelper_bot';
 export const REFERRAL_BONUS_DAYS = 3;
 export const MAX_REFERRALS_PER_MONTH = 20;
 export const REFERRAL_NEW_USER_HOURS = 72;
+
+/** Welcome trial: new users get Premium free for a few days to try everything. */
+export const TRIAL_PREMIUM_DAYS = 3;

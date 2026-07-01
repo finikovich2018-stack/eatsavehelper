@@ -204,12 +204,15 @@ export default function ScanPage() {
       const rows = batch.map((item) => {
         const expiryDate = new Date();
         expiryDate.setDate(expiryDate.getDate() + defaultExpiryDays(item));
+        const unitPrice = parseFloat(String(item.price)) || 0;
         return {
           name: item.name,
           category: item.category || 'other',
           quantity: t('scan.quantityUnit', { n: item.quantity || 1 }),
           expiry_date: formatLocalDate(expiryDate),
           icon: item.icon || '📦',
+          price: unitPrice,
+          currency,
         };
       });
       await dataApi.fridge.insert(auth, rows);

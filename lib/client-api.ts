@@ -10,6 +10,7 @@ export type ApiFridgeItem = {
   quantity?: string | null;
   expiry_date?: string | null;
   price?: number | null;
+  currency?: string | null;
   icon?: string | null;
   added_from?: string;
   created_at?: string;
@@ -103,13 +104,24 @@ export const dataApi = {
         withAuth(auth, { op: 'consume', id, action })
       ),
     stats: (auth: AuthPayload) =>
-      apiPost<{ eaten: number; wasted: number; wasteFreeDays: number; available: boolean }>(
-        '/api/fridge',
-        withAuth(auth, { op: 'stats' })
-      ),
+      apiPost<{
+        eaten: number;
+        wasted: number;
+        wasteFreeDays: number;
+        wastedMoney: { currency: string; amount: number }[];
+        available: boolean;
+      }>('/api/fridge', withAuth(auth, { op: 'stats' })),
     history: (auth: AuthPayload) =>
       apiPost<{
-        items: { id: string; name: string | null; category: string | null; action: 'eaten' | 'wasted'; logged_at: string }[];
+        items: {
+          id: string;
+          name: string | null;
+          category: string | null;
+          action: 'eaten' | 'wasted';
+          logged_at: string;
+          price?: number | null;
+          currency?: string | null;
+        }[];
       }>('/api/fridge', withAuth(auth, { op: 'history' })),
     count: (auth: AuthPayload) =>
       apiPost<{ count: number }>('/api/fridge', withAuth(auth, { op: 'count' })),

@@ -48,6 +48,15 @@ const ICONS: Record<string, string> = {
   dairy: '🥛', meat: '🍗', veg: '🥦', grains: '🌾', other: '📦',
 };
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  RUB: '₽', USD: '$', EUR: '€', GBP: '£', UAH: '₴', KZT: '₸',
+};
+
+function formatMoney(amount: number, currency: string) {
+  const symbol = CURRENCY_SYMBOLS[currency] || currency;
+  return `${Math.round(amount).toLocaleString()} ${symbol}`;
+}
+
 // Common products for 1-tap adding, with a sensible default shelf life (days).
 const QUICK_TEMPLATES: {
   key: TranslationKey;
@@ -102,6 +111,7 @@ function FridgePageContent() {
     eaten: number;
     wasted: number;
     wasteFreeDays: number;
+    wastedMoney: { currency: string; amount: number }[];
   } | null>(null);
   type HistoryItem = {
     id: string;
@@ -109,6 +119,8 @@ function FridgePageContent() {
     category: string | null;
     action: 'eaten' | 'wasted';
     logged_at: string;
+    price?: number | null;
+    currency?: string | null;
   };
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -136,8 +148,8 @@ function FridgePageContent() {
   const loadStats = useCallback(async () => {
     if (!auth) return;
     try {
-      const { eaten, wasted, wasteFreeDays, available } = await dataApi.fridge.stats(auth);
-      setConsumeStats(available ? { eaten, wasted, wasteFreeDays } : null);
+      const { eaten, wasted, wasteFreeDays, wastedMoney, available } = await dataApi.fridge.stats(auth);
+      setConsumeStats(available ? { eaten, wasted, wasteFreeDays, wastedMoney: wastedMoney || [] } : null);
     } catch {
       setConsumeStats(null);
     }
@@ -214,7 +226,7 @@ function FridgePageContent() {
     if (!auth) return;
     setItems((prev) => prev.filter((i) => i.id !== id));
     setConsumeStats((prev) => {
-      const base = prev ?? { eaten: 0, wasted: 0, wasteFreeDays: 0 };
+      const base = prev ?? { eaten: 0, wasted: 0, wasteFreeDays: 0, wastedMoney: [] };
       return action === 'eaten'
         ? { ...base, eaten: base.eaten + 1 }
         : { ...base, wasted: base.wasted + 1, wasteFreeDays: 0 };
@@ -406,6 +418,22 @@ function FridgePageContent() {
           </button>
         )}
 
+        {consumeStats && consumeStats.wastedMoney.length > 0 && (
+          <button
+            type="button"
+            onClick={openHistory}
+            className="w-full bg-red-400/10 border border-red-400/30 rounded-2xl px-4 py-3 mb-6 text-center active:scale-[0.99] transition"
+          >
+            <div className="text-sm font-medium text-red-400">
+              {t('fridge.wastedMoney', {
+                amount: consumeStats.wastedMoney
+                  .map((m) => formatMoney(m.amount, m.currency))
+                  .join(' + '),
+              })}
+            </div>
+          </button>
+        )}
+
         {consumeStats && consumeStats.wasteFreeDays > 0 && (
           <div className="bg-accent/10 border border-accent/30 rounded-2xl px-4 py-2.5 mb-6 text-center text-sm font-medium text-accent">
             {t('fridge.wasteFree', { n: consumeStats.wasteFreeDays })}
@@ -469,9 +497,16 @@ function FridgePageContent() {
                                 {new Date(h.logged_at).toLocaleDateString(dateLocale)}
                               </div>
                             </div>
-                            <span className={`text-xs font-medium ${h.action === 'eaten' ? 'text-accent' : 'text-red-400'}`}>
-                              {h.action === 'eaten' ? `🍽 ${t('fridge.statEaten')}` : `🗑 ${t('fridge.statWasted')}`}
-                            </span>
+                            <div className="flex flex-col items-end shrink-0">
+                              <span className={`text-xs font-medium ${h.action === 'eaten' ? 'text-accent' : 'text-red-400'}`}>
+                                {h.action === 'eaten' ? `🍽 ${t('fridge.statEaten')}` : `🗑 ${t('fridge.statWasted')}`}
+                              </span>
+                              {h.action === 'wasted' && h.price != null && h.price > 0 && (
+                                <span className="text-[11px] text-red-400/80 mt-0.5">
+                                  −{formatMoney(h.price, h.currency || 'RUB')}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>

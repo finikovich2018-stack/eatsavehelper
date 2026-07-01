@@ -52,6 +52,7 @@ export default function HomePage() {
     eaten: number;
     wasted: number;
     wasteFreeDays: number;
+    wastedMoney: { currency: string; amount: number }[];
   } | null>(null);
 
   const monthName = new Date().toLocaleString(dateLocale, { month: 'long' });
@@ -74,8 +75,8 @@ export default function HomePage() {
     }
 
     try {
-      const { eaten, wasted, wasteFreeDays, available } = await dataApi.fridge.stats(auth);
-      setConsumeStats(available ? { eaten, wasted, wasteFreeDays } : null);
+      const { eaten, wasted, wasteFreeDays, wastedMoney, available } = await dataApi.fridge.stats(auth);
+      setConsumeStats(available ? { eaten, wasted, wasteFreeDays, wastedMoney: wastedMoney || [] } : null);
     } catch {
       setConsumeStats(null);
     }
@@ -130,6 +131,15 @@ export default function HomePage() {
                 <div className="text-xs text-muted mt-0.5">{t('fridge.statWasted')}</div>
               </div>
             </div>
+            {consumeStats.wastedMoney.length > 0 && (
+              <div className="mt-3 text-center text-sm font-medium text-red-400">
+                {t('fridge.wastedMoney', {
+                  amount: consumeStats.wastedMoney
+                    .map((m) => `${Math.round(m.amount).toLocaleString()} ${CURRENCY_SYMBOLS[m.currency] || m.currency}`)
+                    .join(' + '),
+                })}
+              </div>
+            )}
             {consumeStats.wasteFreeDays > 0 && (
               <div className="mt-3 text-center text-sm font-medium text-accent">
                 {t('fridge.wasteFree', { n: consumeStats.wasteFreeDays })}

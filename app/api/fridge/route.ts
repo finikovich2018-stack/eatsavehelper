@@ -64,7 +64,16 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const { data, error } = await scopedInsert(supabase, 'fridge_items', scope, items);
+      let { data, error } = await scopedInsert(supabase, 'fridge_items', scope, items);
+      // Gracefully degrade if the optional `currency` column isn't there yet.
+      if (error && /currency/i.test(error.message)) {
+        const stripped = items.map((it) => {
+          const copy = { ...it };
+          delete copy.currency;
+          return copy;
+        });
+        ({ data, error } = await scopedInsert(supabase, 'fridge_items', scope, stripped));
+      }
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ items: data });
     }
@@ -85,7 +94,7 @@ export async function POST(req: NextRequest) {
       }
 
       const { data: item } = await applyDataScope(
-        supabase.from('fridge_items').select('name, category').eq('id', id),
+        supabase.from('fridge_items').select('*').eq('id', id),
         scope
       ).maybeSingle();
 
@@ -97,14 +106,23 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: deleteError.message }, { status: 500 });
       }
 
-      // Best-effort logging: don't fail the action if the log table is missing.
-      const { error: logError } = await scopedInsert(supabase, 'fridge_log', scope, [
-        {
-          name: item?.name ?? null,
-          category: item?.category ?? null,
-          action,
-        },
-      ]);
+      const itemRow = (item || {}) as Record<string, unknown>;
+      const priceVal = Number(itemRow.price);
+      const logRow: Record<string, unknown> = {
+        name: (itemRow.name as string) ?? null,
+        category: (itemRow.category as string) ?? null,
+        action,
+        price: Number.isFinite(priceVal) && priceVal > 0 ? priceVal : null,
+        currency: (itemRow.currency as string) ?? null,
+      };
+
+      // Best-effort logging: don't fail the action if the log table (or the
+      // optional price/currency columns) is missing.
+      let { error: logError } = await scopedInsert(supabase, 'fridge_log', scope, [logRow]);
+      if (logError && /price|currency/i.test(logError.message)) {
+        const basicRow = { name: logRow.name, category: logRow.category, action: logRow.action };
+        ({ error: logError } = await scopedInsert(supabase, 'fridge_log', scope, [basicRow]));
+      }
       if (logError) {
         console.error('fridge_log insert error:', logError.message);
         return NextResponse.json({ ok: true, logged: false });
@@ -123,7 +141,7 @@ export async function POST(req: NextRequest) {
       );
 
       if (error) {
-        return NextResponse.json({ eaten: 0, wasted: 0, wasteFreeDays: 0, available: false });
+        return NextResponse.json({ eaten: 0, wasted: 0, wasteFreeDays: 0, wastedMoney: [], available: false });
       }
 
       const rows = (data || []) as { action: string }[];
@@ -149,18 +167,49 @@ export async function POST(req: NextRequest) {
         wasteFreeDays = Math.max(0, Math.floor((Date.now() - new Date(ref).getTime()) / 86400000));
       }
 
-      return NextResponse.json({ eaten, wasted, wasteFreeDays, available: true });
+      // Money thrown away this month (best-effort: requires the price/currency
+      // columns on fridge_log; returns an empty list if they're missing).
+      let wastedMoney: { currency: string; amount: number }[] = [];
+      const { data: moneyRows, error: moneyError } = await applyDataScope(
+        supabase.from('fridge_log').select('price, currency')
+          .eq('action', 'wasted').gte('logged_at', monthStart),
+        scope
+      );
+      if (!moneyError && moneyRows) {
+        const byCurrency: Record<string, number> = {};
+        for (const r of moneyRows as { price: number | null; currency: string | null }[]) {
+          const amt = Number(r.price) || 0;
+          if (amt <= 0) continue;
+          const cur = r.currency || 'RUB';
+          byCurrency[cur] = (byCurrency[cur] || 0) + amt;
+        }
+        wastedMoney = Object.entries(byCurrency).map(([currency, amount]) => ({ currency, amount }));
+      }
+
+      return NextResponse.json({ eaten, wasted, wasteFreeDays, wastedMoney, available: true });
     }
 
     if (op === 'history') {
       const now = new Date();
       const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
 
-      const { data, error } = await applyDataScope(
-        supabase.from('fridge_log').select('id, name, category, action, logged_at')
+      const primary = await applyDataScope(
+        supabase.from('fridge_log').select('id, name, category, action, logged_at, price, currency')
           .gte('logged_at', monthStart).order('logged_at', { ascending: false }),
         scope
       );
+      let data: unknown[] | null = primary.data;
+      let error = primary.error;
+      // Fall back to the base columns if price/currency aren't there yet.
+      if (error && /price|currency/i.test(error.message)) {
+        const fallback = await applyDataScope(
+          supabase.from('fridge_log').select('id, name, category, action, logged_at')
+            .gte('logged_at', monthStart).order('logged_at', { ascending: false }),
+          scope
+        );
+        data = fallback.data;
+        error = fallback.error;
+      }
 
       if (error) return NextResponse.json({ items: [] });
       return NextResponse.json({ items: data || [] });

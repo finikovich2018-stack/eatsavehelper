@@ -48,7 +48,11 @@ export default function HomePage() {
   const [expiring, setExpiring] = useState<FridgeItem[]>([]);
   const [budget, setBudget] = useState<BudgetSummary>({ spent: 0, limit: 15000, currency: 'RUB' });
   const [stats, setStats] = useState({ products: 0, expiringSoon: 0, recipes: 0, shopping: 0 });
-  const [consumeStats, setConsumeStats] = useState<{ eaten: number; wasted: number } | null>(null);
+  const [consumeStats, setConsumeStats] = useState<{
+    eaten: number;
+    wasted: number;
+    wasteFreeDays: number;
+  } | null>(null);
 
   const monthName = new Date().toLocaleString(dateLocale, { month: 'long' });
 
@@ -70,8 +74,8 @@ export default function HomePage() {
     }
 
     try {
-      const { eaten, wasted, available } = await dataApi.fridge.stats(auth);
-      setConsumeStats(available ? { eaten, wasted } : null);
+      const { eaten, wasted, wasteFreeDays, available } = await dataApi.fridge.stats(auth);
+      setConsumeStats(available ? { eaten, wasted, wasteFreeDays } : null);
     } catch {
       setConsumeStats(null);
     }
@@ -126,6 +130,11 @@ export default function HomePage() {
                 <div className="text-xs text-muted mt-0.5">{t('fridge.statWasted')}</div>
               </div>
             </div>
+            {consumeStats.wasteFreeDays > 0 && (
+              <div className="mt-3 text-center text-sm font-medium text-accent">
+                {t('fridge.wasteFree', { n: consumeStats.wasteFreeDays })}
+              </div>
+            )}
           </div>
         )}
 

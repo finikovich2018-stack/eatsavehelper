@@ -98,7 +98,11 @@ function FridgePageContent() {
     refreshUser().then(setLocalUser);
   }, [refreshUser]);
   const [items, setItems] = useState<Item[]>([]);
-  const [consumeStats, setConsumeStats] = useState<{ eaten: number; wasted: number } | null>(null);
+  const [consumeStats, setConsumeStats] = useState<{
+    eaten: number;
+    wasted: number;
+    wasteFreeDays: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
@@ -121,8 +125,8 @@ function FridgePageContent() {
   const loadStats = useCallback(async () => {
     if (!auth) return;
     try {
-      const { eaten, wasted, available } = await dataApi.fridge.stats(auth);
-      setConsumeStats(available ? { eaten, wasted } : null);
+      const { eaten, wasted, wasteFreeDays, available } = await dataApi.fridge.stats(auth);
+      setConsumeStats(available ? { eaten, wasted, wasteFreeDays } : null);
     } catch {
       setConsumeStats(null);
     }
@@ -185,10 +189,10 @@ function FridgePageContent() {
     if (!auth) return;
     setItems((prev) => prev.filter((i) => i.id !== id));
     setConsumeStats((prev) => {
-      const base = prev ?? { eaten: 0, wasted: 0 };
+      const base = prev ?? { eaten: 0, wasted: 0, wasteFreeDays: 0 };
       return action === 'eaten'
         ? { ...base, eaten: base.eaten + 1 }
-        : { ...base, wasted: base.wasted + 1 };
+        : { ...base, wasted: base.wasted + 1, wasteFreeDays: 0 };
     });
     try {
       await dataApi.fridge.consume(auth, id, action);
@@ -370,6 +374,12 @@ function FridgePageContent() {
             </div>
             <div className="h-8 w-px bg-border" />
             <div className="text-xs text-muted self-center">{t('fridge.consumeMonth')}</div>
+          </div>
+        )}
+
+        {consumeStats && consumeStats.wasteFreeDays > 0 && (
+          <div className="bg-accent/10 border border-accent/30 rounded-2xl px-4 py-2.5 mb-6 text-center text-sm font-medium text-accent">
+            {t('fridge.wasteFree', { n: consumeStats.wasteFreeDays })}
           </div>
         )}
 

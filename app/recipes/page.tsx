@@ -64,6 +64,7 @@ export default function RecipesPage() {
   const auth = useDataAuth();
   const { user, dbUser, initData, refreshUser } = useTelegram();
   const { t, locale } = useI18n();
+  const [aiMode, setAiMode] = useState<'fridge' | 'budget'>('fridge');
   const recipes = useMemo(() => RECIPES_BY_LOCALE[locale], [locale]);
   const [expiringItems, setExpiringItems] = useState<FridgeItem[]>([]);
   const [savedRecipes, setSavedRecipes] = useState<SavedRecipe[]>([]);
@@ -83,12 +84,16 @@ export default function RecipesPage() {
 
   const isPremium = hasPremiumAccess(userProfile || dbUser || {});
 
-  const getAIRecipes = async (preferExpiring = false) => {
+  const getAIRecipes = async (
+    opts: { preferExpiring?: boolean; budget?: boolean } = {}
+  ) => {
+    const { preferExpiring = false, budget = false } = opts;
     if (!auth) return;
     if (!isPremium && (userProfile?.ai_recipes_this_month || 0) >= FREE_AI_RECIPES_PER_MONTH) {
       alert(t('recipes.limitAlert', { limit: FREE_AI_RECIPES_PER_MONTH }));
       return;
     }
+    setAiMode(budget ? 'budget' : 'fridge');
     setShowAI(true);
     setAiLoading(true);
     try {
@@ -113,6 +118,8 @@ export default function RecipesPage() {
           initData,
           telegram_user_id: user?.id,
           save: true,
+          mode: budget ? 'budget' : 'fridge',
+          locale,
         }),
       });
       const json = await res.json();
@@ -190,7 +197,7 @@ export default function RecipesPage() {
     if (params.get('cook') === 'expiring') {
       cookTriggered.current = true;
       window.history.replaceState({}, '', window.location.pathname);
-      getAIRecipes(true);
+      getAIRecipes({ preferExpiring: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth]);
@@ -335,6 +342,19 @@ export default function RecipesPage() {
           </div>
         </button>
 
+        <button
+          onClick={() => getAIRecipes({ budget: true })}
+          className="w-full bg-surface border border-border hover:border-accent/50 rounded-2xl p-4 text-left transition-all"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-medium">{t('recipes.budgetTitle')}</h3>
+              <p className="text-sm text-muted">{t('recipes.budgetDesc')}</p>
+            </div>
+            <span className="text-2xl">💸</span>
+          </div>
+        </button>
+
         {showAI && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-surface border border-border rounded-3xl p-6 max-w-sm w-full max-h-[80vh] overflow-y-auto">
@@ -350,7 +370,9 @@ export default function RecipesPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <h2 className="text-xl font-bold">{t('recipes.forYou')}</h2>
+                  <h2 className="text-xl font-bold">
+                    {aiMode === 'budget' ? t('recipes.budgetTitle') : t('recipes.forYou')}
+                  </h2>
                   {aiRecipes.map((r, i) => (
                     <div key={i} className="bg-background border border-border rounded-2xl p-4">
                       <div className="flex items-center gap-2 mb-2">

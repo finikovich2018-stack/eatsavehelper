@@ -103,7 +103,7 @@ export const dataApi = {
         withAuth(auth, { op: 'consume', id, action })
       ),
     stats: (auth: AuthPayload) =>
-      apiPost<{ eaten: number; wasted: number; available: boolean }>(
+      apiPost<{ eaten: number; wasted: number; wasteFreeDays: number; available: boolean }>(
         '/api/fridge',
         withAuth(auth, { op: 'stats' })
       ),

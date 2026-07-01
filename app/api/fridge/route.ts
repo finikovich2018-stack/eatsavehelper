@@ -123,13 +123,33 @@ export async function POST(req: NextRequest) {
       );
 
       if (error) {
-        return NextResponse.json({ eaten: 0, wasted: 0, available: false });
+        return NextResponse.json({ eaten: 0, wasted: 0, wasteFreeDays: 0, available: false });
       }
 
       const rows = (data || []) as { action: string }[];
       const eaten = rows.filter((r) => r.action === 'eaten').length;
       const wasted = rows.filter((r) => r.action === 'wasted').length;
-      return NextResponse.json({ eaten, wasted, available: true });
+
+      // "No waste" streak: days since the last wasted item (all-time). If nothing
+      // was ever wasted, count from the first logged action instead.
+      const { data: lastWasted } = await applyDataScope(
+        supabase.from('fridge_log').select('logged_at').eq('action', 'wasted')
+          .order('logged_at', { ascending: false }).limit(1),
+        scope
+      ).maybeSingle();
+      const { data: firstLog } = await applyDataScope(
+        supabase.from('fridge_log').select('logged_at')
+          .order('logged_at', { ascending: true }).limit(1),
+        scope
+      ).maybeSingle();
+
+      let wasteFreeDays = 0;
+      const ref = lastWasted?.logged_at || firstLog?.logged_at;
+      if (ref) {
+        wasteFreeDays = Math.max(0, Math.floor((Date.now() - new Date(ref).getTime()) / 86400000));
+      }
+
+      return NextResponse.json({ eaten, wasted, wasteFreeDays, available: true });
     }
 
     return NextResponse.json({ error: 'Unknown op' }, { status: 400 });

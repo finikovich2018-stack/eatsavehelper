@@ -24,6 +24,16 @@ type ParsedItem = {
   icon?: string;
 };
 
+// Fallback shelf life (days) by product type when the receipt doesn't specify one.
+const CATEGORY_EXPIRY: Record<string, number> = {
+  dairy: 7, meat: 3, veg: 5, grains: 30, other: 7,
+};
+
+function defaultExpiryDays(item: ParsedItem) {
+  if (item.expiry_days && item.expiry_days > 0) return item.expiry_days;
+  return CATEGORY_EXPIRY[item.category || 'other'] ?? 7;
+}
+
 export default function ScanPage() {
   const auth = useDataAuth();
   const { user, dbUser, initData, refreshUser } = useTelegram();
@@ -32,7 +42,7 @@ export default function ScanPage() {
   const [userProfile, setUserProfile] = useState<any>(null);
   const isPremium = hasPremiumAccess(userProfile || dbUser || {});
   const [fridgeCount, setFridgeCount] = useState(0);
-  const [image, setImage] = useState<string | null>(null);
+  const [images, setImages] = useState<string[]>([]);
   const [items, setItems] = useState<ParsedItem[]>([]);
   const [currency, setCurrency] = useState<string>('RUB');
   const [loading, setLoading] = useState(false);
@@ -81,50 +91,77 @@ export default function ScanPage() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
+    input.multiple = true;
     input.onchange = (e: Event) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => setImage(reader.result as string);
-      reader.readAsDataURL(file);
-      setItems([]);
-      setSaved(false);
-      setCurrency('RUB');
+      const files = Array.from((e.target as HTMLInputElement).files || []);
+      if (files.length === 0) return;
+      Promise.all(
+        files.map(
+          (file) =>
+            new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.readAsDataURL(file);
+            })
+        )
+      ).then((imgs) => {
+        setImages(imgs);
+        setItems([]);
+        setSaved(false);
+        setCurrency('RUB');
+      });
     };
     input.click();
   };
 
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const parseReceipt = async () => {
-    if (!image) return;
+    if (images.length === 0) return;
     setLoading(true);
+    const collected: ParsedItem[] = [];
+    let detectedCurrency = '';
+    let processed = 0;
     try {
-      const res = await fetch('/api/ai/parse-receipt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          image,
-          initData,
-          telegram_user_id: testUserId,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (res.status === 429) {
-          alert(t('scan.limitAlert', { limit: FREE_SCANS_PER_MONTH }));
-          return;
-        }
-        throw new Error(data.details || data.error || t('common.error'));
-      }
-      setItems(data.items || []);
-      if (data.currency) setCurrency(data.currency);
-      setUserProfile((prev: any) =>
-        prev
-          ? {
-              ...prev,
-              scans_this_month: data.scans_this_month ?? (prev.scans_this_month || 0) + 1,
+      for (const img of images) {
+        const res = await fetch('/api/ai/parse-receipt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image: img,
+            initData,
+            telegram_user_id: testUserId,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (res.status === 429) {
+            if (processed === 0) {
+              alert(t('scan.limitAlert', { limit: FREE_SCANS_PER_MONTH }));
+              return;
             }
-          : prev
-      );
+            alert(t('scan.limitAlert', { limit: FREE_SCANS_PER_MONTH }));
+            break;
+          }
+          throw new Error(data.details || data.error || t('common.error'));
+        }
+        collected.push(...((data.items || []) as ParsedItem[]));
+        if (!detectedCurrency && data.currency) detectedCurrency = data.currency;
+        processed += 1;
+        setUserProfile((prev: any) =>
+          prev
+            ? {
+                ...prev,
+                scans_this_month: data.scans_this_month ?? (prev.scans_this_month || 0) + 1,
+              }
+            : prev
+        );
+      }
+
+      setItems(collected);
+      if (detectedCurrency) setCurrency(detectedCurrency);
       refreshUser().then((profile) => {
         if (profile) setUserProfile(profile);
       });
@@ -166,7 +203,7 @@ export default function ScanPage() {
 
       const rows = batch.map((item) => {
         const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + (item.expiry_days || 7));
+        expiryDate.setDate(expiryDate.getDate() + defaultExpiryDays(item));
         return {
           name: item.name,
           category: item.category || 'other',
@@ -205,7 +242,7 @@ export default function ScanPage() {
       } else {
         setSaved(true);
         setItems([]);
-        setImage(null);
+        setImages([]);
         setFridgeCount(currentCount + batch.length);
       }
     } catch {
@@ -249,9 +286,33 @@ export default function ScanPage() {
           </div>
         )}
 
-        {image && (
+        {images.length > 0 && (
           <div className="mt-6">
-            <img src={image} className="w-full rounded-2xl mb-4 border border-border" alt={t('scan.receiptAlt')} />
+            {images.length > 1 && (
+              <p className="text-xs text-muted mb-2">
+                {t('scan.receiptsSelected', { count: images.length })}
+              </p>
+            )}
+            <div className={images.length > 1 ? 'grid grid-cols-2 gap-2 mb-4' : 'mb-4'}>
+              {images.map((img, i) => (
+                <div key={i} className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={img}
+                    className="w-full rounded-2xl border border-border"
+                    alt={t('scan.receiptAlt')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm"
+                    aria-label="Remove"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
             <button
               onClick={parseReceipt}
               disabled={loading}
@@ -317,7 +378,7 @@ export default function ScanPage() {
                           min={1}
                           placeholder={t('scan.expiryDays')}
                           className="w-full bg-surface border border-border rounded-lg px-3 py-2 pr-10 text-sm outline-none"
-                          value={item.expiry_days ?? 7}
+                          value={item.expiry_days ?? defaultExpiryDays(item)}
                           onChange={(e) => updateItem(i, 'expiry_days', parseInt(e.target.value, 10) || 7)}
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted pointer-events-none">

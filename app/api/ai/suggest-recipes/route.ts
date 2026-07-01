@@ -15,10 +15,28 @@ function getAnthropic() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 }
 
-const RECIPE_PROMPT = (ingredients: string[]) =>
-  `У меня в холодильнике есть: ${ingredients.join(', ')}. Предложи 3 рецепта которые можно приготовить. Верни ТОЛЬКО JSON массив без markdown:
+const JSON_SHAPE_RU =
+  '[{"name":"Название","icon":"🍳","time":"20 мин","ingredients":[],"steps":"","usesFromFridge":[]}]';
+const JSON_SHAPE_EN =
+  '[{"name":"Name","icon":"🍳","time":"20 min","ingredients":[],"steps":"","usesFromFridge":[]}]';
 
-[{"name":"Название","icon":"🍳","time":"20 мин","ingredients":[],"steps":"","usesFromFridge":[]}]`;
+function buildRecipePrompt(
+  ingredients: string[],
+  opts: { budget?: boolean; locale?: string }
+) {
+  const list = ingredients.join(', ');
+  const isEn = opts.locale === 'en';
+
+  if (opts.budget) {
+    return isEn
+      ? `I have these products at home: ${list}. Suggest 3 budget-friendly recipes that use mostly what I already have and require as few extra cheap ingredients as possible. Prefer simple, affordable dishes. Return ONLY a JSON array without markdown:\n\n${JSON_SHAPE_EN}`
+      : `У меня дома есть: ${list}. Предложи 3 бюджетных рецепта, которые используют в основном то, что уже есть, и требуют как можно меньше дешёвых докупок. Предпочитай простые и недорогие блюда. Верни ТОЛЬКО JSON массив без markdown:\n\n${JSON_SHAPE_RU}`;
+  }
+
+  return isEn
+    ? `I have these products in my fridge: ${list}. Suggest 3 recipes I can cook. Return ONLY a JSON array without markdown:\n\n${JSON_SHAPE_EN}`
+    : `У меня в холодильнике есть: ${list}. Предложи 3 рецепта которые можно приготовить. Верни ТОЛЬКО JSON массив без markdown:\n\n${JSON_SHAPE_RU}`;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,7 +47,8 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
-    const { ingredients, save } = body;
+    const { ingredients, save, mode, locale } = body;
+    const budget = mode === 'budget';
 
     let finalIngredients = ingredients;
 
@@ -49,18 +68,20 @@ export async function POST(req: NextRequest) {
 
     let text = '';
 
+    const prompt = buildRecipePrompt(finalIngredients, { budget, locale });
+
     if (process.env.NEXT_PUBLIC_WORKER_URL) {
       text = await callClaudeViaWorker({
         userId: auth.userId,
         isPremium: isPremiumActive(user),
-        messages: [{ role: 'user', content: RECIPE_PROMPT(finalIngredients) }],
+        messages: [{ role: 'user', content: prompt }],
       });
     } else {
       const anthropic = getAnthropic();
       const response = await anthropic.messages.create({
         model: getClaudeModel(),
         max_tokens: 1500,
-        messages: [{ role: 'user', content: RECIPE_PROMPT(finalIngredients) }],
+        messages: [{ role: 'user', content: prompt }],
       });
 
       text = response.content

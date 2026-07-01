@@ -11,6 +11,7 @@ import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
 import { isPremiumActive, hasPremiumAccess } from '@/lib/user-utils';
 import { formatLocalDate } from '@/lib/utils';
+import { readSessionCache, writeSessionCache } from '@/lib/session-cache';
 import type { TranslationKey } from '@/lib/i18n/translations';
 
 const CATEGORY_KEYS = ['all', 'dairy', 'meat', 'veg', 'grains', 'other'] as const;
@@ -155,10 +156,43 @@ function FridgePageContent() {
     }
   }, [auth]);
 
+  const loadAll = useCallback(async () => {
+    if (!auth) return;
+    type CacheShape = { items: Item[]; consumeStats: typeof consumeStats };
+    const cacheKey = `eatsave_fridge_v1_${auth.telegram_user_id}`;
+
+    const cached = readSessionCache<CacheShape>(cacheKey);
+    if (cached) {
+      setItems(cached.items || []);
+      setConsumeStats(cached.consumeStats ?? null);
+      setLoading(false);
+    }
+
+    const [listRes, statsRes] = await Promise.all([
+      dataApi.fridge.list(auth).catch(() => null),
+      dataApi.fridge.stats(auth).catch(() => null),
+    ]);
+
+    const nextItems = listRes ? ((listRes.items || []) as Item[]) : cached?.items || [];
+    const nextConsume =
+      statsRes && statsRes.available
+        ? {
+            eaten: statsRes.eaten,
+            wasted: statsRes.wasted,
+            wasteFreeDays: statsRes.wasteFreeDays,
+            wastedMoney: statsRes.wastedMoney || [],
+          }
+        : null;
+
+    if (listRes) setItems(nextItems);
+    setConsumeStats(nextConsume);
+    setLoading(false);
+    writeSessionCache<CacheShape>(cacheKey, { items: nextItems, consumeStats: nextConsume });
+  }, [auth]);
+
   useEffect(() => {
-    loadItems();
-    loadStats();
-  }, [loadItems, loadStats]);
+    loadAll();
+  }, [loadAll]);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {

@@ -6,6 +6,7 @@ import { dataApi } from '@/lib/client-api';
 import { useDataAuth } from '@/lib/use-data-auth';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { formatLocalDate } from '@/lib/utils';
+import { readSessionCache, writeSessionCache } from '@/lib/session-cache';
 import type { TranslationKey } from '@/lib/i18n/translations';
 
 type Expense = {
@@ -82,31 +83,44 @@ export default function BudgetPage() {
 
   const monthStart = getCurrentMonth();
 
-  const loadBudgets = useCallback(async () => {
+  const loadAll = useCallback(async () => {
     if (!auth) return;
-    const { items } = await dataApi.budgets.list(auth, monthStart);
-    const limits: Record<string, number> = { ...DEFAULT_LIMITS };
-    (items || []).forEach((row: { amount: number; currency: string }) => {
-      limits[row.currency] = Number(row.amount);
-    });
-    setBudgetLimits(limits);
-  }, [auth, monthStart]);
+    type CacheShape = { expenses: Expense[]; budgetLimits: Record<string, number> };
+    const cacheKey = `eatsave_budget_v1_${auth.telegram_user_id}`;
 
-  const loadExpenses = useCallback(async () => {
-    if (!auth) return;
-    setLoading(true);
-    try {
-      const { items } = await dataApi.expenses.list(auth);
-      setExpenses((items || []) as Expense[]);
-    } finally {
+    const cached = readSessionCache<CacheShape>(cacheKey);
+    if (cached) {
+      setExpenses(cached.expenses || []);
+      setBudgetLimits(cached.budgetLimits || {});
       setLoading(false);
     }
-  }, [auth]);
+
+    const [expensesRes, budgetsRes] = await Promise.all([
+      dataApi.expenses.list(auth).catch(() => null),
+      dataApi.budgets.list(auth, monthStart).catch(() => null),
+    ]);
+
+    const nextExpenses = expensesRes
+      ? ((expensesRes.items || []) as Expense[])
+      : cached?.expenses || [];
+
+    let nextLimits = cached?.budgetLimits || { ...DEFAULT_LIMITS };
+    if (budgetsRes) {
+      nextLimits = { ...DEFAULT_LIMITS };
+      (budgetsRes.items || []).forEach((row: { amount: number; currency: string }) => {
+        nextLimits[row.currency] = Number(row.amount);
+      });
+    }
+
+    if (expensesRes) setExpenses(nextExpenses);
+    setBudgetLimits(nextLimits);
+    setLoading(false);
+    writeSessionCache<CacheShape>(cacheKey, { expenses: nextExpenses, budgetLimits: nextLimits });
+  }, [auth, monthStart]);
 
   useEffect(() => {
-    loadExpenses();
-    loadBudgets();
-  }, [loadExpenses, loadBudgets]);
+    loadAll();
+  }, [loadAll]);
 
   async function saveBudgetLimit() {
     if (!auth || !budgetForm.amount) return;

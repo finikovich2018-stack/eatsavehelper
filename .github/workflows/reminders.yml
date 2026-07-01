@@ -1,0 +1,36 @@
+name: Food reminders (hourly)
+
+# Triggers the EatSave reminder endpoint every hour. The endpoint itself only
+# notifies users whose chosen local hour matches the current time, so running
+# hourly enables per-user notification times without a paid Vercel cron plan.
+
+on:
+  schedule:
+    - cron: '0 * * * *' # every hour, at minute 0 (UTC)
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call reminder endpoint
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "Missing APP_URL or CRON_SECRET repository secret" >&2
+            exit 1
+          fi
+          BASE="${APP_URL%/}"
+          BASE="${BASE%/home}"
+          echo "Calling $BASE/api/cron/check-expiry"
+          HTTP_CODE=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE/api/cron/check-expiry")
+          echo "HTTP $HTTP_CODE"
+          cat /tmp/resp.json
+          echo
+          if [ "$HTTP_CODE" != "200" ]; then
+            exit 1
+          fi

@@ -101,11 +101,26 @@ export async function GET(req: Request) {
   }
 
   let sent = 0;
+  const notifiedIds: number[] = [];
   for (const user of users) {
     const text = buildFoodReminderMessage(user);
     if (!text) continue;
     const ok = await sendMessage(user.chat_id, text, reminderAppUrl(user));
-    if (ok) sent++;
+    if (ok) {
+      sent++;
+      notifiedIds.push(user.telegram_user_id);
+    }
+  }
+
+  // Guard against duplicate sends within the same local day (safe if the
+  // endpoint is triggered more than once per hour by different schedulers).
+  if (notifiedIds.length > 0) {
+    const { error: markError } = await supabase.rpc('mark_reminded', {
+      user_ids: notifiedIds,
+    });
+    if (markError) {
+      console.error('mark_reminded error:', markError.message);
+    }
   }
 
   return NextResponse.json({

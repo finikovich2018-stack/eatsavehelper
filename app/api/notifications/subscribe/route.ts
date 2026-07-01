@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const { telegram_chat_id, register_only } = body;
+    const { telegram_chat_id, register_only, timezone } = body;
     const userId = auth.userId;
     const chatId = Number(telegram_chat_id ?? userId);
 
@@ -23,12 +23,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing chat id' }, { status: 400 });
     }
 
+    let validTimezone: string | null = null;
+    if (typeof timezone === 'string' && timezone.trim()) {
+      try {
+        Intl.DateTimeFormat('en-US', { timeZone: timezone });
+        validTimezone = timezone;
+      } catch {
+        validTimezone = null;
+      }
+    }
+
     const supabase = getSupabaseAdmin();
 
     if (register_only) {
+      const registerPatch: Record<string, unknown> = { telegram_chat_id: chatId };
+      if (validTimezone) registerPatch.timezone = validTimezone;
+
       const { data, error } = await supabase
         .from('users')
-        .update({ telegram_chat_id: chatId })
+        .update(registerPatch)
         .eq('telegram_user_id', userId)
         .select('notifications_enabled')
         .maybeSingle();
@@ -49,6 +62,8 @@ export async function POST(req: NextRequest) {
       telegram_user_id: userId,
       telegram_chat_id: chatId,
     };
+
+    if (validTimezone) patch.timezone = validTimezone;
 
     if (!register_only) {
       patch.notifications_enabled = true;

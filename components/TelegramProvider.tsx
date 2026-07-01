@@ -16,6 +16,17 @@ export interface DbUser {
   ai_recipes_this_month?: number;
   achievement_bonus_month?: string | null;
   effective_premium?: boolean;
+  notifications_enabled?: boolean;
+  notify_hour?: number;
+  timezone?: string;
+}
+
+function getBrowserTimezone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 interface TelegramData {
@@ -51,6 +62,7 @@ async function registerChatForNotifications(
         telegram_user_id: telegramUserId,
         telegram_chat_id: telegramChatId,
         register_only: true,
+        timezone: getBrowserTimezone(),
       }),
     });
   } catch (e) {

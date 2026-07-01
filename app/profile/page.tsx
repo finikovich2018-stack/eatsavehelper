@@ -25,6 +25,8 @@ type UserProfile = {
   is_premium?: boolean;
   premium_until?: string | null;
   notifications_enabled?: boolean;
+  notify_hour?: number;
+  timezone?: string;
   achievement_bonus_month?: string | null;
 };
 
@@ -59,6 +61,7 @@ export default function ProfilePage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [premiumBusy, setPremiumBusy] = useState(false);
   const [notificationsBusy, setNotificationsBusy] = useState(false);
+  const [notifyTimeBusy, setNotifyTimeBusy] = useState(false);
   const [recentReceipts, setRecentReceipts] = useState<ReceiptRow[]>([]);
   const [stats, setStats] = useState<Stats>({
     fridgeCount: 0,
@@ -390,6 +393,55 @@ export default function ProfilePage() {
       alert(t('common.networkError'));
     } finally {
       setNotificationsBusy(false);
+    }
+  };
+
+  const changeNotifyHour = async (hour: number) => {
+    if (!user?.id || notifyTimeBusy) return;
+
+    const prevHour = userProfile?.notify_hour ?? 12;
+    setNotifyTimeBusy(true);
+    setUserProfile((prev) => (prev ? { ...prev, notify_hour: hour } : prev));
+
+    let timezone = 'Europe/Moscow';
+    try {
+      timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || timezone;
+    } catch {
+      /* keep default */
+    }
+
+    try {
+      const res = await fetch('/api/notifications/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          initData,
+          telegram_user_id: user.id,
+          telegram_chat_id: user.id,
+          notify_hour: hour,
+          timezone,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setUserProfile((prev) => (prev ? { ...prev, notify_hour: prevHour } : prev));
+        alert(data.error || t('profile.notifySaveError'));
+        return;
+      }
+      setUserProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              notify_hour: data.notify_hour ?? hour,
+              timezone: data.timezone ?? timezone,
+            }
+          : prev
+      );
+    } catch {
+      setUserProfile((prev) => (prev ? { ...prev, notify_hour: prevHour } : prev));
+      alert(t('common.networkError'));
+    } finally {
+      setNotifyTimeBusy(false);
     }
   };
 
@@ -761,6 +813,28 @@ export default function ProfilePage() {
                 />
               </button>
             </div>
+
+            {notificationsEnabled && (
+              <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-medium text-foreground">{t('profile.notifyTime')}</p>
+                  <p className="text-sm text-muted mt-1">{t('profile.notifyTimeDesc')}</p>
+                </div>
+                <select
+                  disabled={notifyTimeBusy}
+                  value={userProfile?.notify_hour ?? 12}
+                  onChange={(e) => changeNotifyHour(Number(e.target.value))}
+                  className="bg-background border border-border rounded-xl px-3 py-2 text-foreground font-medium disabled:opacity-60 focus:outline-none focus:border-accent"
+                  aria-label={t('profile.notifyTime')}
+                >
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <option key={h} value={h}>
+                      {String(h).padStart(2, '0')}:00
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
 

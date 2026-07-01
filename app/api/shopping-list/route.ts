@@ -113,6 +113,51 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    if (op === 'suggestions') {
+      // Suggest products the user eats regularly but that are no longer in the
+      // fridge and not already on the shopping list. Derived from fridge_log.
+      const since = new Date(Date.now() - 90 * 86400000).toISOString();
+      const { data: eatenRows, error: eatenError } = await applyDataScope(
+        supabase.from('fridge_log').select('name, category').eq('action', 'eaten').gte('logged_at', since),
+        scope
+      );
+      if (eatenError || !eatenRows) {
+        return NextResponse.json({ suggestions: [] });
+      }
+
+      const freq = new Map<string, { name: string; category: string | null; count: number }>();
+      for (const row of eatenRows as { name: string | null; category: string | null }[]) {
+        const raw = (row.name || '').trim();
+        if (!raw) continue;
+        const key = raw.toLowerCase();
+        const prev = freq.get(key);
+        if (prev) prev.count += 1;
+        else freq.set(key, { name: raw, category: row.category, count: 1 });
+      }
+
+      const [fridgeRes, listRes] = await Promise.all([
+        applyDataScope(supabase.from('fridge_items').select('name'), scope),
+        applyDataScope(
+          supabase.from('shopping_list_items').select('name').eq('checked', false),
+          scope
+        ),
+      ]);
+      const inFridge = new Set(
+        ((fridgeRes.data || []) as { name: string | null }[]).map((r) => (r.name || '').trim().toLowerCase())
+      );
+      const inList = new Set(
+        ((listRes.data || []) as { name: string | null }[]).map((r) => (r.name || '').trim().toLowerCase())
+      );
+
+      const suggestions = Array.from(freq.entries())
+        .filter(([key, v]) => v.count >= 2 && !inFridge.has(key) && !inList.has(key))
+        .map(([, v]) => v)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 6);
+
+      return NextResponse.json({ suggestions });
+    }
+
     if (op === 'clear_checked') {
       const query = applyDataScope(
         supabase.from('shopping_list_items').delete().eq('checked', true),

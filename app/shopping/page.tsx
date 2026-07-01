@@ -10,11 +10,18 @@ import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
 import { defaultExpiryDate } from '@/lib/shopping-utils';
 import { hasPremiumAccess } from '@/lib/user-utils';
 
+const SUGGEST_ICONS: Record<string, string> = {
+  dairy: '🥛', meat: '🍗', veg: '🥦', grains: '🌾', other: '📦',
+};
+
 export default function ShoppingPage() {
   const auth = useDataAuth();
   const { dbUser, refreshUser } = useTelegram();
   const { t } = useI18n();
   const [items, setItems] = useState<ApiShoppingItem[]>([]);
+  const [suggestions, setSuggestions] = useState<
+    { name: string; category: string | null; count: number }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', quantity: '' });
@@ -36,9 +43,20 @@ export default function ShoppingPage() {
     }
   }, [auth]);
 
+  const loadSuggestions = useCallback(async () => {
+    if (!auth) return;
+    try {
+      const { suggestions: rows } = await dataApi.shopping.suggestions(auth);
+      setSuggestions(rows || []);
+    } catch {
+      setSuggestions([]);
+    }
+  }, [auth]);
+
   useEffect(() => {
     loadItems();
-  }, [loadItems]);
+    loadSuggestions();
+  }, [loadItems, loadSuggestions]);
 
   const pending = useMemo(() => items.filter((i) => !i.checked), [items]);
   const bought = useMemo(() => items.filter((i) => i.checked), [items]);
@@ -57,6 +75,21 @@ export default function ShoppingPage() {
     }
     setForm({ name: '', quantity: '' });
     setShowForm(false);
+  }
+
+  async function addSuggestion(name: string) {
+    if (!auth) return;
+    setSuggestions((prev) => prev.filter((s) => s.name !== name));
+    const { items: inserted } = await dataApi.shopping.insert(auth, [
+      { name, source: 'suggested' },
+    ]);
+    const row = (inserted || [])[0];
+    if (row) {
+      setItems((prev) => {
+        const without = prev.filter((p) => p.id !== row.id);
+        return [row, ...without];
+      });
+    }
   }
 
   async function toggleItem(item: ApiShoppingItem) {
@@ -122,6 +155,25 @@ export default function ShoppingPage() {
           <p className="text-xs text-muted mb-4 text-center">
             {t('shopping.itemsCount', { count: pending.length })}
           </p>
+        )}
+
+        {suggestions.length > 0 && (
+          <div className="mb-5">
+            <div className="text-xs text-muted mb-1.5">💡 {t('shopping.suggestTitle')}</div>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              {suggestions.map((s) => (
+                <button
+                  key={s.name}
+                  type="button"
+                  onClick={() => addSuggestion(s.name)}
+                  className="whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium bg-surface border border-accent/40 text-foreground active:scale-95 transition"
+                >
+                  {SUGGEST_ICONS[s.category || 'other'] || '📦'} {s.name}
+                  <span className="text-accent ml-1">+</span>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
         {showForm && (

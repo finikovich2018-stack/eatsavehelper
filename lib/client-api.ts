@@ -172,6 +172,11 @@ export const dataApi = {
       apiPost<{ ok: true }>('/api/shopping-list', withAuth(auth, { op: 'delete', id })),
     clearChecked: (auth: AuthPayload) =>
       apiPost<{ ok: true }>('/api/shopping-list', withAuth(auth, { op: 'clear_checked' })),
+    suggestions: (auth: AuthPayload) =>
+      apiPost<{ suggestions: { name: string; category: string | null; count: number }[] }>(
+        '/api/shopping-list',
+        withAuth(auth, { op: 'suggestions' })
+      ),
     count: (auth: AuthPayload) =>
       apiPost<{ count: number }>('/api/shopping-list', withAuth(auth, { op: 'count' })),
   },

@@ -42,6 +42,13 @@ export async function POST(req: NextRequest) {
           msg.referralReward(REFERRAL_BONUS_DAYS, until),
           { buttonText: msg.openApp }
         );
+        if (result.milestoneDays) {
+          await sendBotMessage(
+            referrer.telegram_chat_id,
+            msg.referralMilestone(result.milestoneDays, until),
+            { buttonText: msg.openApp }
+          );
+        }
       }
     }
 

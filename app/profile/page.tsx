@@ -89,6 +89,9 @@ export default function ProfilePage() {
     invited: number;
     bonusDays: number;
     bonusPerInvite: number;
+    milestoneSize?: number;
+    milestoneBonusDays?: number;
+    toNextMilestone?: number;
   } | null>(null);
   const [referralBusy, setReferralBusy] = useState(false);
 
@@ -659,6 +662,19 @@ export default function ProfilePage() {
               <p className="text-sm text-muted">
                 {t('referral.desc', { days: referral.bonusPerInvite || REFERRAL_BONUS_DAYS })}
               </p>
+              {referral.milestoneBonusDays && referral.milestoneSize && (
+                <div className="bg-accent/10 border border-accent/30 rounded-xl p-3 text-sm">
+                  <div className="text-accent font-medium">
+                    {t('referral.milestone', {
+                      count: referral.milestoneSize,
+                      days: referral.milestoneBonusDays,
+                    })}
+                  </div>
+                  <div className="text-muted mt-1">
+                    {t('referral.milestoneProgress', { n: referral.toNextMilestone ?? referral.milestoneSize })}
+                  </div>
+                </div>
+              )}
               <div className="flex flex-wrap gap-3 text-sm">
                 <span className="text-accent font-medium">
                   {t('referral.invited', { count: referral.invited })}

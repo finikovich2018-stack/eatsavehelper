@@ -54,6 +54,8 @@ const MESSAGES = {
       '🎁 Вас пригласили в EatSave!\n\nОткройте приложение — друг получит +3 дня Premium, когда вы начнёте пользоваться.',
     referralReward: (days: number, until: string) =>
       `🎉 По вашей ссылке пришёл новый друг!\n\n+${days} дня Premium${until ? ` — активен до ${until}` : ''}. Спасибо, что делитесь EatSave!`,
+    referralMilestone: (days: number, until: string) =>
+      `🏆 Веха достигнута! Вы пригласили ещё одну тройку друзей.\n\n+${days} дней Premium${until ? ` — активен до ${until}` : ''}. Продолжайте в том же духе!`,
   },
   en: {
     start: (name: string) =>
@@ -100,6 +102,8 @@ const MESSAGES = {
       '🎁 You were invited to EatSave!\n\nOpen the app — your friend gets +3 days Premium when you start using it.',
     referralReward: (days: number, until: string) =>
       `🎉 A new friend joined via your link!\n\n+${days} days Premium${until ? ` — active until ${until}` : ''}. Thanks for sharing EatSave!`,
+    referralMilestone: (days: number, until: string) =>
+      `🏆 Milestone reached! You've invited another three friends.\n\n+${days} days Premium${until ? ` — active until ${until}` : ''}. Keep it up!`,
   },
 } as const;
 

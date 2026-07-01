@@ -3,6 +3,8 @@ import {
   HOUSEHOLD_BOT_USERNAME,
   MAX_REFERRALS_PER_MONTH,
   REFERRAL_BONUS_DAYS,
+  REFERRAL_MILESTONE,
+  REFERRAL_MILESTONE_BONUS_DAYS,
   REFERRAL_NEW_USER_HOURS,
 } from '@/lib/constants';
 import { activatePremium } from '@/lib/premium';
@@ -72,12 +74,18 @@ export async function getReferralStats(supabase: SupabaseClient, telegramUserId:
 
   const bonusDays = (rows || []).reduce((sum, row) => sum + Number(row.reward_days || 0), 0);
 
+  const invited = count || 0;
+  const toNextMilestone = REFERRAL_MILESTONE - (invited % REFERRAL_MILESTONE);
+
   return {
     code,
     link: referralLink(code),
-    invited: count || 0,
+    invited,
     bonusDays,
     bonusPerInvite: REFERRAL_BONUS_DAYS,
+    milestoneSize: REFERRAL_MILESTONE,
+    milestoneBonusDays: REFERRAL_MILESTONE_BONUS_DAYS,
+    toNextMilestone,
   };
 }
 
@@ -85,6 +93,7 @@ export type ReferralClaimResult = {
   ok: true;
   alreadyClaimed?: boolean;
   bonusDays?: number;
+  milestoneDays?: number;
   referrerId?: number;
   premiumUntil?: string | null;
 };
@@ -163,11 +172,25 @@ export async function claimReferralByToken(
     .update({ referred_by: referrer.telegram_user_id })
     .eq('telegram_user_id', refereeTelegramId);
 
-  const premium = await activatePremium(referrer.telegram_user_id, REFERRAL_BONUS_DAYS);
+  // Milestone bonus: every REFERRAL_MILESTONE invited friends grants extra days.
+  // Count includes the referral we just inserted, so each multiple is hit once.
+  const { count: totalInvited } = await supabase
+    .from('referrals')
+    .select('*', { count: 'exact', head: true })
+    .eq('referrer_telegram_user_id', referrer.telegram_user_id);
+
+  const milestoneDays =
+    totalInvited && totalInvited % REFERRAL_MILESTONE === 0 ? REFERRAL_MILESTONE_BONUS_DAYS : 0;
+
+  const premium = await activatePremium(
+    referrer.telegram_user_id,
+    REFERRAL_BONUS_DAYS + milestoneDays
+  );
 
   return {
     ok: true,
     bonusDays: REFERRAL_BONUS_DAYS,
+    milestoneDays,
     referrerId: referrer.telegram_user_id,
     premiumUntil: premium.premium_until,
   };

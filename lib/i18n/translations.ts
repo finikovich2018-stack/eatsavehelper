@@ -273,6 +273,8 @@ const ru = {
 
   'referral.title': '🎁 Пригласи друга',
   'referral.desc': 'Отправьте ссылку другу — когда он зарегистрируется, вы получите +{days} дня Premium',
+  'referral.milestone': '🏆 Каждые {count} друга — бонус +{days} дней Premium',
+  'referral.milestoneProgress': 'До награды осталось пригласить: {n}',
   'referral.invited': 'Приглашено: {count}',
   'referral.earned': 'Premium получено: +{days} дн.',
   'referral.invite': 'Поделиться ссылкой',
@@ -541,6 +543,8 @@ const en: Record<TranslationKey, string> = {
 
   'referral.title': '🎁 Invite a friend',
   'referral.desc': 'Share your link — when a friend signs up, you get +{days} days Premium',
+  'referral.milestone': '🏆 Every {count} friends — a +{days} days Premium bonus',
+  'referral.milestoneProgress': 'Invites left until the reward: {n}',
   'referral.invited': 'Invited: {count}',
   'referral.earned': 'Premium earned: +{days} days',
   'referral.invite': 'Share link',

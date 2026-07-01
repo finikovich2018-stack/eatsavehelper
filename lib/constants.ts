@@ -19,5 +19,9 @@ export const REFERRAL_BONUS_DAYS = 3;
 export const MAX_REFERRALS_PER_MONTH = 20;
 export const REFERRAL_NEW_USER_HOURS = 72;
 
+/** Referral milestone: every N invited friends grants a bigger Premium bonus. */
+export const REFERRAL_MILESTONE = 3;
+export const REFERRAL_MILESTONE_BONUS_DAYS = 30;
+
 /** Welcome trial: new users get Premium free for a few days to try everything. */
 export const TRIAL_PREMIUM_DAYS = 3;

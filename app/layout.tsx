@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomNav from "../components/layout/BottomNav";
 import { AppProviders } from "../components/AppProviders";
@@ -6,6 +6,20 @@ import { AppProviders } from "../components/AppProviders";
 export const metadata: Metadata = {
   title: "EatSave",
   description: "Smart fridge + smart wallet",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "EatSave",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#09090b",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

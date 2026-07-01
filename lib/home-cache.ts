@@ -1,6 +1,13 @@
 const CACHE_PREFIX = 'eatsave_home_v1';
 const CACHE_TTL_MS = 3 * 60 * 1000;
 
+export type HomeConsumeStats = {
+  eaten: number;
+  wasted: number;
+  wasteFreeDays: number;
+  wastedMoney: { currency: string; amount: number }[];
+} | null;
+
 export type HomeCachePayload = {
   savedAt: number;
   expiring: {
@@ -12,6 +19,7 @@ export type HomeCachePayload = {
   }[];
   budget: { spent: number; limit: number; currency: string };
   stats: { products: number; expiringSoon: number; recipes: number; shopping: number };
+  consumeStats?: HomeConsumeStats;
 };
 
 function cacheKey(userId: number) {

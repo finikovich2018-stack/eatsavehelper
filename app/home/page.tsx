@@ -63,22 +63,36 @@ export default function HomePage() {
     const cached = readHomeCache(auth.telegram_user_id);
     if (cached) {
       applySnapshot(cached, setExpiring, setStats, setBudget);
+      if (cached.consumeStats !== undefined) setConsumeStats(cached.consumeStats);
     }
 
-    try {
-      const data = await dataApi.home.summary(auth, getMonthStart());
-      const snapshot = buildHomeState(data);
+    // Fetch summary and monthly stats together so the whole page renders in one
+    // pass (no late-appearing "monthly summary" card / layout shift).
+    const [summaryRes, statsRes] = await Promise.all([
+      dataApi.home.summary(auth, getMonthStart()).catch((error) => {
+        console.error('Home load error:', error);
+        return null;
+      }),
+      dataApi.fridge.stats(auth).catch(() => null),
+    ]);
+
+    const nextConsume =
+      statsRes && statsRes.available
+        ? {
+            eaten: statsRes.eaten,
+            wasted: statsRes.wasted,
+            wasteFreeDays: statsRes.wasteFreeDays,
+            wastedMoney: statsRes.wastedMoney || [],
+          }
+        : null;
+
+    if (summaryRes) {
+      const snapshot = buildHomeState(summaryRes);
       applySnapshot(snapshot, setExpiring, setStats, setBudget);
-      writeHomeCache(auth.telegram_user_id, snapshot);
-    } catch (error) {
-      console.error('Home load error:', error);
-    }
-
-    try {
-      const { eaten, wasted, wasteFreeDays, wastedMoney, available } = await dataApi.fridge.stats(auth);
-      setConsumeStats(available ? { eaten, wasted, wasteFreeDays, wastedMoney: wastedMoney || [] } : null);
-    } catch {
-      setConsumeStats(null);
+      setConsumeStats(nextConsume);
+      writeHomeCache(auth.telegram_user_id, { ...snapshot, consumeStats: nextConsume });
+    } else {
+      setConsumeStats(nextConsume);
     }
   }, [auth]);
 

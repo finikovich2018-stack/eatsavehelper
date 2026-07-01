@@ -7,7 +7,7 @@ import { dataApi } from '@/lib/client-api';
 import { useDataAuth } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
-import { PREMIUM_PRICE_STARS, REFERRAL_BONUS_DAYS } from '@/lib/constants';
+import { FEEDBACK_CHANNEL_URL, PREMIUM_PRICE_STARS, REFERRAL_BONUS_DAYS } from '@/lib/constants';
 import { ACHIEVEMENT_BONUS_DAYS, computeAchievements } from '@/lib/achievements';
 import { hasPremiumAccess, isPremiumActive } from '@/lib/user-utils';
 import { formatLocalDate } from '@/lib/utils';
@@ -212,6 +212,16 @@ export default function ProfilePage() {
       alert(e instanceof Error ? e.message : t('common.error'));
     } finally {
       setReferralBusy(false);
+    }
+  };
+
+  const openChannel = () => {
+    const tg = (window as { Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } } })
+      .Telegram?.WebApp;
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(FEEDBACK_CHANNEL_URL);
+    } else {
+      window.open(FEEDBACK_CHANNEL_URL, '_blank');
     }
   };
 
@@ -695,6 +705,22 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+
+        <div className="space-y-4">
+          <h2 className="font-semibold text-foreground text-lg">{t('profile.channelTitle')}</h2>
+          <button
+            type="button"
+            onClick={openChannel}
+            className="w-full bg-surface border border-border rounded-2xl p-5 flex items-center gap-4 text-left active:scale-[0.99] transition"
+          >
+            <span className="text-3xl shrink-0">📣</span>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-foreground">{t('profile.channelBtn')}</div>
+              <div className="text-sm text-muted mt-0.5">{t('profile.channelDesc')}</div>
+            </div>
+            <span className="text-accent text-xl shrink-0">›</span>
+          </button>
+        </div>
 
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3">

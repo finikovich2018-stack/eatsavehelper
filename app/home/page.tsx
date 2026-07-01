@@ -48,6 +48,7 @@ export default function HomePage() {
   const [expiring, setExpiring] = useState<FridgeItem[]>([]);
   const [budget, setBudget] = useState<BudgetSummary>({ spent: 0, limit: 15000, currency: 'RUB' });
   const [stats, setStats] = useState({ products: 0, expiringSoon: 0, recipes: 0, shopping: 0 });
+  const [consumeStats, setConsumeStats] = useState<{ eaten: number; wasted: number } | null>(null);
 
   const monthName = new Date().toLocaleString(dateLocale, { month: 'long' });
 
@@ -66,6 +67,13 @@ export default function HomePage() {
       writeHomeCache(auth.telegram_user_id, snapshot);
     } catch (error) {
       console.error('Home load error:', error);
+    }
+
+    try {
+      const { eaten, wasted, available } = await dataApi.fridge.stats(auth);
+      setConsumeStats(available ? { eaten, wasted } : null);
+    } catch {
+      setConsumeStats(null);
     }
   }, [auth]);
 
@@ -103,6 +111,23 @@ export default function HomePage() {
               : t('home.overBudget', { amount: Math.abs(remaining).toLocaleString(), symbol })}
           </div>
         </div>
+
+        {consumeStats && consumeStats.eaten + consumeStats.wasted > 0 && (
+          <div className="bg-surface border border-border rounded-2xl p-4">
+            <div className="text-xs text-muted mb-3">{t('home.savingsSummary')}</div>
+            <div className="flex items-center justify-around text-center">
+              <div>
+                <div className="text-xl font-bold text-accent">🍽 {consumeStats.eaten}</div>
+                <div className="text-xs text-muted mt-0.5">{t('fridge.statEaten')}</div>
+              </div>
+              <div className="h-8 w-px bg-border" />
+              <div>
+                <div className="text-xl font-bold text-red-400">🗑 {consumeStats.wasted}</div>
+                <div className="text-xs text-muted mt-0.5">{t('fridge.statWasted')}</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div>
           <div className="flex items-center justify-between mb-3">

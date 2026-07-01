@@ -10,6 +10,7 @@ import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
 import { isPremiumActive, hasPremiumAccess } from '@/lib/user-utils';
+import { formatLocalDate } from '@/lib/utils';
 import type { TranslationKey } from '@/lib/i18n/translations';
 
 const CATEGORY_KEYS = ['all', 'dairy', 'meat', 'veg', 'grains', 'other'] as const;
@@ -46,6 +47,29 @@ function expiryColor(days: number) {
 const ICONS: Record<string, string> = {
   dairy: '🥛', meat: '🍗', veg: '🥦', grains: '🌾', other: '📦',
 };
+
+// Common products for 1-tap adding, with a sensible default shelf life (days).
+const QUICK_TEMPLATES: {
+  key: TranslationKey;
+  icon: string;
+  category: CategoryKey;
+  days: number;
+}[] = [
+  { key: 'tmpl.milk', icon: '🥛', category: 'dairy', days: 7 },
+  { key: 'tmpl.bread', icon: '🍞', category: 'grains', days: 4 },
+  { key: 'tmpl.eggs', icon: '🥚', category: 'dairy', days: 21 },
+  { key: 'tmpl.cheese', icon: '🧀', category: 'dairy', days: 14 },
+  { key: 'tmpl.chicken', icon: '🍗', category: 'meat', days: 3 },
+  { key: 'tmpl.tomato', icon: '🍅', category: 'veg', days: 7 },
+  { key: 'tmpl.banana', icon: '🍌', category: 'veg', days: 5 },
+  { key: 'tmpl.yogurt', icon: '🥛', category: 'dairy', days: 10 },
+];
+
+function expiryFromDays(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return formatLocalDate(d);
+}
 
 export default function FridgePage() {
   return (
@@ -140,6 +164,23 @@ function FridgePageContent() {
     setShowForm(false);
   }
 
+  async function quickAddTemplate(tmpl: (typeof QUICK_TEMPLATES)[number]) {
+    if (!auth) return;
+    if (atFridgeLimit) {
+      alert(t('fridge.limitAlert', { limit: FREE_FRIDGE_ITEMS }));
+      return;
+    }
+    const { items: inserted } = await dataApi.fridge.insert(auth, [{
+      name: t(tmpl.key),
+      category: tmpl.category,
+      quantity: '',
+      expiry_date: expiryFromDays(tmpl.days),
+      icon: tmpl.icon,
+    }]);
+    const data = (inserted || [])[0] as Item | undefined;
+    if (data) setItems((prev) => [...prev, data]);
+  }
+
   async function consumeItem(id: string, action: 'eaten' | 'wasted') {
     if (!auth) return;
     setItems((prev) => prev.filter((i) => i.id !== id));
@@ -216,6 +257,23 @@ function FridgePageContent() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+
+        <div className="mb-3">
+          <div className="text-xs text-muted mb-1.5">{t('tmpl.title')}</div>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {QUICK_TEMPLATES.map((tmpl) => (
+              <button
+                key={tmpl.key}
+                type="button"
+                onClick={() => quickAddTemplate(tmpl)}
+                disabled={atFridgeLimit}
+                className="whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium bg-surface border border-border text-foreground active:scale-95 transition disabled:opacity-40"
+              >
+                {tmpl.icon} {t(tmpl.key)}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {expiringOnly && (
           <div className="flex items-center justify-between mb-3 bg-yellow-400/10 border border-yellow-400/30 rounded-xl px-3 py-2">

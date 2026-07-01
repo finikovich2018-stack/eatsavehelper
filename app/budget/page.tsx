@@ -155,6 +155,25 @@ export default function BudgetPage() {
   const primaryLimit = budgetLimits[primaryCur] || DEFAULT_LIMITS[primaryCur];
   const primarySpent = byCurrency[primaryCur] || 0;
   const savedEstimate = Math.max(0, primaryLimit - primarySpent);
+  const primaryPercent = primaryLimit > 0 ? (primarySpent / primaryLimit) * 100 : 0;
+
+  const prevMonthKey = useMemo(() => {
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
+  const prevMonthSpent = expenses
+    .filter((e) => e.date.startsWith(prevMonthKey) && (e.currency || 'RUB') === primaryCur)
+    .reduce((sum, e) => sum + Number(e.amount), 0);
+
+  const monthDiffPct =
+    prevMonthSpent > 0 ? Math.round(((primarySpent - prevMonthSpent) / prevMonthSpent) * 100) : null;
+
+  const topSpends = useMemo(
+    () => [...monthExpenses].sort((a, b) => Number(b.amount) - Number(a.amount)).slice(0, 3),
+    [monthExpenses]
+  );
 
   return (
     <main className="min-h-screen bg-background text-foreground pb-24">
@@ -218,6 +237,30 @@ export default function BudgetPage() {
           </div>
         )}
 
+        {activeCurrencies.length > 0 && primaryPercent >= 80 && (
+          <div
+            className={`rounded-2xl p-4 mb-4 text-sm font-medium ${
+              primaryPercent >= 100
+                ? 'bg-red-500/10 border border-red-500/30 text-red-400'
+                : 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-400'
+            }`}
+          >
+            {t('budget.nearLimit', { pct: Math.round(primaryPercent) })}
+          </div>
+        )}
+
+        {activeCurrencies.length > 0 && monthDiffPct !== null && (
+          <div className="bg-surface border border-border rounded-2xl px-4 py-3 mb-4 text-sm text-center">
+            {monthDiffPct < 0 ? (
+              <span className="text-accent">{t('budget.vsLess', { pct: Math.abs(monthDiffPct) })}</span>
+            ) : monthDiffPct > 0 ? (
+              <span className="text-red-400">{t('budget.vsMore', { pct: monthDiffPct })}</span>
+            ) : (
+              <span className="text-muted">{t('budget.vsSame')}</span>
+            )}
+          </div>
+        )}
+
         {savedEstimate > 0 && activeCurrencies.length > 0 && (
           <div className="bg-accent/10 border border-accent/30 rounded-2xl p-4 mb-4 text-center">
             <span className="text-sm text-muted">{t('budget.savings')}</span>
@@ -225,6 +268,27 @@ export default function BudgetPage() {
               {savedEstimate.toLocaleString()} {CURRENCY_SYMBOLS[primaryCur] || primaryCur}
             </span>
             <span className="text-sm text-muted">{t('budget.savingsEnd')}</span>
+          </div>
+        )}
+
+        {topSpends.length > 0 && (
+          <div className="bg-surface border border-border rounded-2xl p-4 mb-4">
+            <h3 className="text-sm font-medium text-muted mb-3">{t('budget.topSpends')}</h3>
+            <div className="space-y-2">
+              {topSpends.map((exp, idx) => {
+                const symbol = CURRENCY_SYMBOLS[exp.currency] || exp.currency || '₽';
+                return (
+                  <div key={exp.id} className="flex items-center gap-3">
+                    <span className="text-xs text-muted w-4">{idx + 1}</span>
+                    <span className="text-lg">{exp.category}</span>
+                    <span className="flex-1 text-sm truncate">{exp.name}</span>
+                    <span className="text-sm font-semibold">
+                      {Number(exp.amount).toLocaleString()} {symbol}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

@@ -74,6 +74,7 @@ function FridgePageContent() {
     refreshUser().then(setLocalUser);
   }, [refreshUser]);
   const [items, setItems] = useState<Item[]>([]);
+  const [consumeStats, setConsumeStats] = useState<{ eaten: number; wasted: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
@@ -93,9 +94,20 @@ function FridgePageContent() {
     }
   }, [auth]);
 
+  const loadStats = useCallback(async () => {
+    if (!auth) return;
+    try {
+      const { eaten, wasted, available } = await dataApi.fridge.stats(auth);
+      setConsumeStats(available ? { eaten, wasted } : null);
+    } catch {
+      setConsumeStats(null);
+    }
+  }, [auth]);
+
   useEffect(() => {
     loadItems();
-  }, [loadItems]);
+    loadStats();
+  }, [loadItems, loadStats]);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -128,10 +140,21 @@ function FridgePageContent() {
     setShowForm(false);
   }
 
-  async function removeItem(id: string) {
+  async function consumeItem(id: string, action: 'eaten' | 'wasted') {
     if (!auth) return;
-    await dataApi.fridge.delete(auth, id);
-    setItems(items.filter((i) => i.id !== id));
+    setItems((prev) => prev.filter((i) => i.id !== id));
+    setConsumeStats((prev) => {
+      const base = prev ?? { eaten: 0, wasted: 0 };
+      return action === 'eaten'
+        ? { ...base, eaten: base.eaten + 1 }
+        : { ...base, wasted: base.wasted + 1 };
+    });
+    try {
+      await dataApi.fridge.consume(auth, id, action);
+    } catch {
+      loadItems();
+      loadStats();
+    }
   }
 
   async function addToShoppingList(item: Item, removeFromFridge = false) {
@@ -276,6 +299,22 @@ function FridgePageContent() {
           </div>
         </div>
 
+        {consumeStats && consumeStats.eaten + consumeStats.wasted > 0 && (
+          <div className="bg-surface border border-border rounded-2xl px-4 py-3 mb-6 flex items-center justify-around text-center">
+            <div>
+              <div className="text-lg font-bold text-accent">🍽 {consumeStats.eaten}</div>
+              <div className="text-xs text-muted mt-0.5">{t('fridge.statEaten')}</div>
+            </div>
+            <div className="h-8 w-px bg-border" />
+            <div>
+              <div className="text-lg font-bold text-red-400">🗑 {consumeStats.wasted}</div>
+              <div className="text-xs text-muted mt-0.5">{t('fridge.statWasted')}</div>
+            </div>
+            <div className="h-8 w-px bg-border" />
+            <div className="text-xs text-muted self-center">{t('fridge.consumeMonth')}</div>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center text-muted py-10">{t('common.loading')}</div>
         ) : filteredItems.length === 0 ? (
@@ -307,27 +346,41 @@ function FridgePageContent() {
                           : t('fridge.daysLeft', { n: days })}
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => addToShoppingList(item)}
-                      className="text-xs text-accent font-medium px-2 py-1 border border-accent/30 rounded-lg"
-                    >
-                      🛒
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => addToShoppingList(item, true)}
-                      className="text-[10px] text-muted px-1"
-                    >
-                      {t('fridge.outOfStock')}
-                    </button>
-                    <button
-                      onClick={() => removeItem(item.id)}
-                      className="text-muted hover:text-red-400 text-xl px-2"
-                    >
-                      ✕
-                    </button>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => consumeItem(item.id, 'eaten')}
+                        className="text-xs font-medium px-2 py-1 rounded-lg bg-accent/15 text-accent border border-accent/30 active:scale-95 transition"
+                      >
+                        🍽 {t('fridge.ate')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => consumeItem(item.id, 'wasted')}
+                        title={t('fridge.wasted')}
+                        aria-label={t('fridge.wasted')}
+                        className="text-xs font-medium px-2 py-1 rounded-lg bg-red-400/10 text-red-400 border border-red-400/30 active:scale-95 transition"
+                      >
+                        🗑
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => addToShoppingList(item)}
+                        className="text-xs text-accent font-medium px-2 py-1 border border-accent/30 rounded-lg"
+                      >
+                        🛒
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => addToShoppingList(item, true)}
+                        className="text-[10px] text-muted px-1"
+                      >
+                        {t('fridge.outOfStock')}
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

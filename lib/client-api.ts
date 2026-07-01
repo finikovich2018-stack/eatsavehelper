@@ -97,6 +97,16 @@ export const dataApi = {
       apiPost<{ items: ApiFridgeItem[] }>('/api/fridge', withAuth(auth, { op: 'insert', items })),
     delete: (auth: AuthPayload, id: string) =>
       apiPost<{ ok: true }>('/api/fridge', withAuth(auth, { op: 'delete', id })),
+    consume: (auth: AuthPayload, id: string, action: 'eaten' | 'wasted') =>
+      apiPost<{ ok: true; logged: boolean }>(
+        '/api/fridge',
+        withAuth(auth, { op: 'consume', id, action })
+      ),
+    stats: (auth: AuthPayload) =>
+      apiPost<{ eaten: number; wasted: number; available: boolean }>(
+        '/api/fridge',
+        withAuth(auth, { op: 'stats' })
+      ),
     count: (auth: AuthPayload) =>
       apiPost<{ count: number }>('/api/fridge', withAuth(auth, { op: 'count' })),
   },

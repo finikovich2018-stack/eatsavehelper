@@ -78,6 +78,60 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    if (op === 'consume') {
+      const { id, action } = body;
+      if (!id || (action !== 'eaten' && action !== 'wasted')) {
+        return NextResponse.json({ error: 'Missing id or invalid action' }, { status: 400 });
+      }
+
+      const { data: item } = await applyDataScope(
+        supabase.from('fridge_items').select('name, category').eq('id', id),
+        scope
+      ).maybeSingle();
+
+      const { error: deleteError } = await applyDataScope(
+        supabase.from('fridge_items').delete().eq('id', id),
+        scope
+      );
+      if (deleteError) {
+        return NextResponse.json({ error: deleteError.message }, { status: 500 });
+      }
+
+      // Best-effort logging: don't fail the action if the log table is missing.
+      const { error: logError } = await scopedInsert(supabase, 'fridge_log', scope, [
+        {
+          name: item?.name ?? null,
+          category: item?.category ?? null,
+          action,
+        },
+      ]);
+      if (logError) {
+        console.error('fridge_log insert error:', logError.message);
+        return NextResponse.json({ ok: true, logged: false });
+      }
+
+      return NextResponse.json({ ok: true, logged: true });
+    }
+
+    if (op === 'stats') {
+      const now = new Date();
+      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+
+      const { data, error } = await applyDataScope(
+        supabase.from('fridge_log').select('action').gte('logged_at', monthStart),
+        scope
+      );
+
+      if (error) {
+        return NextResponse.json({ eaten: 0, wasted: 0, available: false });
+      }
+
+      const rows = (data || []) as { action: string }[];
+      const eaten = rows.filter((r) => r.action === 'eaten').length;
+      const wasted = rows.filter((r) => r.action === 'wasted').length;
+      return NextResponse.json({ eaten, wasted, available: true });
+    }
+
     return NextResponse.json({ error: 'Unknown op' }, { status: 400 });
   } catch (error: unknown) {
     const status = (error as { status?: number }).status || 500;

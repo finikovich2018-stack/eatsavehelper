@@ -29,6 +29,12 @@ const CATEGORY_EXPIRY: Record<string, number> = {
   dairy: 7, meat: 3, veg: 5, grains: 30, other: 7,
 };
 
+// Map a product's fridge category to the expense-category emoji used by the
+// budget breakdown, so a scanned receipt is auto-split by category.
+const FRIDGE_TO_EXPENSE_CAT: Record<string, string> = {
+  dairy: '🥛', meat: '🍗', veg: '🥦', grains: '🍞', other: '📦',
+};
+
 function defaultExpiryDays(item: ParsedItem) {
   if (item.expiry_days && item.expiry_days > 0) return item.expiry_days;
   return CATEGORY_EXPIRY[item.category || 'other'] ?? 7;
@@ -229,13 +235,36 @@ export default function ScanPage() {
         }),
       });
 
-      await dataApi.expenses.insert(auth, {
-        name: t('scan.receiptExpense', { symbol: currencySymbol }),
-        amount: totalAmount,
-        date: today,
-        category: '🛒',
-        currency,
-      });
+      // Split the receipt into one expense per category so the budget
+      // breakdown fills in automatically. Fall back to a single grocery
+      // entry when no per-item prices are available.
+      const byCategory: Record<string, number> = {};
+      for (const item of batch) {
+        const emoji = FRIDGE_TO_EXPENSE_CAT[item.category || 'other'] || '🛒';
+        const price = parseFloat(String(item.price)) || 0;
+        if (price > 0) byCategory[emoji] = (byCategory[emoji] || 0) + price;
+      }
+      const receiptName = t('scan.receiptExpense', { symbol: currencySymbol });
+      const categoryEntries = Object.entries(byCategory);
+      if (categoryEntries.length > 0) {
+        for (const [emoji, amount] of categoryEntries) {
+          await dataApi.expenses.insert(auth, {
+            name: receiptName,
+            amount,
+            date: today,
+            category: emoji,
+            currency,
+          });
+        }
+      } else {
+        await dataApi.expenses.insert(auth, {
+          name: receiptName,
+          amount: totalAmount,
+          date: today,
+          category: '🛒',
+          currency,
+        });
+      }
 
       const remainingItems = items.slice(batch.length);
       if (remainingItems.length > 0) {

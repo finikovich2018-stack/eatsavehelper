@@ -43,7 +43,6 @@ export function mainMenuReplyMarkup(locale: BotLocale) {
   return {
     reply_markup: {
       keyboard: [
-        [{ text: btn.start }],
         [{ text: btn.openApp, web_app: { url: getAppHomeUrl() } }],
         [{ text: btn.support }, { text: btn.channel }],
         [{ text: btn.buyPremium }],

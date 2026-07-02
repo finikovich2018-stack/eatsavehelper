@@ -6,7 +6,7 @@ import TopBar from '@/components/layout/TopBar';
 import { dataApi } from '@/lib/client-api';
 import { readHomeCache, writeHomeCache } from '@/lib/home-cache';
 import { buildHomeState, getMonthStart } from '@/lib/home-summary';
-import { useDataAuth } from '@/lib/use-data-auth';
+import { useAuthReady } from '@/lib/use-data-auth';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 
 type FridgeItem = {
@@ -43,7 +43,7 @@ function applySnapshot(
 }
 
 export default function HomePage() {
-  const auth = useDataAuth();
+  const { auth, ready } = useAuthReady();
   const { t, dateLocale } = useI18n();
   const [expiring, setExpiring] = useState<FridgeItem[]>([]);
   const [budget, setBudget] = useState<BudgetSummary>({ spent: 0, limit: 15000, currency: 'RUB' });
@@ -97,8 +97,9 @@ export default function HomePage() {
   }, [auth]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!ready || !auth) return;
+    void loadData();
+  }, [ready, auth, loadData]);
 
   const symbol = CURRENCY_SYMBOLS[budget.currency] || budget.currency;
   const percent = budget.limit > 0 ? Math.min((budget.spent / budget.limit) * 100, 100) : 0;

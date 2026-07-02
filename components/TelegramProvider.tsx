@@ -1,6 +1,7 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { prefetchHomeSummary } from "@/lib/home-summary";
+import { waitForTelegramWebApp } from "@/lib/wait-for-telegram";
 
 interface TelegramUser {
   id: number;
@@ -78,7 +79,10 @@ async function loadDbUser(initData: string, telegramUserId: number): Promise<DbU
     body: JSON.stringify({ initData, telegram_user_id: telegramUserId }),
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.error('get-or-create failed:', res.status, await res.text().catch(() => ''));
+    return null;
+  }
   const data = await res.json();
   return (data.user as DbUser) || null;
 }
@@ -97,98 +101,76 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   }, [initData, user?.id]);
 
   useEffect(() => {
-    let cancelled = false;
+    let alive = true;
 
-    const init = async () => {
-      const unblock = window.setTimeout(() => {
-        if (!cancelled) setLoading(false);
-      }, 900);
+    const bootstrap = async (
+      tgApp: { ready: () => void; expand: () => void; initDataUnsafe?: { start_param?: string } },
+      tgUser: TelegramUser,
+      rawInitData: string
+    ) => {
+      tgApp.ready();
+      tgApp.expand();
+      if (!alive) return;
 
-      try {
-        const bootstrap = async (
-          tgApp: { ready: () => void; expand: () => void; initDataUnsafe?: { start_param?: string } },
-          tgUser: TelegramUser,
-          rawInitData: string
-        ) => {
-          tgApp.ready();
-          tgApp.expand();
-          setInitData(rawInitData);
-          setUser(tgUser);
-          setLoading(false);
+      setInitData(rawInitData);
+      setUser(tgUser);
+      setLoading(false);
 
-          prefetchHomeSummary(rawInitData, tgUser.id);
+      prefetchHomeSummary(rawInitData, tgUser.id);
 
-          const profile = await loadDbUser(rawInitData, tgUser.id);
-          if (profile) setDbUser(profile);
+      const profile = await loadDbUser(rawInitData, tgUser.id);
+      if (profile && alive) setDbUser(profile);
 
-          void registerChatForNotifications(tgUser.id, tgUser.id, rawInitData);
+      void registerChatForNotifications(tgUser.id, tgUser.id, rawInitData);
 
-          const startParam = tgApp.initDataUnsafe?.start_param as string | undefined;
-          if (startParam?.startsWith('join_') && profile) {
-            void fetch('/api/household/join', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                initData: rawInitData,
-                telegram_user_id: tgUser.id,
-                token: startParam,
-              }),
-            })
-              .then(() => loadDbUser(rawInitData, tgUser.id))
-              .then((refreshed) => {
-                if (refreshed) setDbUser(refreshed);
-              })
-              .catch((e) => console.error('Household join failed:', e));
-          }
+      const startParam = tgApp.initDataUnsafe?.start_param;
+      if (startParam?.startsWith('join_') && profile) {
+        void fetch('/api/household/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            initData: rawInitData,
+            telegram_user_id: tgUser.id,
+            token: startParam,
+          }),
+        })
+          .then(() => loadDbUser(rawInitData, tgUser.id))
+          .then((refreshed) => {
+            if (refreshed && alive) setDbUser(refreshed);
+          })
+          .catch((e) => console.error('Household join failed:', e));
+      }
 
-          if (startParam?.startsWith('ref_') && profile) {
-            void fetch('/api/referral/claim', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                initData: rawInitData,
-                telegram_user_id: tgUser.id,
-                token: startParam,
-              }),
-            }).catch((e) => console.error('Referral claim failed:', e));
-          }
-        };
-
-        const tryBootstrap = async (delayMs: number) => {
-          if (cancelled) return false;
-          if (delayMs > 0) {
-            await new Promise((resolve) => setTimeout(resolve, delayMs));
-          }
-          const tgApp = (window as any).Telegram?.WebApp;
-          if (tgApp?.initDataUnsafe?.user && tgApp.initData) {
-            await bootstrap(tgApp, tgApp.initDataUnsafe.user, tgApp.initData);
-            return true;
-          }
-          return false;
-        };
-
-        if (await tryBootstrap(0)) return;
-
-        for (const delay of [200, 600, 1200]) {
-          if (await tryBootstrap(delay)) return;
-        }
-
-        if (IS_DEV) {
-          setUser(DEV_USER);
-        }
-      } catch {
-        if (IS_DEV) {
-          setUser(DEV_USER);
-        }
-      } finally {
-        window.clearTimeout(unblock);
-        if (!cancelled) setLoading(false);
+      if (startParam?.startsWith('ref_') && profile) {
+        void fetch('/api/referral/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            initData: rawInitData,
+            telegram_user_id: tgUser.id,
+            token: startParam,
+          }),
+        }).catch((e) => console.error('Referral claim failed:', e));
       }
     };
 
-    void init();
+    void (async () => {
+      const session = await waitForTelegramWebApp(15000);
+      if (!alive) return;
+
+      if (session) {
+        await bootstrap(session.tgApp, session.user, session.initData);
+        return;
+      }
+
+      if (IS_DEV) {
+        setUser(DEV_USER);
+      }
+      setLoading(false);
+    })();
+
     return () => {
-      cancelled = true;
+      alive = false;
     };
   }, []);
 

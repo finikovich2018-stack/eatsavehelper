@@ -148,10 +148,29 @@ async function sendChannelHint(chatId: number, locale: ReturnType<typeof botLoca
   );
 }
 
+async function sendStatusReply(
+  chatId: number,
+  locale: ReturnType<typeof botLocale>,
+  supabase: ReturnType<typeof getSupabase>
+) {
+  const { data } = await supabase
+    .from('users')
+    .select('is_premium, notifications_enabled')
+    .eq('telegram_user_id', chatId)
+    .single();
+
+  await sendMessage(
+    chatId,
+    botMsg(locale).status(Boolean(data?.is_premium), data?.notifications_enabled !== false),
+    withMainMenu(locale)
+  );
+}
+
 async function handleMenuAction(
   chatId: number,
   locale: ReturnType<typeof botLocale>,
-  action: 'support' | 'channel' | 'help'
+  action: 'support' | 'channel' | 'status' | 'help',
+  supabase: ReturnType<typeof getSupabase>
 ) {
   const msg = botMsg(locale);
   if (action === 'support') {
@@ -160,6 +179,10 @@ async function handleMenuAction(
   }
   if (action === 'channel') {
     await sendChannelHint(chatId, locale);
+    return;
+  }
+  if (action === 'status') {
+    await sendStatusReply(chatId, locale, supabase);
     return;
   }
   await sendHelpReply(chatId, locale);
@@ -350,7 +373,7 @@ export async function POST(req: NextRequest) {
       if (menuAction) {
         const chatId = body.message.from.id;
         const locale = botLocale(body.message.from.language_code);
-        await handleMenuAction(chatId, locale, menuAction);
+        await handleMenuAction(chatId, locale, menuAction, supabase);
         return NextResponse.json({ ok: true });
       }
     }
@@ -403,17 +426,7 @@ export async function POST(req: NextRequest) {
     if (body.message?.text === '/status') {
       const chatId = body.message.from.id;
       const locale = botLocale(body.message.from.language_code);
-      const { data } = await supabase
-        .from('users')
-        .select('is_premium, notifications_enabled')
-        .eq('telegram_user_id', chatId)
-        .single();
-
-      await sendMessage(
-        chatId,
-        botMsg(locale).status(Boolean(data?.is_premium), data?.notifications_enabled !== false),
-        withMainMenu(locale)
-      );
+      await sendStatusReply(chatId, locale, supabase);
       return NextResponse.json({ ok: true });
     }
 

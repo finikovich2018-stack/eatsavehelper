@@ -34,11 +34,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ru" className={inter.className}>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){function w(s,d,u){try{s.setItem('eatsave_tg_init',d);s.setItem('eatsave_tg_user',JSON.stringify(u));}catch(e){}}function save(){try{var tg=window.Telegram&&window.Telegram.WebApp;if(!tg)return false;var d=tg.initData,u=tg.initDataUnsafe&&tg.initDataUnsafe.user;if(!d||!u||!u.id)return false;w(sessionStorage,d,u);w(localStorage,d,u);return true;}catch(e){}return false;}save();window.__EATSAVE_SAVE_TG__=save;})();`,
+          }}
+        />
         {/* eslint-disable-next-line @next/next/no-sync-scripts */}
         <script src="https://telegram.org/js/telegram-web-app.js" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var c='#0c0f0a';document.documentElement.style.backgroundColor=c;function save(){try{var tg=window.Telegram&&window.Telegram.WebApp;if(!tg)return false;tg.ready();tg.setBackgroundColor(c);tg.setHeaderColor(c);if(tg.initData&&tg.initDataUnsafe&&tg.initDataUnsafe.user){sessionStorage.setItem('eatsave_tg_init',tg.initData);sessionStorage.setItem('eatsave_tg_user',JSON.stringify(tg.initDataUnsafe.user));return true;}}catch(e){}return false;}function apply(){save();}apply();document.addEventListener('DOMContentLoaded',apply);var n=0,t=setInterval(function(){if(save()||++n>400)clearInterval(t);},50);})();`,
+            __html: `(function(){var c='#0c0f0a';document.documentElement.style.backgroundColor=c;function save(){if(window.__EATSAVE_SAVE_TG__&&window.__EATSAVE_SAVE_TG__())return true;return false;}function apply(){try{var tg=window.Telegram&&window.Telegram.WebApp;if(!tg)return;tg.ready();tg.setBackgroundColor(c);tg.setHeaderColor(c);save();}catch(e){}}apply();document.addEventListener('DOMContentLoaded',apply);var n=0,t=setInterval(function(){if(save()||++n>400)clearInterval(t);},50);})();`,
           }}
         />
       </head>

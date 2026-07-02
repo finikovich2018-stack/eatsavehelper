@@ -10,6 +10,14 @@ export type TelegramWebAppSession = {
   initData: string;
 };
 
+function stubTgApp(user: StoredTelegramUser): TelegramWebAppSession['tgApp'] {
+  return {
+    ready: () => {},
+    expand: () => {},
+    initDataUnsafe: { user },
+  };
+}
+
 function readLiveSession(): TelegramWebAppSession | null {
   const tgApp = (window as { Telegram?: { WebApp?: TelegramWebAppSession['tgApp'] & { initData?: string } } })
     .Telegram?.WebApp;
@@ -29,39 +37,35 @@ function readLiveSession(): TelegramWebAppSession | null {
   return { tgApp, user, initData };
 }
 
+function sessionFromCache(): TelegramWebAppSession | null {
+  const cached = readTelegramSession();
+  if (!cached) return null;
+
+  const live = readLiveSession();
+  if (live) return live;
+
+  const tgApp =
+    (window as { Telegram?: { WebApp?: TelegramWebAppSession['tgApp'] } }).Telegram?.WebApp ||
+    stubTgApp(cached.user);
+
+  return { tgApp, user: cached.user, initData: cached.initData };
+}
+
 /** Poll until Telegram WebApp SDK exposes initData (async script may load after React). */
 export function waitForTelegramWebApp(maxMs = 20000): Promise<TelegramWebAppSession | null> {
   if (typeof window === 'undefined') return Promise.resolve(null);
 
-  const cached = readTelegramSession();
-  if (cached) {
-    const live = readLiveSession();
-    const tgApp =
-      live?.tgApp ||
-      (window as { Telegram?: { WebApp?: TelegramWebAppSession['tgApp'] } }).Telegram?.WebApp;
-    if (tgApp) {
-      return Promise.resolve({ tgApp, user: cached.user, initData: cached.initData });
-    }
-  }
+  const immediate = sessionFromCache();
+  if (immediate) return Promise.resolve(immediate);
 
   return new Promise((resolve) => {
     const started = Date.now();
 
     const tick = () => {
-      const session = readLiveSession();
+      const session = readLiveSession() || sessionFromCache();
       if (session) {
         resolve(session);
         return;
-      }
-
-      const fallback = readTelegramSession();
-      if (fallback) {
-        const tgApp = (window as { Telegram?: { WebApp?: TelegramWebAppSession['tgApp'] } }).Telegram
-          ?.WebApp;
-        if (tgApp) {
-          resolve({ tgApp, user: fallback.user, initData: fallback.initData });
-          return;
-        }
       }
 
       if (Date.now() - started >= maxMs) {

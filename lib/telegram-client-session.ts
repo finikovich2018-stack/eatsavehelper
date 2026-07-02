@@ -8,11 +8,10 @@ export type StoredTelegramUser = {
   is_premium?: boolean;
 };
 
-export function readTelegramSession(): { initData: string; user: StoredTelegramUser } | null {
-  if (typeof window === 'undefined') return null;
+function readStorage(storage: Storage): { initData: string; user: StoredTelegramUser } | null {
   try {
-    const initData = sessionStorage.getItem(INIT_KEY) || '';
-    const userRaw = sessionStorage.getItem(USER_KEY);
+    const initData = storage.getItem(INIT_KEY) || '';
+    const userRaw = storage.getItem(USER_KEY);
     if (!initData || !userRaw) return null;
     const user = JSON.parse(userRaw) as StoredTelegramUser;
     if (!user?.id) return null;
@@ -22,22 +21,34 @@ export function readTelegramSession(): { initData: string; user: StoredTelegramU
   }
 }
 
+function writeStorage(storage: Storage, initData: string, user: StoredTelegramUser) {
+  try {
+    storage.setItem(INIT_KEY, initData);
+    storage.setItem(USER_KEY, JSON.stringify(user));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function readTelegramSession(): { initData: string; user: StoredTelegramUser } | null {
+  if (typeof window === 'undefined') return null;
+  return readStorage(sessionStorage) || readStorage(localStorage);
+}
+
 export function writeTelegramSession(initData: string, user: StoredTelegramUser) {
   if (typeof window === 'undefined') return;
-  try {
-    sessionStorage.setItem(INIT_KEY, initData);
-    sessionStorage.setItem(USER_KEY, JSON.stringify(user));
-  } catch {
-    /* private mode / quota */
-  }
+  writeStorage(sessionStorage, initData, user);
+  writeStorage(localStorage, initData, user);
 }
 
 export function clearTelegramSession() {
   if (typeof window === 'undefined') return;
-  try {
-    sessionStorage.removeItem(INIT_KEY);
-    sessionStorage.removeItem(USER_KEY);
-  } catch {
-    /* ignore */
+  for (const storage of [sessionStorage, localStorage]) {
+    try {
+      storage.removeItem(INIT_KEY);
+      storage.removeItem(USER_KEY);
+    } catch {
+      /* ignore */
+    }
   }
 }

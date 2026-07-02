@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useState } from "react";
 import { prefetchHomeSummary } from "@/lib/home-summary";
 import { waitForTelegramWebApp } from "@/lib/wait-for-telegram";
 import { readTelegramSession } from "@/lib/telegram-client-session";
@@ -89,10 +89,10 @@ async function loadDbUser(initData: string, telegramUserId: number): Promise<DbU
 }
 
 export function TelegramProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<TelegramUser | null>(() => readTelegramSession()?.user ?? null);
+  const [user, setUser] = useState<TelegramUser | null>(null);
   const [dbUser, setDbUser] = useState<DbUser | null>(null);
-  const [initData, setInitData] = useState(() => readTelegramSession()?.initData ?? "");
-  const [loading, setLoading] = useState(() => !readTelegramSession());
+  const [initData, setInitData] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
     if (!initData || !user?.id) return null;
@@ -100,6 +100,19 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
     if (profile) setDbUser(profile);
     return profile;
   }, [initData, user?.id]);
+
+  // SSR renders with empty auth — restore cached Telegram session on the client immediately.
+  useLayoutEffect(() => {
+    const cached = readTelegramSession();
+    if (!cached) return;
+    setUser(cached.user);
+    setInitData(cached.initData);
+    setLoading(false);
+    prefetchHomeSummary(cached.initData, cached.user.id);
+    void loadDbUser(cached.initData, cached.user.id).then((profile) => {
+      if (profile) setDbUser(profile);
+    });
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -109,8 +122,12 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
       tgUser: TelegramUser,
       rawInitData: string
     ) => {
-      tgApp.ready();
-      tgApp.expand();
+      try {
+        tgApp.ready();
+        tgApp.expand();
+      } catch {
+        /* optional in stub */
+      }
       if (!alive) return;
 
       setInitData(rawInitData);
@@ -156,16 +173,6 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
     };
 
     void (async () => {
-      const cached = readTelegramSession();
-      if (cached && alive) {
-        const tgApp = (window as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initDataUnsafe?: { start_param?: string } } } })
-          .Telegram?.WebApp;
-        if (tgApp) {
-          await bootstrap(tgApp, cached.user, cached.initData);
-          return;
-        }
-      }
-
       const session = await waitForTelegramWebApp(20000);
       if (!alive) return;
 

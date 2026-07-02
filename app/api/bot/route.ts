@@ -65,6 +65,18 @@ function getSupabase() {
   );
 }
 
+// Real, user-authored content. Anything without one of these is a Telegram
+// service/system event (e.g. write_access_allowed) that must not be relayed.
+const USER_CONTENT_KEYS = [
+  'text', 'caption', 'photo', 'document', 'voice', 'video', 'video_note',
+  'audio', 'sticker', 'animation', 'contact', 'location', 'venue', 'poll',
+  'dice', 'game', 'story', 'web_app_data', 'users_shared', 'chat_shared',
+];
+
+function hasUserContent(msg: TelegramMessageLike): boolean {
+  return USER_CONTENT_KEYS.some((key) => msg[key] != null);
+}
+
 function checkWebhookSecret(req: NextRequest): boolean {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
   if (!secret) {
@@ -401,6 +413,12 @@ export async function POST(req: NextRequest) {
       const locale = botLocale(from.language_code);
       const msg = botMsg(locale);
       const text = body.message.text?.trim() || '';
+
+      // Ignore Telegram service events (e.g. write_access_allowed sent when a
+      // user grants the bot permission to message them) — they are not feedback.
+      if (!hasUserContent(body.message as TelegramMessageLike)) {
+        return NextResponse.json({ ok: true });
+      }
 
       if (text.startsWith('/') && !text.match(/^\/reply(?:@\w+)?\s/i)) {
         await sendFeedbackChoiceReply(chatId, locale);

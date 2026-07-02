@@ -105,12 +105,23 @@ export default function HomePage() {
   const symbol = CURRENCY_SYMBOLS[budget.currency] || budget.currency;
   const percent = budget.limit > 0 ? Math.min((budget.spent / budget.limit) * 100, 100) : 0;
   const remaining = budget.limit - budget.spent;
+  const budgetCardTone =
+    percent >= 100
+      ? 'border-red-500/45 bg-red-500/5'
+      : percent > 80
+        ? 'border-red-400/40 bg-surface'
+        : percent > 60
+          ? 'border-yellow-400/40 bg-surface'
+          : 'border-accent/40 bg-gradient-to-br from-surface to-background glow-pulse';
 
   return (
     <main className="bg-background text-foreground">
       <TopBar title={t('home.title')} />
       <div className="max-w-mobile mx-auto px-4 py-3 space-y-4">
-        <div className="bg-gradient-to-br from-surface to-background border border-border rounded-3xl p-5 anim-rise-in">
+        <Link
+          href="/budget"
+          className={`block rounded-3xl p-5 border active:scale-[0.99] transition anim-rise-in ${budgetCardTone}`}
+        >
           <div className="flex justify-between items-start mb-3">
             <div>
               <div className="text-xs text-muted">{t('home.budgetFor', { month: monthName })}</div>
@@ -118,7 +129,7 @@ export default function HomePage() {
                 {budget.spent.toLocaleString()} / {budget.limit.toLocaleString()} {symbol}
               </div>
             </div>
-            <Link href="/budget" className="text-xs text-accent font-medium">{t('common.change')}</Link>
+            <span className="text-xs text-accent font-medium">{t('common.change')} ›</span>
           </div>
           <div className="bg-background/60 rounded-full h-3 mb-2 overflow-hidden">
             <div
@@ -131,7 +142,7 @@ export default function HomePage() {
               ? t('home.remaining', { amount: remaining.toLocaleString(), symbol })
               : t('home.overBudget', { amount: Math.abs(remaining).toLocaleString(), symbol })}
           </div>
-        </div>
+        </Link>
 
         {consumeStats && consumeStats.eaten + consumeStats.wasted > 0 && (
           <Link href="/fridge" className="block bg-surface border border-border rounded-2xl p-4 active:scale-[0.99] transition anim-rise-in anim-delay-1 glow-pulse">

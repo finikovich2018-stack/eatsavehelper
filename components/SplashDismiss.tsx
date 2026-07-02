@@ -3,10 +3,16 @@
 import { useEffect } from 'react';
 import { useTelegram } from './TelegramProvider';
 
-const MIN_SPLASH_MS = 650;
-const MAX_SPLASH_MS = 5000;
+const MIN_SPLASH_MS = 400;
+const MAX_SPLASH_MS = 2500;
 
 function dismissSplash() {
+  const globalDismiss = (window as { __EATSAVE_DISMISS_SPLASH__?: () => void }).__EATSAVE_DISMISS_SPLASH__;
+  if (typeof globalDismiss === 'function') {
+    globalDismiss();
+    return;
+  }
+
   const splash = document.getElementById('eatsave-splash');
   if (!splash || splash.classList.contains('eatsave-splash-out')) return;
 

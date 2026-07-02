@@ -42,6 +42,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="bg-background text-foreground">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){function d(){var s=document.getElementById('eatsave-splash');if(!s||s.classList.contains('eatsave-splash-out'))return;s.classList.add('eatsave-splash-out');setTimeout(function(){try{s.remove();}catch(e){}},360);}window.__EATSAVE_DISMISS_SPLASH__=d;setTimeout(d,1500);})();`,
+          }}
+        />
         <div id="eatsave-splash" className="eatsave-splash" aria-hidden="true" suppressHydrationWarning>
           <div className="eatsave-splash-glow" />
           <div className="eatsave-splash-content">

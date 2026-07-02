@@ -97,7 +97,13 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   }, [initData, user?.id]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const init = async () => {
+      const unblock = window.setTimeout(() => {
+        if (!cancelled) setLoading(false);
+      }, 900);
+
       try {
         const bootstrap = async (
           tgApp: { ready: () => void; expand: () => void; initDataUnsafe?: { start_param?: string } },
@@ -109,6 +115,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
           setInitData(rawInitData);
           setUser(tgUser);
           setLoading(false);
+
           prefetchHomeSummary(rawInitData, tgUser.id);
 
           const profile = await loadDbUser(rawInitData, tgUser.id);
@@ -148,6 +155,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
         };
 
         const tryBootstrap = async (delayMs: number) => {
+          if (cancelled) return false;
           if (delayMs > 0) {
             await new Promise((resolve) => setTimeout(resolve, delayMs));
           }
@@ -161,23 +169,27 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
 
         if (await tryBootstrap(0)) return;
 
-        for (const delay of [500, 1500, 3000]) {
+        for (const delay of [200, 600, 1200]) {
           if (await tryBootstrap(delay)) return;
         }
 
         if (IS_DEV) {
           setUser(DEV_USER);
         }
-        setLoading(false);
       } catch {
         if (IS_DEV) {
           setUser(DEV_USER);
         }
-        setLoading(false);
+      } finally {
+        window.clearTimeout(unblock);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    init();
+    void init();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (

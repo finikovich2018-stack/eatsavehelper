@@ -20,8 +20,10 @@ export default function MarketingProfilePage() {
         <div className="bg-gradient-to-br from-surface/80 to-background border border-accent/20 rounded-3xl p-8 overflow-hidden relative">
           <div className="absolute top-0 right-0 w-48 h-48 bg-accent/5 rounded-full -mr-24 -mt-24 pointer-events-none" />
           <div className="flex flex-col items-center text-center relative">
-            <div className="w-24 h-24 rounded-full bg-accent/20 border-2 border-accent/40 flex items-center justify-center text-4xl mb-4">
-              👩
+            <div className="w-[104px] h-[104px] rounded-full bg-gradient-to-br from-accent/40 via-accent/20 to-accent/5 border-2 border-accent/50 flex items-center justify-center mb-5 shadow-[0_0_28px_rgba(126,217,87,0.2)]">
+              <span className="text-[2rem] font-bold text-accent leading-none">
+                {DEMO_USER.firstName.slice(0, 2)}
+              </span>
             </div>
             <h1 className="text-2xl font-bold">{DEMO_USER.firstName}</h1>
             <p className="text-accent font-medium mt-1">@{DEMO_USER.username}</p>

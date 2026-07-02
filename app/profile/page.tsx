@@ -92,6 +92,15 @@ const ACHIEVEMENT_META: Record<
   saver: { icon: '🌱', titleKey: 'ach.saver.title', descKey: 'ach.saver.desc' },
 };
 
+function profileInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+  }
+  const word = parts[0] || '?';
+  return word.length >= 2 ? word.slice(0, 2).toUpperCase() : word.toUpperCase();
+}
+
 export default function ProfilePage() {
   const { auth, ready } = useAuthReady();
   const { user, initData, dbUser, refreshUser } = useTelegram();
@@ -580,8 +589,24 @@ export default function ProfilePage() {
         <div className="bg-gradient-to-br from-surface/80 to-background border border-accent/20 rounded-3xl p-8 overflow-hidden relative anim-rise-in">
           <div className="absolute top-0 right-0 w-48 h-48 bg-accent/5 rounded-full -mr-24 -mt-24 pointer-events-none" />
           <div className="flex flex-col items-center text-center relative">
-            <div className="w-24 h-24 rounded-full bg-accent/20 border-2 border-accent/40 flex items-center justify-center text-4xl mb-4 home-action-icon">
-              👤
+            <div className="relative mb-5">
+              <div
+                className="w-[104px] h-[104px] rounded-full bg-gradient-to-br from-accent/40 via-accent/20 to-accent/5 border-2 border-accent/50 flex items-center justify-center shadow-[0_0_28px_rgba(126,217,87,0.2)]"
+                aria-hidden={!user}
+              >
+                {user ? (
+                  <span className="text-[2rem] font-bold text-accent leading-none tracking-tight select-none">
+                    {profileInitials(user.first_name)}
+                  </span>
+                ) : (
+                  <span className="text-4xl leading-none select-none">👤</span>
+                )}
+              </div>
+              {isPremium && (
+                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-accent px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-background shadow-md">
+                  Premium
+                </span>
+              )}
             </div>
             <h1 className="text-2xl font-bold text-foreground">
               {user?.first_name || t('profile.user')}
@@ -598,7 +623,7 @@ export default function ProfilePage() {
               <p className="text-accent font-medium mt-1">@{user.username}</p>
             )}
             {isPremium ? (
-              <div className="bg-accent/20 rounded-2xl px-5 py-3 border border-accent/50 text-center mt-4 glow-pulse">
+              <div className="bg-accent/15 rounded-2xl px-5 py-3 border border-accent/40 text-center mt-3 glow-pulse">
                 <span className="text-accent font-bold text-sm block">⭐ {t('profile.premiumActive')}</span>
                 <span className="text-xs text-muted mt-1 block">
                   {premiumUntil

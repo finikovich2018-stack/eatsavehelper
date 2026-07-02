@@ -76,7 +76,7 @@ export default function BudgetPage() {
   const { t, dateLocale } = useI18n();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgetLimits, setBudgetLimits] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showBudgetForm, setShowBudgetForm] = useState(false);
   const [form, setForm] = useState({ name: '', amount: '', currency: 'RUB', category: '🛒' });
@@ -88,6 +88,7 @@ export default function BudgetPage() {
 
   const loadAll = useCallback(async () => {
     if (!auth) return;
+    setLoading(true);
     type CacheShape = { expenses: Expense[]; budgetLimits: Record<string, number> };
     const cacheKey = `eatsave_budget_v1_${auth.telegram_user_id}`;
 
@@ -493,7 +494,7 @@ export default function BudgetPage() {
 
         <h2 className="text-sm font-medium text-muted mb-3">{t('budget.history')}</h2>
 
-        {loading ? (
+        {(auth && loading) ? (
           <div className="flex flex-col items-center justify-center gap-3 py-10 text-muted">
             <Spinner className="w-6 h-6 border-muted/30 border-t-accent" />
             <span>{t('common.loading')}</span>

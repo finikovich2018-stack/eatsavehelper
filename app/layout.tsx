@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import BottomNav from "../components/layout/BottomNav";
@@ -35,10 +34,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ru" className={inter.className}>
       <head>
-        <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="https://telegram.org/js/telegram-web-app.js" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var c='#0c0f0a';document.documentElement.style.backgroundColor=c;function apply(){try{var tg=window.Telegram&&window.Telegram.WebApp;if(!tg)return;tg.ready();tg.setBackgroundColor(c);tg.setHeaderColor(c);}catch(e){}}apply();document.addEventListener('DOMContentLoaded',apply);})();`,
+            __html: `(function(){var c='#0c0f0a';document.documentElement.style.backgroundColor=c;function save(){try{var tg=window.Telegram&&window.Telegram.WebApp;if(!tg)return false;tg.ready();tg.setBackgroundColor(c);tg.setHeaderColor(c);if(tg.initData&&tg.initDataUnsafe&&tg.initDataUnsafe.user){sessionStorage.setItem('eatsave_tg_init',tg.initData);sessionStorage.setItem('eatsave_tg_user',JSON.stringify(tg.initDataUnsafe.user));return true;}}catch(e){}return false;}function apply(){save();}apply();document.addEventListener('DOMContentLoaded',apply);var n=0,t=setInterval(function(){if(save()||++n>400)clearInterval(t);},50);})();`,
           }}
         />
       </head>

@@ -128,7 +128,7 @@ function FridgePageContent() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyFilter, setHistoryFilter] = useState<'all' | 'eaten' | 'wasted'>('all');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   useReleaseLoadingWhenUnauthenticated(ready, auth, setLoading);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
@@ -160,42 +160,48 @@ function FridgePageContent() {
 
   const loadAll = useCallback(async () => {
     if (!auth) return;
+    setLoading(true);
     type CacheShape = { items: Item[]; consumeStats: typeof consumeStats };
     const cacheKey = `eatsave_fridge_v1_${auth.telegram_user_id}`;
 
-    const cached = readSessionCache<CacheShape>(cacheKey);
-    if (cached) {
-      setItems(cached.items || []);
-      setConsumeStats(cached.consumeStats ?? null);
+    try {
+      const cached = readSessionCache<CacheShape>(cacheKey);
+      if (cached) {
+        setItems(cached.items || []);
+        setConsumeStats(cached.consumeStats ?? null);
+        setLoading(false);
+      }
+
+      const [listRes, statsRes] = await Promise.all([
+        dataApi.fridge.list(auth).catch(() => null),
+        dataApi.fridge.stats(auth).catch(() => null),
+      ]);
+
+      const nextItems = listRes ? ((listRes.items || []) as Item[]) : cached?.items || [];
+      const nextConsume =
+        statsRes && statsRes.available
+          ? {
+              eaten: statsRes.eaten,
+              wasted: statsRes.wasted,
+              wasteFreeDays: statsRes.wasteFreeDays,
+              wastedMoney: statsRes.wastedMoney || [],
+            }
+          : null;
+
+      if (listRes) setItems(nextItems);
+      setConsumeStats(nextConsume);
+      writeSessionCache<CacheShape>(cacheKey, { items: nextItems, consumeStats: nextConsume });
+    } finally {
       setLoading(false);
     }
-
-    const [listRes, statsRes] = await Promise.all([
-      dataApi.fridge.list(auth).catch(() => null),
-      dataApi.fridge.stats(auth).catch(() => null),
-    ]);
-
-    const nextItems = listRes ? ((listRes.items || []) as Item[]) : cached?.items || [];
-    const nextConsume =
-      statsRes && statsRes.available
-        ? {
-            eaten: statsRes.eaten,
-            wasted: statsRes.wasted,
-            wasteFreeDays: statsRes.wasteFreeDays,
-            wastedMoney: statsRes.wastedMoney || [],
-          }
-        : null;
-
-    if (listRes) setItems(nextItems);
-    setConsumeStats(nextConsume);
-    setLoading(false);
-    writeSessionCache<CacheShape>(cacheKey, { items: nextItems, consumeStats: nextConsume });
   }, [auth]);
 
   useEffect(() => {
     if (!ready || !auth) return;
     void loadAll();
   }, [ready, auth, loadAll]);
+
+  const showLoading = Boolean(auth && loading);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -580,7 +586,7 @@ function FridgePageContent() {
           </div>
         )}
 
-        {loading ? (
+        {showLoading ? (
           <div className="flex flex-col items-center justify-center gap-3 py-10 text-muted">
             <Spinner className="w-6 h-6 border-muted/30 border-t-accent" />
             <span>{t('common.loading')}</span>

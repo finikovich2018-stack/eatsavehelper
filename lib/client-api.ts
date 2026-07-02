@@ -62,16 +62,24 @@ export type ApiShoppingItem = {
 };
 
 async function apiPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
-  const res = await fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.error || data.details || 'Request failed');
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || data.details || 'Request failed');
+    }
+    return data as T;
+  } finally {
+    window.clearTimeout(timer);
   }
-  return data as T;
 }
 
 export function withAuth(auth: AuthPayload, extra: Record<string, unknown> = {}) {

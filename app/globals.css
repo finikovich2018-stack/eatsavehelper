@@ -241,21 +241,18 @@ body {
 }
 
 .eatsave-splash-logo-wrap {
-  width: min(112px, 34vw);
-  height: min(112px, 34vw);
+  width: min(120px, 38vw);
+  aspect-ratio: 1;
   margin-bottom: 16px;
   overflow: hidden;
-  border-radius: 24%;
+  border-radius: 22%;
   flex-shrink: 0;
 }
 
 .eatsave-splash-logo {
   display: block;
-  width: min(188px, 58vw);
+  width: 100%;
   height: auto;
-  max-width: none;
-  margin: 0 auto;
-  transform: translateY(-2%);
   mix-blend-mode: lighten;
   animation: splashLogo 2.4s ease-in-out infinite;
 }

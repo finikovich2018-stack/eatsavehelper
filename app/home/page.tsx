@@ -108,7 +108,7 @@ export default function HomePage() {
     <main className="min-h-screen bg-background text-foreground pb-24">
       <TopBar title={t('home.title')} />
       <div className="max-w-mobile mx-auto px-4 py-4 space-y-6">
-        <div className="bg-gradient-to-br from-surface to-background border border-border rounded-3xl p-5">
+        <div className="bg-gradient-to-br from-surface to-background border border-border rounded-3xl p-5 anim-rise-in">
           <div className="flex justify-between items-start mb-3">
             <div>
               <div className="text-xs text-muted">{t('home.budgetFor', { month: monthName })}</div>
@@ -118,9 +118,9 @@ export default function HomePage() {
             </div>
             <Link href="/budget" className="text-xs text-accent font-medium">{t('common.change')}</Link>
           </div>
-          <div className="bg-background/60 rounded-full h-3 mb-2">
+          <div className="bg-background/60 rounded-full h-3 mb-2 overflow-hidden">
             <div
-              className={`h-3 rounded-full transition-all duration-500 ${percent > 80 ? 'bg-red-500' : percent > 60 ? 'bg-yellow-500' : 'bg-accent'}`}
+              className={`home-bar-fill h-3 rounded-full ${percent > 80 ? 'bg-red-500' : percent > 60 ? 'bg-yellow-500' : 'bg-accent'}`}
               style={{ width: `${percent}%` }}
             />
           </div>
@@ -132,7 +132,7 @@ export default function HomePage() {
         </div>
 
         {consumeStats && consumeStats.eaten + consumeStats.wasted > 0 && (
-          <Link href="/fridge" className="block bg-surface border border-border rounded-2xl p-4 active:scale-[0.99] transition">
+          <Link href="/fridge" className="block bg-surface border border-border rounded-2xl p-4 active:scale-[0.99] transition anim-rise-in anim-delay-1">
             <div className="text-xs text-muted mb-3">{t('home.savingsSummary')} ›</div>
             <div className="flex items-center justify-around text-center">
               <div>
@@ -162,7 +162,7 @@ export default function HomePage() {
           </Link>
         )}
 
-        <div>
+        <div className="anim-rise-in anim-delay-2">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold">{t('home.expiringSoon')}</h2>
             <Link href="/fridge" className="text-xs text-accent">{t('common.all')}</Link>
@@ -173,16 +173,24 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {expiring.map((item) => {
+              {expiring.map((item, i) => {
                 const days = daysLeft(item.expiry_date);
                 return (
-                  <div key={item.id} className="bg-surface border border-border rounded-2xl p-4 flex items-center gap-3">
-                    <span className="text-2xl">{item.icon}</span>
+                  <div
+                    key={item.id}
+                    className="bg-surface border border-border rounded-2xl p-4 flex items-center gap-3 anim-rise-in"
+                    style={{ animationDelay: `${0.12 + i * 0.06}s` }}
+                  >
+                    <span className="text-2xl home-action-icon" style={{ animationDelay: `${i * 0.3}s` }}>
+                      {item.icon}
+                    </span>
                     <div className="flex-1">
                       <div className="font-medium">{item.name}</div>
                       <div className="text-xs text-muted">{item.quantity}</div>
                     </div>
-                    <span className={`text-xs font-semibold ${days <= 1 ? 'text-red-400' : days <= 3 ? 'text-yellow-400' : 'text-accent'}`}>
+                    <span
+                      className={`text-xs font-semibold ${days <= 1 ? 'text-red-400 home-urgent-badge' : days <= 3 ? 'text-yellow-400' : 'text-accent'}`}
+                    >
                       {days <= 0 ? t('common.today') : t('common.days', { n: days })}
                     </span>
                   </div>
@@ -193,52 +201,56 @@ export default function HomePage() {
         </div>
 
         <div>
-          <h2 className="font-semibold mb-3">{t('home.quickActions')}</h2>
+          <h2 className="font-semibold mb-3 anim-rise-in anim-delay-3">{t('home.quickActions')}</h2>
           <div className="grid grid-cols-2 gap-3">
-            <Link href="/scan" className="bg-accent text-background rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition">
-              <div className="text-2xl mb-1">📷</div>
+            <Link href="/scan" className="home-scan-card bg-accent text-background rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition anim-rise-in anim-delay-4">
+              <div className="text-2xl mb-1 home-action-icon home-action-icon-1">📷</div>
               {t('home.scanReceipt')}
             </Link>
-            <Link href="/fridge" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition">
-              <div className="text-2xl mb-1">➕</div>
+            <Link href="/fridge" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition anim-rise-in anim-delay-5">
+              <div className="text-2xl mb-1 home-action-icon home-action-icon-2">➕</div>
               {t('home.addProduct')}
             </Link>
-            <Link href="/recipes" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition">
-              <div className="text-2xl mb-1">👨‍🍳</div>
+            <Link href="/recipes" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition anim-rise-in anim-delay-5">
+              <div className="text-2xl mb-1 home-action-icon home-action-icon-3">👨‍🍳</div>
               {t('home.recipes')}
             </Link>
-            <Link href="/shopping" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition">
-              <div className="text-2xl mb-1">🛒</div>
+            <Link href="/shopping" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition anim-rise-in anim-delay-6">
+              <div className="text-2xl mb-1 home-action-icon home-action-icon-4">🛒</div>
               {t('home.shoppingList')}
             </Link>
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-2 anim-rise-in anim-delay-4">
           <Link
             href="/fridge"
-            className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition"
+            className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition anim-rise-in"
+            style={{ animationDelay: '0.28s' }}
           >
             <div className="text-xl font-bold text-accent">{stats.products}</div>
             <div className="text-xs text-muted mt-1">{t('home.products')}</div>
           </Link>
           <Link
             href="/fridge?filter=expiring"
-            className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition"
+            className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition anim-rise-in"
+            style={{ animationDelay: '0.34s' }}
           >
             <div className="text-xl font-bold text-yellow-400">{stats.expiringSoon}</div>
             <div className="text-xs text-muted mt-1">{t('home.expiringCount')}</div>
           </Link>
           <Link
             href="/recipes"
-            className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition"
+            className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition anim-rise-in"
+            style={{ animationDelay: '0.4s' }}
           >
             <div className="text-xl font-bold text-accent">{stats.recipes}</div>
             <div className="text-xs text-muted mt-1">{t('home.recipesCount')}</div>
           </Link>
           <Link
             href="/shopping"
-            className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition"
+            className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition anim-rise-in"
+            style={{ animationDelay: '0.46s' }}
           >
             <div className="text-xl font-bold text-accent">{stats.shopping}</div>
             <div className="text-xs text-muted mt-1">{t('home.shoppingCount')}</div>

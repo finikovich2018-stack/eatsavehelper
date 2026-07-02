@@ -4,6 +4,7 @@ import { getAppBaseUrl, getAppHomeUrl, getAppShoppingUrl } from '@/lib/app-url';
 import { getBotToken } from '@/lib/bot-token';
 import {
   buildFoodReminderMessage,
+  fetchExpiringInventory,
   fetchFoodReminders,
   reminderAppPath,
   reminderPreview,
@@ -73,7 +74,10 @@ export async function GET(req: Request) {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   const dryRun = new URL(req.url).searchParams.get('dry_run') === '1';
-  const { users, maxDays, rpcErrors } = await fetchFoodReminders(supabase);
+  const [{ users, maxDays, rpcErrors }, inventory] = await Promise.all([
+    fetchFoodReminders(supabase),
+    dryRun ? fetchExpiringInventory(supabase) : Promise.resolve(null),
+  ]);
 
   if (rpcErrors.length > 0 && users.length === 0) {
     return NextResponse.json(
@@ -97,6 +101,7 @@ export async function GET(req: Request) {
       max_days: maxDays,
       users_notified: 0,
       preview: [],
+      inventory_preview: inventory?.items,
       rpc_errors: rpcErrors.length ? rpcErrors : undefined,
     });
   }
@@ -110,6 +115,7 @@ export async function GET(req: Request) {
       preview,
       rpc_errors: rpcErrors.length ? rpcErrors : undefined,
       sample_message: buildFoodReminderMessage(users[0]),
+      inventory_preview: inventory?.items,
     });
   }
 

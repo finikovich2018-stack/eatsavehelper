@@ -34,6 +34,30 @@ export type FoodReminderFetch = {
 
 const EXPIRING_SOON_DAYS = 3;
 
+/** All fridge items expiring within maxDays (ignores notify hour / last_sent). */
+export async function fetchExpiringInventory(supabase: SupabaseClient) {
+  const { data, error } = await supabase
+    .from('fridge_items')
+    .select('name, expiry_date')
+    .not('expiry_date', 'is', null);
+
+  if (error) return { items: [] as { name: string; daysLeft: number }[], error: error.message };
+
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+
+  const items = (data || [])
+    .map((row) => {
+      const exp = new Date(`${row.expiry_date}T12:00:00`);
+      const daysLeft = Math.ceil((exp.getTime() - today.getTime()) / 86400000);
+      return { name: row.name as string, daysLeft };
+    })
+    .filter((i) => i.daysLeft >= 0 && i.daysLeft <= EXPIRING_SOON_DAYS)
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+
+  return { items, error: null };
+}
+
 export async function fetchFoodReminders(supabase: SupabaseClient): Promise<FoodReminderFetch> {
   const rpcErrors: string[] = [];
   const byUser = new Map<number, ReminderUser>();

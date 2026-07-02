@@ -10,6 +10,7 @@ import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
 import { defaultExpiryDate } from '@/lib/shopping-utils';
 import { hasPremiumAccess } from '@/lib/user-utils';
 import { readSessionCache, writeSessionCache } from '@/lib/session-cache';
+import Spinner from '@/components/ui/Spinner';
 
 const SUGGEST_ICONS: Record<string, string> = {
   dairy: '🥛', meat: '🍗', veg: '🥦', grains: '🌾', other: '📦',
@@ -213,7 +214,10 @@ export default function ShoppingPage() {
         )}
 
         {loading ? (
-          <div className="text-center text-muted py-10">{t('common.loading')}</div>
+          <div className="flex flex-col items-center justify-center gap-3 py-10 text-muted">
+            <Spinner className="w-6 h-6 border-muted/30 border-t-accent" />
+            <span>{t('common.loading')}</span>
+          </div>
         ) : items.length === 0 ? (
           <div className="text-center text-muted py-20">
             <div className="text-5xl mb-4">🛒</div>

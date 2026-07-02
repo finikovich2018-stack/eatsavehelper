@@ -9,6 +9,7 @@ import { useDataAuth } from '@/lib/use-data-auth';
 import { FREE_FRIDGE_ITEMS, FREE_SCANS_PER_MONTH } from '@/lib/constants';
 import { hasPremiumAccess } from '@/lib/user-utils';
 import { formatLocalDate } from '@/lib/utils';
+import Spinner from '@/components/ui/Spinner';
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   RUB: '₽', USD: '$', EUR: '€', GBP: '£', UAH: '₴', KZT: '₸',
@@ -350,7 +351,14 @@ export default function ScanPage() {
               disabled={loading}
               className="w-full bg-accent text-background py-4 rounded-3xl font-medium text-lg disabled:opacity-50"
             >
-              {loading ? t('scan.analyzing') : t('scan.recognize')}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Spinner className="w-5 h-5 border-background/30 border-t-background" />
+                  {t('scan.analyzing')}
+                </span>
+              ) : (
+                t('scan.recognize')
+              )}
             </button>
           </div>
         )}

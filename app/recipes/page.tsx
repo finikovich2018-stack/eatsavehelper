@@ -375,7 +375,7 @@ export default function RecipesPage() {
             <div className="bg-surface border border-border rounded-3xl p-6 max-w-sm w-full max-h-[80vh] overflow-y-auto">
               {aiLoading ? (
                 <div className="text-center py-8">
-                  <div className="text-5xl mb-4">🤖</div>
+                  <div className="text-5xl mb-4 float-soft inline-block">🤖</div>
                   <p className="text-muted">{t('recipes.picking')}</p>
                 </div>
               ) : aiRecipes.length === 0 ? (

@@ -7,6 +7,7 @@ import { useDataAuth } from '@/lib/use-data-auth';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { formatLocalDate } from '@/lib/utils';
 import { readSessionCache, writeSessionCache } from '@/lib/session-cache';
+import Spinner from '@/components/ui/Spinner';
 import type { TranslationKey } from '@/lib/i18n/translations';
 
 type Expense = {
@@ -484,7 +485,10 @@ export default function BudgetPage() {
         <h2 className="text-sm font-medium text-muted mb-3">{t('budget.history')}</h2>
 
         {loading ? (
-          <div className="text-center text-muted py-10">{t('common.loading')}</div>
+          <div className="flex flex-col items-center justify-center gap-3 py-10 text-muted">
+            <Spinner className="w-6 h-6 border-muted/30 border-t-accent" />
+            <span>{t('common.loading')}</span>
+          </div>
         ) : expenses.length === 0 ? (
           <div className="text-center text-muted py-20">
             <div className="text-5xl mb-4">💰</div>

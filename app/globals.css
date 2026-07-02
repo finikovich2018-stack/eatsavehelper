@@ -53,9 +53,19 @@ body {
   animation: tabInFromLeft 0.22s ease-out;
 }
 
+@keyframes floatSoft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+.float-soft {
+  animation: floatSoft 2.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tab-anim-right,
-  .tab-anim-left {
+  .tab-anim-left,
+  .float-soft {
     animation: none;
   }
 }

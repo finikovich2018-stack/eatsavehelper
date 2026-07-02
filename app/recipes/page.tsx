@@ -359,14 +359,14 @@ export default function RecipesPage() {
 
         <button
           onClick={() => getAIRecipes({ budget: true })}
-          className="w-full bg-surface border border-border hover:border-accent/50 rounded-2xl p-4 text-left transition-all"
+          className="w-full bg-gradient-to-r from-surface to-accent/5 hover:from-surface hover:to-accent/10 border border-accent/50 rounded-2xl p-4 text-left transition-all glow-pulse"
         >
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-medium">{t('recipes.budgetTitle')}</h3>
               <p className="text-sm text-muted">{t('recipes.budgetDesc')}</p>
             </div>
-            <span className="text-2xl">💸</span>
+            <span className="text-2xl home-action-icon home-action-icon-2">💸</span>
           </div>
         </button>
 

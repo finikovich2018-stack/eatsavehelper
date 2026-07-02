@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { dataApi } from '@/lib/client-api';
-import { useDataAuth } from '@/lib/use-data-auth';
+import { useAuthReady, useReleaseLoadingWhenUnauthenticated } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_AI_RECIPES_PER_MONTH } from '@/lib/constants';
@@ -65,7 +65,7 @@ const RECIPES_CACHE_KEY = 'eatsave:recipes';
 type RecipesCache = { expiringItems: FridgeItem[]; savedRecipes: SavedRecipe[] };
 
 export default function RecipesPage() {
-  const auth = useDataAuth();
+  const { auth, ready } = useAuthReady();
   const { user, dbUser, initData, refreshUser } = useTelegram();
   const { t, locale } = useI18n();
   const [aiMode, setAiMode] = useState<'fridge' | 'budget'>('fridge');
@@ -79,6 +79,7 @@ export default function RecipesPage() {
   const [loading, setLoading] = useState(
     () => !readSessionCache<RecipesCache>(RECIPES_CACHE_KEY)
   );
+  useReleaseLoadingWhenUnauthenticated(ready, auth, setLoading);
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [selectedSaved, setSelectedSaved] = useState<SavedRecipe | null>(null);
   const [showAI, setShowAI] = useState(false);
@@ -194,8 +195,9 @@ export default function RecipesPage() {
   }, [auth, loadSavedRecipes]);
 
   useEffect(() => {
-    loadExpiringItems();
-  }, [loadExpiringItems]);
+    if (!ready || !auth) return;
+    void loadExpiringItems();
+  }, [ready, auth, loadExpiringItems]);
 
   useEffect(() => {
     if (!loading) {

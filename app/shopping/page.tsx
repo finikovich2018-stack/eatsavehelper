@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { dataApi, type ApiShoppingItem } from '@/lib/client-api';
-import { useDataAuth } from '@/lib/use-data-auth';
+import { useAuthReady, useReleaseLoadingWhenUnauthenticated } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
@@ -21,7 +21,7 @@ type SuggestionRow = { name: string; category: string | null; count: number };
 type ShoppingCache = { items: ApiShoppingItem[]; suggestions: SuggestionRow[] };
 
 export default function ShoppingPage() {
-  const auth = useDataAuth();
+  const { auth, ready } = useAuthReady();
   const { dbUser, refreshUser } = useTelegram();
   const { t } = useI18n();
   const [items, setItems] = useState<ApiShoppingItem[]>(
@@ -33,6 +33,7 @@ export default function ShoppingPage() {
   const [loading, setLoading] = useState(
     () => !readSessionCache<ShoppingCache>(SHOPPING_CACHE_KEY)
   );
+  useReleaseLoadingWhenUnauthenticated(ready, auth, setLoading);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', quantity: '' });
   const [localUser, setLocalUser] = useState<typeof dbUser>(null);
@@ -63,9 +64,10 @@ export default function ShoppingPage() {
   }, [auth]);
 
   useEffect(() => {
-    loadItems();
-    loadSuggestions();
-  }, [loadItems, loadSuggestions]);
+    if (!ready || !auth) return;
+    void loadItems();
+    void loadSuggestions();
+  }, [ready, auth, loadItems, loadSuggestions]);
 
   useEffect(() => {
     if (!loading) writeSessionCache<ShoppingCache>(SHOPPING_CACHE_KEY, { items, suggestions });

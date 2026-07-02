@@ -99,9 +99,11 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const init = async () => {
       try {
-        const tg = (window as any).Telegram?.WebApp;
-
-        const bootstrap = async (tgApp: typeof tg, tgUser: TelegramUser, rawInitData: string) => {
+        const bootstrap = async (
+          tgApp: { ready: () => void; expand: () => void; initDataUnsafe?: { start_param?: string } },
+          tgUser: TelegramUser,
+          rawInitData: string
+        ) => {
           tgApp.ready();
           tgApp.expand();
           setInitData(rawInitData);
@@ -145,20 +147,28 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
           }
         };
 
-        if (tg?.initDataUnsafe?.user && tg.initData) {
-          await bootstrap(tg, tg.initDataUnsafe.user, tg.initData);
-          return;
+        const tryBootstrap = async (delayMs: number) => {
+          if (delayMs > 0) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+          }
+          const tgApp = (window as any).Telegram?.WebApp;
+          if (tgApp?.initDataUnsafe?.user && tgApp.initData) {
+            await bootstrap(tgApp, tgApp.initDataUnsafe.user, tgApp.initData);
+            return true;
+          }
+          return false;
+        };
+
+        if (await tryBootstrap(0)) return;
+
+        for (const delay of [500, 1500, 3000]) {
+          if (await tryBootstrap(delay)) return;
         }
 
-        setTimeout(async () => {
-          const tg2 = (window as any).Telegram?.WebApp;
-          if (tg2?.initDataUnsafe?.user && tg2.initData) {
-            await bootstrap(tg2, tg2.initDataUnsafe.user, tg2.initData);
-          } else if (IS_DEV) {
-            setUser(DEV_USER);
-          }
-          setLoading(false);
-        }, 500);
+        if (IS_DEV) {
+          setUser(DEV_USER);
+        }
+        setLoading(false);
       } catch {
         if (IS_DEV) {
           setUser(DEV_USER);

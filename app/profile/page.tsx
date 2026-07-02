@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import TopBar from '@/components/layout/TopBar';
 import { dataApi } from '@/lib/client-api';
-import { useDataAuth } from '@/lib/use-data-auth';
+import { useAuthReady, useReleaseLoadingWhenUnauthenticated } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FEEDBACK_CHANNEL_URL, PREMIUM_PRICE_STARS, REFERRAL_BONUS_DAYS } from '@/lib/constants';
@@ -93,7 +93,7 @@ const ACHIEVEMENT_META: Record<
 };
 
 export default function ProfilePage() {
-  const auth = useDataAuth();
+  const { auth, ready } = useAuthReady();
   const { user, initData, dbUser, refreshUser } = useTelegram();
   const { t, locale, setLocale, dateLocale } = useI18n();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -125,6 +125,14 @@ export default function ProfilePage() {
     () => readSessionCache<ProfileCache>(PROFILE_CACHE_KEY)?.referral ?? null
   );
   const [referralBusy, setReferralBusy] = useState(false);
+
+  useReleaseLoadingWhenUnauthenticated(
+    ready,
+    auth,
+    setLoading,
+    setHouseholdLoading,
+    setReferralLoading
+  );
 
   const loadUserProfile = useCallback(async () => {
     if (!user?.id) return null;
@@ -320,11 +328,12 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
+    if (!ready || !auth) return;
     loadUserProfile();
     loadStats();
     loadHousehold();
     loadReferral();
-  }, [loadUserProfile, loadStats, loadHousehold, loadReferral]);
+  }, [ready, auth, loadUserProfile, loadStats, loadHousehold, loadReferral]);
 
   useEffect(() => {
     if (loading || householdLoading || referralLoading) return;

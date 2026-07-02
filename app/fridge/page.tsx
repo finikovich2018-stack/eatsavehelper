@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import TopBar from '@/components/layout/TopBar';
 import { dataApi } from '@/lib/client-api';
-import { useDataAuth } from '@/lib/use-data-auth';
+import { useAuthReady, useReleaseLoadingWhenUnauthenticated } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
@@ -99,7 +99,7 @@ export default function FridgePage() {
 function FridgePageContent() {
   const searchParams = useSearchParams();
   const expiringOnly = searchParams.get('filter') === 'expiring';
-  const auth = useDataAuth();
+  const { auth, ready } = useAuthReady();
   const { dbUser, refreshUser } = useTelegram();
   const { t, dateLocale } = useI18n();
   const [localUser, setLocalUser] = useState<typeof dbUser>(null);
@@ -129,6 +129,7 @@ function FridgePageContent() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyFilter, setHistoryFilter] = useState<'all' | 'eaten' | 'wasted'>('all');
   const [loading, setLoading] = useState(true);
+  useReleaseLoadingWhenUnauthenticated(ready, auth, setLoading);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<CategoryKey>('all');
@@ -192,8 +193,9 @@ function FridgePageContent() {
   }, [auth]);
 
   useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+    if (!ready || !auth) return;
+    void loadAll();
+  }, [ready, auth, loadAll]);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {

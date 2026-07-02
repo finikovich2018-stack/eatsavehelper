@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { dataApi } from '@/lib/client-api';
-import { useDataAuth } from '@/lib/use-data-auth';
+import { useAuthReady, useReleaseLoadingWhenUnauthenticated } from '@/lib/use-data-auth';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { formatLocalDate } from '@/lib/utils';
 import { readSessionCache, writeSessionCache } from '@/lib/session-cache';
@@ -72,7 +72,7 @@ function getLast7Days(dateLocale: string) {
 }
 
 export default function BudgetPage() {
-  const auth = useDataAuth();
+  const { auth, ready } = useAuthReady();
   const { t, dateLocale } = useI18n();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgetLimits, setBudgetLimits] = useState<Record<string, number>>({});
@@ -81,6 +81,8 @@ export default function BudgetPage() {
   const [showBudgetForm, setShowBudgetForm] = useState(false);
   const [form, setForm] = useState({ name: '', amount: '', currency: 'RUB', category: '🛒' });
   const [budgetForm, setBudgetForm] = useState({ amount: '15000', currency: 'RUB' });
+
+  useReleaseLoadingWhenUnauthenticated(ready, auth, setLoading);
 
   const monthStart = getCurrentMonth();
 
@@ -120,8 +122,9 @@ export default function BudgetPage() {
   }, [auth, monthStart]);
 
   useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+    if (!ready || !auth) return;
+    void loadAll();
+  }, [ready, auth, loadAll]);
 
   async function saveBudgetLimit() {
     if (!auth || !budgetForm.amount) return;

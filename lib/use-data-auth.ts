@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTelegram } from '@/components/TelegramProvider';
 
 export type DataAuth = {
@@ -6,11 +6,37 @@ export type DataAuth = {
   telegram_user_id: number;
 };
 
+function buildAuth(userId: number | undefined, initData: string): DataAuth | null {
+  if (!userId || !initData) return null;
+  return { initData, telegram_user_id: userId };
+}
+
+/** Auth payload + whether Telegram bootstrap finished (success or not). */
+export function useAuthReady(): { auth: DataAuth | null; ready: boolean } {
+  const { user, initData, loading } = useTelegram();
+  const auth = useMemo(
+    () => buildAuth(user?.id, initData),
+    [user?.id, initData]
+  );
+  return { auth, ready: !loading };
+}
+
 /** Auth payload for authenticated data API calls. Null until Telegram initData is ready. */
 export function useDataAuth(): DataAuth | null {
-  const { user, initData } = useTelegram();
-  return useMemo(() => {
-    if (!user?.id || !initData) return null;
-    return { initData, telegram_user_id: user.id };
-  }, [user?.id, initData]);
+  return useAuthReady().auth;
+}
+
+/** Stop page spinners when Telegram finished booting but initData is missing. */
+export function useReleaseLoadingWhenUnauthenticated(
+  ready: boolean,
+  auth: DataAuth | null,
+  ...setters: Array<(value: boolean) => void>
+) {
+  useEffect(() => {
+    if (ready && !auth) {
+      setters.forEach((set) => set(false));
+    }
+    // Setter refs are stable; only re-run when bootstrap finishes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, auth]);
 }

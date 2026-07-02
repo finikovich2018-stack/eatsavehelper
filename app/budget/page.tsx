@@ -491,7 +491,7 @@ export default function BudgetPage() {
           </div>
         ) : expenses.length === 0 ? (
           <div className="text-center text-muted py-20">
-            <div className="text-5xl mb-4">💰</div>
+            <div className="text-5xl mb-4 float-soft inline-block">💰</div>
             <div>{t('budget.noHistory')}</div>
           </div>
         ) : (

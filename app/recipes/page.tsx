@@ -342,7 +342,7 @@ export default function RecipesPage() {
       <div className="max-w-mobile mx-auto px-4 py-6 space-y-6">
         <button
           onClick={() => getAIRecipes()}
-          className="w-full bg-gradient-to-r from-accent/30 to-accent/10 hover:from-accent/40 hover:to-accent/20 border border-accent rounded-2xl p-5 text-left transition-all"
+          className="w-full bg-gradient-to-r from-accent/30 to-accent/10 hover:from-accent/40 hover:to-accent/20 border border-accent rounded-2xl p-5 text-left transition-all glow-pulse"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -380,7 +380,7 @@ export default function RecipesPage() {
                 </div>
               ) : aiRecipes.length === 0 ? (
                 <div className="text-center py-8">
-                  <div className="text-5xl mb-4">❄️</div>
+                  <div className="text-5xl mb-4 float-soft inline-block">❄️</div>
                   <p className="text-muted">{t('recipes.addProducts')}</p>
                 </div>
               ) : (

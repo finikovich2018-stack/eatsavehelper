@@ -585,7 +585,7 @@ function FridgePageContent() {
           </div>
         ) : filteredItems.length === 0 ? (
           <div className="text-center text-muted py-20">
-            <div className="text-5xl mb-4">❄️</div>
+            <div className="text-5xl mb-4 float-soft inline-block">❄️</div>
             <div>{items.length === 0 ? t('fridge.empty') : t('fridge.notFound')}</div>
             <div className="text-sm mt-2">
               {items.length === 0 ? t('fridge.emptyHint') : t('fridge.filterHint')}

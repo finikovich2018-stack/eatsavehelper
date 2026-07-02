@@ -220,7 +220,7 @@ export default function ShoppingPage() {
           </div>
         ) : items.length === 0 ? (
           <div className="text-center text-muted py-20">
-            <div className="text-5xl mb-4">🛒</div>
+            <div className="text-5xl mb-4 float-soft inline-block">🛒</div>
             <div>{t('shopping.empty')}</div>
             <div className="text-sm mt-2">{t('shopping.emptyHint')}</div>
           </div>

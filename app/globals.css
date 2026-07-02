@@ -62,10 +62,20 @@ body {
   animation: floatSoft 2.4s ease-in-out infinite;
 }
 
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(126, 217, 87, 0.0); }
+  50% { box-shadow: 0 0 18px 1px rgba(126, 217, 87, 0.28); }
+}
+
+.glow-pulse {
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tab-anim-right,
   .tab-anim-left,
-  .float-soft {
+  .float-soft,
+  .glow-pulse {
     animation: none;
   }
 }

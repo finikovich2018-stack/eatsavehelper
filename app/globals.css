@@ -174,6 +174,7 @@ body {
   .glow-pulse,
   .nav-active-icon,
   .arrow-nudge,
+  .eatsave-splash-welcome,
   .eatsave-splash-logo,
   .eatsave-splash-glow,
   .eatsave-splash-dots span,
@@ -195,7 +196,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0c0f0a;
+  background:
+    radial-gradient(ellipse 120% 80% at 50% 18%, rgba(126, 217, 87, 0.14) 0%, transparent 55%),
+    radial-gradient(ellipse 90% 60% at 50% 100%, rgba(42, 68, 34, 0.35) 0%, transparent 50%),
+    linear-gradient(180deg, #141a12 0%, #0c0f0a 45%, #0a0d08 100%);
   transition: opacity 0.35s ease, visibility 0.35s ease;
 }
 
@@ -207,11 +211,33 @@ body {
 
 .eatsave-splash-glow {
   position: absolute;
-  width: 220px;
-  height: 220px;
+  width: min(320px, 88vw);
+  height: min(320px, 88vw);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(126, 217, 87, 0.22) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(126, 217, 87, 0.28) 0%, rgba(126, 217, 87, 0.08) 45%, transparent 72%);
   animation: splashGlow 2.4s ease-in-out infinite;
+}
+
+.eatsave-splash-welcome {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #c8ffae;
+  margin: 0 0 18px;
+  text-shadow: 0 0 24px rgba(126, 217, 87, 0.35);
+  animation: riseIn 0.55s ease-out both;
+}
+
+.eatsave-splash-logo-wrap {
+  margin-bottom: 8px;
+}
+
+.eatsave-splash-logo {
+  display: block;
+  width: min(188px, 68vw);
+  height: auto;
+  mix-blend-mode: lighten;
+  animation: splashLogo 2.4s ease-in-out infinite;
 }
 
 .eatsave-splash-content {
@@ -221,18 +247,6 @@ body {
   align-items: center;
   text-align: center;
   padding: 0 24px;
-}
-
-.eatsave-splash-logo-wrap {
-  margin-bottom: 20px;
-  filter: drop-shadow(0 8px 24px rgba(126, 217, 87, 0.25));
-}
-
-.eatsave-splash-logo {
-  display: block;
-  width: min(200px, 72vw);
-  height: auto;
-  animation: splashLogo 2.4s ease-in-out infinite;
 }
 
 .eatsave-splash-title {

@@ -230,7 +230,8 @@ body {
 
 .eatsave-splash-logo {
   display: block;
-  border-radius: 22%;
+  width: min(200px, 72vw);
+  height: auto;
   animation: splashLogo 2.4s ease-in-out infinite;
 }
 
@@ -245,7 +246,7 @@ body {
 .eatsave-splash-tagline {
   font-size: 0.875rem;
   color: #9baa8e;
-  margin: 0 0 28px;
+  margin: 12px 0 28px;
   max-width: 260px;
   line-height: 1.4;
 }

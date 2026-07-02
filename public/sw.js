@@ -3,7 +3,7 @@
 // cache-first only for content-hashed static assets, and a friendly offline
 // fallback. API requests are never touched.
 
-const CACHE = 'eatsave-v5';
+const CACHE = 'eatsave-v6';
 const OFFLINE_URL = '/offline.html';
 
 self.addEventListener('install', (event) => {
@@ -29,7 +29,7 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/')) return;
 
   // Content-hashed assets are safe to cache aggressively.
-  if (url.pathname.startsWith('/_next/static/') || url.pathname === '/icon.svg' || url.pathname === '/logo.svg') {
+  if (url.pathname.startsWith('/_next/static/') || url.pathname === '/eatsave-logo.png' || url.pathname === '/logo.png') {
     event.respondWith(
       caches.match(request).then(
         (cached) =>

@@ -175,6 +175,8 @@ body {
   .nav-active-icon,
   .arrow-nudge,
   .eatsave-splash-welcome,
+  .eatsave-splash-brand,
+  .eatsave-splash-tagline,
   .eatsave-splash-logo,
   .eatsave-splash-glow,
   .eatsave-splash-dots span,
@@ -218,28 +220,6 @@ body {
   animation: splashGlow 2.4s ease-in-out infinite;
 }
 
-.eatsave-splash-welcome {
-  font-size: 1.25rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  color: #c8ffae;
-  margin: 0 0 18px;
-  text-shadow: 0 0 24px rgba(126, 217, 87, 0.35);
-  animation: riseIn 0.55s ease-out both;
-}
-
-.eatsave-splash-logo-wrap {
-  margin-bottom: 8px;
-}
-
-.eatsave-splash-logo {
-  display: block;
-  width: min(188px, 68vw);
-  height: auto;
-  mix-blend-mode: lighten;
-  animation: splashLogo 2.4s ease-in-out infinite;
-}
-
 .eatsave-splash-content {
   position: relative;
   display: flex;
@@ -247,6 +227,58 @@ body {
   align-items: center;
   text-align: center;
   padding: 0 24px;
+  font-family: inherit;
+}
+
+.eatsave-splash-welcome {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9baa8e;
+  margin: 0 0 20px;
+  animation: riseIn 0.55s ease-out both;
+}
+
+.eatsave-splash-logo-wrap {
+  width: min(112px, 34vw);
+  height: min(112px, 34vw);
+  margin-bottom: 16px;
+  overflow: hidden;
+  border-radius: 24%;
+  flex-shrink: 0;
+}
+
+.eatsave-splash-logo {
+  display: block;
+  width: min(188px, 58vw);
+  height: auto;
+  max-width: none;
+  margin: 0 auto;
+  transform: translateY(-2%);
+  mix-blend-mode: lighten;
+  animation: splashLogo 2.4s ease-in-out infinite;
+}
+
+.eatsave-splash-brand {
+  font-size: 1.875rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #f0f4ec;
+  margin: 0 0 8px;
+  line-height: 1.1;
+  animation: riseIn 0.55s ease-out 0.08s both;
+}
+
+.eatsave-splash-tagline {
+  font-size: 0.9375rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: #9baa8e;
+  margin: 0 0 28px;
+  max-width: 280px;
+  line-height: 1.45;
+  animation: riseIn 0.55s ease-out 0.14s both;
 }
 
 .eatsave-splash-title {
@@ -255,14 +287,6 @@ body {
   letter-spacing: -0.02em;
   color: #f0f4ec;
   margin: 0 0 8px;
-}
-
-.eatsave-splash-tagline {
-  font-size: 0.875rem;
-  color: #9baa8e;
-  margin: 12px 0 28px;
-  max-width: 260px;
-  line-height: 1.4;
 }
 
 .eatsave-splash-dots {

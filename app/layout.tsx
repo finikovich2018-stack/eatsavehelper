@@ -1,8 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import BottomNav from "../components/layout/BottomNav";
 import SwipeNavigator from "../components/layout/SwipeNavigator";
 import { AppProviders } from "../components/AppProviders";
+
+const inter = Inter({
+  subsets: ["latin", "cyrillic"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "EatSave",
@@ -26,7 +32,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru">
+    <html lang="ru" className={inter.className}>
       <head>
         <script async src="https://telegram.org/js/telegram-web-app.js" />
         <script
@@ -42,8 +48,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <p className="eatsave-splash-welcome">Добро пожаловать</p>
             <div className="eatsave-splash-logo-wrap">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/eatsave-logo.png" alt="EatSave" width={200} height={200} className="eatsave-splash-logo" />
+              <img src="/eatsave-logo.png" alt="" width={200} height={200} className="eatsave-splash-logo" />
             </div>
+            <p className="eatsave-splash-brand">EatSave</p>
             <p className="eatsave-splash-tagline">Умный холодильник и кошелёк</p>
             <div className="eatsave-splash-dots" aria-hidden="true">
               <span />

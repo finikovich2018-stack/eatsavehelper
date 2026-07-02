@@ -55,7 +55,7 @@ export default function MarketingBudgetPage() {
         </div>
 
         <button type="button" className="w-full bg-accent text-background py-3 rounded-2xl font-medium mb-4">
-          ➕ Добавить расход
+          💳 Добавить расход
         </button>
 
         <h2 className="text-sm font-medium text-muted mb-3">История расходов</h2>

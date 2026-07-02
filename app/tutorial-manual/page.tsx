@@ -9,7 +9,7 @@ import { CAT_LABELS, DEMO_FRIDGE, daysLeft } from '@/lib/marketing-demo-data';
 const STEPS = [
   { caption: 'Откройте @EatSavehelper_bot → «Открыть EatSave»', hint: 'Чек не обязателен' },
   { caption: 'Внизу нажмите «Холод.»', hint: 'Или на главной — «Добавить продукт»' },
-  { caption: 'Нажмите «➕ Добавить»', hint: 'Ручной ввод без скана' },
+  { caption: 'Нажмите «🍎 Добавить»', hint: 'Ручной ввод без скана' },
   { caption: 'Заполните поля и нажмите «Сохранить»', hint: 'Молоко · Молочное · 1 л · дата с упаковки' },
   { caption: 'Готово — продукт в списке!', hint: 'EatSave напомнит о сроке годности' },
 ] as const;
@@ -131,7 +131,7 @@ function TutorialContent() {
               </div>
               <Ring on>
                 <div className="bg-surface border border-border rounded-2xl p-4 text-center font-medium">
-                  <div className="text-2xl mb-1">➕</div>
+                  <div className="text-2xl mb-1">🍎</div>
                   Добавить продукт
                 </div>
               </Ring>
@@ -158,7 +158,7 @@ function TutorialContent() {
               type="button"
               className="w-full bg-accent text-background py-3 rounded-2xl font-medium text-sm"
             >
-              ➕ Добавить
+              🍎 Добавить
             </button>
           </Ring>
           <Link

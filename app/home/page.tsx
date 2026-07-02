@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { ICON } from '@/lib/ui-icons';
 import Link from 'next/link';
 import TopBar from '@/components/layout/TopBar';
 import { dataApi } from '@/lib/client-api';
@@ -210,7 +210,7 @@ export default function HomePage() {
               {t('home.scanReceipt')}
             </Link>
             <Link href="/fridge" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition anim-rise-in anim-delay-5">
-              <div className="text-2xl mb-1 home-action-icon home-action-icon-2">➕</div>
+              <div className="text-2xl mb-1 home-action-icon home-action-icon-2">{ICON.addFridge}</div>
               {t('home.addProduct')}
             </Link>
             <Link href="/recipes" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition anim-rise-in anim-delay-5">

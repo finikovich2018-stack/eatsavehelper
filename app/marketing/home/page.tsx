@@ -72,7 +72,7 @@ export default function MarketingHomePage() {
               Скан чека
             </Link>
             <Link href="/marketing/fridge" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium">
-              <div className="text-2xl mb-1">➕</div>
+              <div className="text-2xl mb-1">🍎</div>
               Добавить продукт
             </Link>
             <Link href="/marketing/recipes" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium">

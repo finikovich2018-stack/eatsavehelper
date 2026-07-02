@@ -184,7 +184,7 @@ export default function ShoppingPage() {
                   className="whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium bg-surface border border-accent/40 text-foreground active:scale-95 transition"
                 >
                   {SUGGEST_ICONS[s.category || 'other'] || '📦'} {s.name}
-                  <span className="text-accent ml-1">+</span>
+                  <span className="text-accent ml-1">✨</span>
                 </button>
               ))}
             </div>

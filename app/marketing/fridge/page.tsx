@@ -15,7 +15,7 @@ export default function MarketingFridgePage() {
       <div className="max-w-mobile mx-auto px-4 py-4">
         <div className="grid grid-cols-2 gap-3 mb-4">
           <button type="button" className="bg-accent text-background py-3 rounded-2xl font-medium">
-            ➕ Добавить
+            🍎 Добавить
           </button>
           <Link href="/marketing/scan" className="bg-surface border border-border py-3 rounded-2xl font-medium text-center">
             📷 Скан чека

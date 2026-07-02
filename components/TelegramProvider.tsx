@@ -1,8 +1,7 @@
 "use client";
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { prefetchHomeSummary } from "@/lib/home-summary";
-import { waitForTelegramWebApp } from "@/lib/wait-for-telegram";
-import { readTelegramSession } from "@/lib/telegram-client-session";
+import { getTelegramAuthSnapshot } from "@/lib/telegram-auth";
 
 interface TelegramUser {
   id: number;
@@ -72,7 +71,6 @@ async function registerChatForNotifications(
   }
 }
 
-/** Sync profile, limits and Premium from DB. */
 async function loadDbUser(initData: string, telegramUserId: number): Promise<DbUser | null> {
   const res = await fetch('/api/user/get-or-create', {
     method: 'POST',
@@ -93,100 +91,66 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   const [dbUser, setDbUser] = useState<DbUser | null>(null);
   const [initData, setInitData] = useState("");
   const [loading, setLoading] = useState(true);
+  const bootstrappedUserId = useRef<number | null>(null);
 
   const refreshUser = useCallback(async () => {
-    if (!initData || !user?.id) return null;
-    const profile = await loadDbUser(initData, user.id);
+    const snap = getTelegramAuthSnapshot();
+    const data = snap?.initData || initData;
+    const uid = snap?.user.id || user?.id;
+    if (!data || !uid) return null;
+    const profile = await loadDbUser(data, uid);
     if (profile) setDbUser(profile);
     return profile;
   }, [initData, user?.id]);
 
-  // SSR renders with empty auth — restore cached Telegram session on the client immediately.
-  useLayoutEffect(() => {
-    const cached = readTelegramSession();
-    if (!cached) return;
-    setUser(cached.user);
-    setInitData(cached.initData);
-    setLoading(false);
-    prefetchHomeSummary(cached.initData, cached.user.id);
-    void loadDbUser(cached.initData, cached.user.id).then((profile) => {
-      if (profile) setDbUser(profile);
-    });
-  }, []);
-
   useEffect(() => {
     let alive = true;
+    let attempts = 0;
+    const maxAttempts = 300;
 
-    const bootstrap = async (
-      tgApp: { ready: () => void; expand: () => void; initDataUnsafe?: { start_param?: string } },
-      tgUser: TelegramUser,
-      rawInitData: string
-    ) => {
-      try {
-        tgApp.ready();
-        tgApp.expand();
-      } catch {
-        /* optional in stub */
-      }
-      if (!alive) return;
-
-      setInitData(rawInitData);
-      setUser(tgUser);
+    const applySnapshot = async (snap: NonNullable<ReturnType<typeof getTelegramAuthSnapshot>>) => {
+      setUser(snap.user);
+      setInitData(snap.initData);
       setLoading(false);
 
-      prefetchHomeSummary(rawInitData, tgUser.id);
+      try {
+        const tg = (window as { Telegram?: { WebApp?: { ready?: () => void; expand?: () => void } } })
+          .Telegram?.WebApp;
+        tg?.ready?.();
+        tg?.expand?.();
+      } catch {
+        /* optional */
+      }
 
-      const profile = await loadDbUser(rawInitData, tgUser.id);
+      if (bootstrappedUserId.current === snap.user.id) return;
+      bootstrappedUserId.current = snap.user.id;
+
+      prefetchHomeSummary(snap.initData, snap.user.id);
+      const profile = await loadDbUser(snap.initData, snap.user.id);
       if (profile && alive) setDbUser(profile);
-
-      void registerChatForNotifications(tgUser.id, tgUser.id, rawInitData);
-
-      const startParam = tgApp.initDataUnsafe?.start_param;
-      if (startParam?.startsWith('join_') && profile) {
-        void fetch('/api/household/join', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            initData: rawInitData,
-            telegram_user_id: tgUser.id,
-            token: startParam,
-          }),
-        })
-          .then(() => loadDbUser(rawInitData, tgUser.id))
-          .then((refreshed) => {
-            if (refreshed && alive) setDbUser(refreshed);
-          })
-          .catch((e) => console.error('Household join failed:', e));
-      }
-
-      if (startParam?.startsWith('ref_') && profile) {
-        void fetch('/api/referral/claim', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            initData: rawInitData,
-            telegram_user_id: tgUser.id,
-            token: startParam,
-          }),
-        }).catch((e) => console.error('Referral claim failed:', e));
-      }
+      void registerChatForNotifications(snap.user.id, snap.user.id, snap.initData);
     };
 
-    void (async () => {
-      const session = await waitForTelegramWebApp(20000);
+    const tick = () => {
       if (!alive) return;
 
-      if (session) {
-        await bootstrap(session.tgApp, session.user, session.initData);
+      const snap = getTelegramAuthSnapshot();
+      if (snap) {
+        void applySnapshot(snap);
         return;
       }
 
-      if (IS_DEV) {
-        setUser(DEV_USER);
+      attempts += 1;
+      if (attempts >= maxAttempts) {
+        if (IS_DEV) setUser(DEV_USER);
+        setLoading(false);
+        return;
       }
-      setLoading(false);
-    })();
 
+      window.setTimeout(tick, 100);
+    };
+
+    tick();
     return () => {
       alive = false;
     };

@@ -4,6 +4,7 @@ import "./globals.css";
 import BottomNav from "../components/layout/BottomNav";
 import SwipeNavigator from "../components/layout/SwipeNavigator";
 import { AppProviders } from "../components/AppProviders";
+import { installTelegramCaptureScript } from "@/lib/telegram-capture-script";
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
@@ -36,14 +37,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){function w(s,d,u){try{s.setItem('eatsave_tg_init',d);s.setItem('eatsave_tg_user',JSON.stringify(u));}catch(e){}}function save(){try{var tg=window.Telegram&&window.Telegram.WebApp;if(!tg)return false;var d=tg.initData,u=tg.initDataUnsafe&&tg.initDataUnsafe.user;if(!d||!u||!u.id)return false;w(sessionStorage,d,u);w(localStorage,d,u);return true;}catch(e){}return false;}save();window.__EATSAVE_SAVE_TG__=save;})();`,
+            __html: installTelegramCaptureScript(),
           }}
         />
         {/* eslint-disable-next-line @next/next/no-sync-scripts */}
         <script src="https://telegram.org/js/telegram-web-app.js" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var c='#0c0f0a';document.documentElement.style.backgroundColor=c;function save(){if(window.__EATSAVE_SAVE_TG__&&window.__EATSAVE_SAVE_TG__())return true;return false;}function apply(){try{var tg=window.Telegram&&window.Telegram.WebApp;if(!tg)return;tg.ready();tg.setBackgroundColor(c);tg.setHeaderColor(c);save();}catch(e){}}apply();document.addEventListener('DOMContentLoaded',apply);var n=0,t=setInterval(function(){if(save()||++n>400)clearInterval(t);},50);})();`,
+            __html: `(function(){var c='#0c0f0a';document.documentElement.style.backgroundColor=c;function apply(){try{var tg=window.Telegram&&window.Telegram.WebApp;if(!tg)return;tg.ready();tg.setBackgroundColor(c);tg.setHeaderColor(c);window.__EATSAVE_CAPTURE_TG__&&window.__EATSAVE_CAPTURE_TG__();}catch(e){}}apply();document.addEventListener('DOMContentLoaded',apply);var n=0,t=setInterval(function(){if(window.__EATSAVE_CAPTURE_TG__&&window.__EATSAVE_CAPTURE_TG__()||++n>400)clearInterval(t);},50);})();`,
           }}
         />
       </head>

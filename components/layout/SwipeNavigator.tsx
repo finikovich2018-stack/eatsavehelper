@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 const TAB_ORDER = [
@@ -31,15 +31,31 @@ function isInHorizontalScroller(target: EventTarget | null): boolean {
   return false;
 }
 
+function tabIndex(pathname: string): number {
+  return TAB_ORDER.findIndex(
+    (href) => pathname === href || pathname.startsWith(`${href}/`)
+  );
+}
+
 export default function SwipeNavigator({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const start = useRef<{ x: number; y: number; t: number; skip: boolean } | null>(null);
+  const prevIndex = useRef(tabIndex(pathname));
+  const [animClass, setAnimClass] = useState("");
 
   useEffect(() => {
-    const currentIndex = TAB_ORDER.findIndex(
-      (href) => pathname === href || pathname.startsWith(`${href}/`)
-    );
+    const idx = tabIndex(pathname);
+    if (idx !== -1 && prevIndex.current !== -1 && idx !== prevIndex.current) {
+      setAnimClass(idx > prevIndex.current ? "tab-anim-right" : "tab-anim-left");
+    } else {
+      setAnimClass("");
+    }
+    prevIndex.current = idx;
+  }, [pathname]);
+
+  useEffect(() => {
+    const currentIndex = tabIndex(pathname);
     const enabled =
       currentIndex !== -1 &&
       !pathname.startsWith("/marketing") &&
@@ -89,5 +105,9 @@ export default function SwipeNavigator({ children }: { children: React.ReactNode
     };
   }, [pathname, router]);
 
-  return <>{children}</>;
+  return (
+    <div key={pathname} className={animClass}>
+      {children}
+    </div>
+  );
 }

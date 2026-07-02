@@ -34,3 +34,28 @@ body {
   min-height: 100dvh;
   padding-bottom: 88px;
 }
+
+@keyframes tabInFromRight {
+  from { opacity: 0; transform: translateX(28px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes tabInFromLeft {
+  from { opacity: 0; transform: translateX(-28px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.tab-anim-right {
+  animation: tabInFromRight 0.22s ease-out;
+}
+
+.tab-anim-left {
+  animation: tabInFromLeft 0.22s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-anim-right,
+  .tab-anim-left {
+    animation: none;
+  }
+}

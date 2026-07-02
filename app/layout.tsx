@@ -45,7 +45,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div id="eatsave-splash" className="eatsave-splash" aria-hidden="true" suppressHydrationWarning>
           <div className="eatsave-splash-glow" />
           <div className="eatsave-splash-content">
-            <p className="eatsave-splash-welcome">Добро пожаловать</p>
             <div className="eatsave-splash-logo-wrap">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/eatsave-logo.png" alt="" width={200} height={200} className="eatsave-splash-logo" />

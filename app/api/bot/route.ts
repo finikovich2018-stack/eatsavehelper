@@ -14,6 +14,7 @@ import {
   sendAdminReplyToUser,
 } from '@/lib/bot-admin-reply';
 import { getFeedbackCommentUrl, parseFeedbackMessage, relayFeedbackToAdmins } from '@/lib/bot-feedback';
+import { matchMenuAction, withMainMenu } from '@/lib/bot-keyboard';
 import { syncUserProfile } from '@/lib/sync-user-profile';
 import { getAppHomeUrl } from '@/lib/app-url';
 import { getBotToken } from '@/lib/bot-token';
@@ -128,13 +129,40 @@ async function sendFeedbackChoiceReply(chatId: number, locale: ReturnType<typeof
   const msg = botMsg(locale);
   await sendMessage(chatId, msg.feedbackChoose, {
     parse_mode: 'HTML',
-    ...feedbackChoiceMarkup(locale),
+    ...withMainMenu(locale),
   });
 }
 
 async function sendHelpReply(chatId: number, locale: ReturnType<typeof botLocale>) {
   const msg = botMsg(locale);
-  await sendMessage(chatId, msg.help, feedbackChoiceMarkup(locale));
+  await sendMessage(chatId, msg.help, withMainMenu(locale));
+}
+
+async function sendChannelHint(chatId: number, locale: ReturnType<typeof botLocale>) {
+  const msg = botMsg(locale);
+  const url = getFeedbackCommentUrl();
+  await sendMessage(
+    chatId,
+    `${msg.feedbackChannel}\n\n<a href="${url}">${url}</a>`,
+    { parse_mode: 'HTML', ...withMainMenu(locale) }
+  );
+}
+
+async function handleMenuAction(
+  chatId: number,
+  locale: ReturnType<typeof botLocale>,
+  action: 'support' | 'channel' | 'help'
+) {
+  const msg = botMsg(locale);
+  if (action === 'support') {
+    await sendMessage(chatId, msg.feedbackWriteHere, withMainMenu(locale));
+    return;
+  }
+  if (action === 'channel') {
+    await sendChannelHint(chatId, locale);
+    return;
+  }
+  await sendHelpReply(chatId, locale);
 }
 
 async function answerPreCheckout(queryId: string, ok: boolean, errorMessage?: string) {
@@ -189,7 +217,7 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     message: 'EatSave bot webhook is live',
-    features: { feedbackChoice: true, adminReply: true },
+    features: { feedbackChoice: true, adminReply: true, replyKeyboardMenu: true },
     commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'local',
   });
 }
@@ -239,11 +267,11 @@ export async function POST(req: NextRequest) {
           await activatePremium(userId);
           await markLatestPaymentActivated(supabase, userId);
           const locale = botLocale(body.message?.from?.language_code);
-          await sendMessage(userId, botMsg(locale).premiumActivated);
+          await sendMessage(userId, botMsg(locale).premiumActivated, withMainMenu(locale));
         } catch (e) {
           console.error('activatePremium failed:', e);
           const locale = botLocale(body.message?.from?.language_code);
-          await sendMessage(userId, botMsg(locale).premiumFailed);
+          await sendMessage(userId, botMsg(locale).premiumFailed, withMainMenu(locale));
         }
       } else {
         console.error('Premium payment ignored:', payment);
@@ -257,7 +285,7 @@ export async function POST(req: NextRequest) {
       const locale = botLocale(query.from.language_code);
       const msg = botMsg(locale);
       await answerCallbackQuery(query.id);
-      await sendMessage(chatId, msg.feedbackWriteHere);
+      await sendMessage(chatId, msg.feedbackWriteHere, withMainMenu(locale));
       return NextResponse.json({ ok: true });
     }
 
@@ -312,13 +340,19 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      await sendMessage(chatId, msg.start(firstName), {
-        reply_markup: {
-          inline_keyboard: [[{ text: msg.openApp, web_app: { url: getAppHomeUrl() } }]],
-        },
-      });
+      await sendMessage(chatId, msg.start(firstName), withMainMenu(locale));
 
       return NextResponse.json({ ok: true });
+    }
+
+    if (body.message?.text) {
+      const menuAction = matchMenuAction(body.message.text.trim(), botLocale(body.message.from.language_code));
+      if (menuAction) {
+        const chatId = body.message.from.id;
+        const locale = botLocale(body.message.from.language_code);
+        await handleMenuAction(chatId, locale, menuAction);
+        return NextResponse.json({ ok: true });
+      }
     }
 
     if (body.message?.text === '/subscribe') {
@@ -329,7 +363,7 @@ export async function POST(req: NextRequest) {
         .update({ notifications_enabled: true, telegram_chat_id: chatId })
         .eq('telegram_user_id', chatId);
 
-      await sendMessage(chatId, botMsg(locale).subscribed);
+      await sendMessage(chatId, botMsg(locale).subscribed, withMainMenu(locale));
       return NextResponse.json({ ok: true });
     }
 
@@ -341,7 +375,7 @@ export async function POST(req: NextRequest) {
         .update({ notifications_enabled: false })
         .eq('telegram_user_id', chatId);
 
-      await sendMessage(chatId, botMsg(locale).unsubscribed);
+      await sendMessage(chatId, botMsg(locale).unsubscribed, withMainMenu(locale));
       return NextResponse.json({ ok: true });
     }
 
@@ -352,16 +386,16 @@ export async function POST(req: NextRequest) {
       try {
         const canRecover = await hasRecoverablePremiumPayment(supabase, chatId);
         if (!canRecover) {
-          await sendMessage(chatId, msg.activateFail);
+          await sendMessage(chatId, msg.activateFail, withMainMenu(locale));
           return NextResponse.json({ ok: true });
         }
         await activatePremium(chatId);
         await markLatestPaymentActivated(supabase, chatId);
-        await sendMessage(chatId, msg.activateOk);
+        await sendMessage(chatId, msg.activateOk, withMainMenu(locale));
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : 'Unknown error';
         console.error('Manual activate failed:', e);
-        await sendMessage(chatId, `${msg.activateFail}\n\n${errMsg.slice(0, 120)}`);
+        await sendMessage(chatId, `${msg.activateFail}\n\n${errMsg.slice(0, 120)}`, withMainMenu(locale));
       }
       return NextResponse.json({ ok: true });
     }
@@ -377,7 +411,8 @@ export async function POST(req: NextRequest) {
 
       await sendMessage(
         chatId,
-        botMsg(locale).status(Boolean(data?.is_premium), data?.notifications_enabled !== false)
+        botMsg(locale).status(Boolean(data?.is_premium), data?.notifications_enabled !== false),
+        withMainMenu(locale)
       );
       return NextResponse.json({ ok: true });
     }
@@ -445,9 +480,9 @@ export async function POST(req: NextRequest) {
       );
 
       if (relayed) {
-        await sendMessage(chatId, msg.feedbackReceived, feedbackChoiceMarkup(locale));
+        await sendMessage(chatId, msg.feedbackReceived, withMainMenu(locale));
       } else {
-        await sendMessage(chatId, msg.feedbackNoAdmin, feedbackChoiceMarkup(locale));
+        await sendMessage(chatId, msg.feedbackNoAdmin, withMainMenu(locale));
       }
     }
 

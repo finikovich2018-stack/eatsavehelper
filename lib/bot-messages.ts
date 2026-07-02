@@ -10,7 +10,7 @@ export function botLocale(languageCode?: string): BotLocale {
 const MESSAGES = {
   ru: {
     start: (name: string) =>
-      `${greetingWithName(name, 'ru')} 👋\n\nЯ EatSave — умный холодильник и бюджет на продукты. Откройте приложение, чтобы отслеживать сроки годности и получать напоминания.`,
+      `${greetingWithName(name, 'ru')} 👋\n\nЯ EatSave — умный холодильник и бюджет на продукты.\n\n📱 Откройте приложение или выберите кнопку меню внизу 👇`,
     premiumActivated:
       '⭐ Premium активирован на 30 дней! Спасибо за поддержку EatSave.',
     premiumGranted: (days: number, until: string, extended?: boolean) =>
@@ -26,9 +26,9 @@ const MESSAGES = {
     activateOk: '✅ Premium активирован! Откройте приложение.',
     activateFail: '❌ Не найдена недавняя оплата Stars. Оплатите Premium в приложении или напишите в поддержку.',
     help:
-      '📖 Команды:\n/start — приложение\n/status — Premium\n/subscribe — напоминания\n/feedback — отзыв или вопрос\n\n💬 Отзывы — двумя способами (выберите кнопку ниже):',
+      '📖 Меню внизу 👇\n\n📱 Открыть EatSave — приложение\n✉️ Написать поддержку — личное сообщение\n💬 Комментарий в канале — отзыв под постом\n❓ Помощь — эта подсказка\n\nКоманды: /start /status /subscribe /feedback',
     feedbackChoose:
-      '💬 Куда написать отзыв или вопрос?\n\n✉️ <b>Бот</b> — лично разработчику (ответ придёт сюда)\n💬 <b>Канал</b> — комментарий под постом (видят другие)',
+      '💬 Отзыв или вопрос:\n\n✉️ <b>Написать поддержку</b> — лично разработчику (ответ в боте)\n💬 <b>Комментарий в канале</b> — публичный отзыв под постом\n\nКнопки меню внизу 👇',
     feedbackWriteHere:
       '✉️ Напишите сообщение в этот чат — передам разработчику.\n\nМожно текст, скрин или фото.',
     feedbackReceived:
@@ -63,7 +63,7 @@ const MESSAGES = {
   },
   en: {
     start: (name: string) =>
-      `${greetingWithName(name, 'en')} 👋\n\nI'm EatSave — smart fridge & grocery budget. Open the app to track expiry dates and get reminders.`,
+      `${greetingWithName(name, 'en')} 👋\n\nI'm EatSave — smart fridge & grocery budget.\n\n📱 Open the app or use the menu buttons below 👇`,
     premiumActivated:
       '⭐ Premium activated for 30 days! Thank you for supporting EatSave.',
     premiumGranted: (days: number, until: string, extended?: boolean) =>
@@ -79,9 +79,9 @@ const MESSAGES = {
     activateOk: '✅ Premium activated! Open the app.',
     activateFail: '❌ No recent Stars payment found. Pay for Premium in the app or contact support.',
     help:
-      '📖 Commands:\n/start — open app\n/status — Premium\n/subscribe — reminders\n/feedback — feedback or question\n\n💬 Two ways to reach us (pick a button):',
+      '📖 Menu below 👇\n\n📱 Open EatSave — the app\n✉️ Contact support — private message\n💬 Channel comment — public feedback\n❓ Help — this guide\n\nCommands: /start /status /subscribe /feedback',
     feedbackChoose:
-      '💬 Where should we read your feedback?\n\n✉️ <b>Bot</b> — private message to the developer (reply here)\n💬 <b>Channel</b> — comment under our post (public)',
+      '💬 Feedback or question:\n\n✉️ <b>Contact support</b> — private message (reply in bot)\n💬 <b>Channel comment</b> — public comment under our post\n\nUse the menu buttons below 👇',
     feedbackWriteHere:
       '✉️ Send your message in this chat — I will forward it to the developer.\n\nText, screenshot, or photo works.',
     feedbackReceived:

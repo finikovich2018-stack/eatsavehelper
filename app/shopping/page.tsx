@@ -153,7 +153,7 @@ export default function ShoppingPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-24">
+    <main className="bg-background text-foreground">
       <TopBar title={t('shopping.title')} />
       <div className="max-w-mobile mx-auto px-4 py-4">
         <div className="flex gap-3 mb-4 anim-rise-in">

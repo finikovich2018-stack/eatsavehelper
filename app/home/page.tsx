@@ -107,9 +107,9 @@ export default function HomePage() {
   const remaining = budget.limit - budget.spent;
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-24">
+    <main className="bg-background text-foreground">
       <TopBar title={t('home.title')} />
-      <div className="max-w-mobile mx-auto px-4 py-4 space-y-6">
+      <div className="max-w-mobile mx-auto px-4 py-3 space-y-4">
         <div className="bg-gradient-to-br from-surface to-background border border-border rounded-3xl p-5 anim-rise-in">
           <div className="flex justify-between items-start mb-3">
             <div>
@@ -203,36 +203,35 @@ export default function HomePage() {
           )}
         </div>
 
-        <div>
-          <h2 className="font-semibold mb-3 anim-rise-in anim-delay-3">{t('home.quickActions')}</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <Link href="/scan" className="home-scan-card bg-accent text-background rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition anim-rise-in anim-delay-4">
-              <div className="text-2xl mb-1 home-action-icon home-action-icon-1">📷</div>
+        <div className="space-y-3">
+          <h2 className="font-semibold anim-rise-in anim-delay-3">{t('home.quickActions')}</h2>
+          <div className="grid grid-cols-2 gap-2.5">
+            <Link href="/scan" className="home-scan-card bg-accent text-background rounded-2xl p-3 min-h-[4.5rem] flex flex-col items-center justify-center gap-1 text-sm font-medium leading-tight active:scale-[0.98] transition anim-rise-in anim-delay-4">
+              <div className="text-2xl home-action-icon home-action-icon-1">📷</div>
               {t('home.scanReceipt')}
             </Link>
-            <Link href="/fridge" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition anim-rise-in anim-delay-5">
-              <div className="text-2xl mb-1 home-action-icon home-action-icon-2">{ICON.addFridge}</div>
+            <Link href="/fridge" className="bg-surface border border-border rounded-2xl p-3 min-h-[4.5rem] flex flex-col items-center justify-center gap-1 text-sm font-medium leading-tight active:scale-[0.98] transition anim-rise-in anim-delay-5">
+              <div className="text-2xl home-action-icon home-action-icon-2">{ICON.addFridge}</div>
               {t('home.addProduct')}
             </Link>
-            <Link href="/recipes" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition anim-rise-in anim-delay-5">
-              <div className="text-2xl mb-1 home-action-icon home-action-icon-3">👨‍🍳</div>
+            <Link href="/recipes" className="bg-surface border border-border rounded-2xl p-3 min-h-[4.5rem] flex flex-col items-center justify-center gap-1 text-sm font-medium leading-tight active:scale-[0.98] transition anim-rise-in anim-delay-5">
+              <div className="text-2xl home-action-icon home-action-icon-3">👨‍🍳</div>
               {t('home.recipes')}
             </Link>
-            <Link href="/shopping" className="bg-surface border border-border rounded-2xl p-4 text-center font-medium active:scale-[0.98] transition anim-rise-in anim-delay-6">
-              <div className="text-2xl mb-1 home-action-icon home-action-icon-4">🛒</div>
+            <Link href="/shopping" className="bg-surface border border-border rounded-2xl p-3 min-h-[4.5rem] flex flex-col items-center justify-center gap-1 text-sm font-medium leading-tight active:scale-[0.98] transition anim-rise-in anim-delay-6">
+              <div className="text-2xl home-action-icon home-action-icon-4">🛒</div>
               {t('home.shoppingList')}
             </Link>
           </div>
-        </div>
 
-        <div className="grid grid-cols-4 gap-2 anim-rise-in anim-delay-4">
+          <div className="grid grid-cols-4 gap-2 anim-rise-in anim-delay-4">
           <Link
             href="/fridge"
             className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition anim-rise-in"
             style={{ animationDelay: '0.28s' }}
           >
             <div className="text-xl font-bold text-accent">{stats.products}</div>
-            <div className="text-xs text-muted mt-1">{t('home.products')}</div>
+            <div className="text-[10px] leading-tight text-muted mt-0.5">{t('home.products')}</div>
           </Link>
           <Link
             href="/fridge?filter=expiring"
@@ -240,7 +239,7 @@ export default function HomePage() {
             style={{ animationDelay: '0.34s' }}
           >
             <div className="text-xl font-bold text-yellow-400">{stats.expiringSoon}</div>
-            <div className="text-xs text-muted mt-1">{t('home.expiringCount')}</div>
+            <div className="text-[10px] leading-tight text-muted mt-0.5">{t('home.expiringCount')}</div>
           </Link>
           <Link
             href="/recipes"
@@ -248,7 +247,7 @@ export default function HomePage() {
             style={{ animationDelay: '0.4s' }}
           >
             <div className="text-xl font-bold text-accent">{stats.recipes}</div>
-            <div className="text-xs text-muted mt-1">{t('home.recipesCount')}</div>
+            <div className="text-[10px] leading-tight text-muted mt-0.5">{t('home.recipesCount')}</div>
           </Link>
           <Link
             href="/shopping"
@@ -256,8 +255,9 @@ export default function HomePage() {
             style={{ animationDelay: '0.46s' }}
           >
             <div className="text-xl font-bold text-accent">{stats.shopping}</div>
-            <div className="text-xs text-muted mt-1">{t('home.shoppingCount')}</div>
+            <div className="text-[10px] leading-tight text-muted mt-0.5">{t('home.shoppingCount')}</div>
           </Link>
+          </div>
         </div>
       </div>
     </main>

@@ -88,7 +88,7 @@ export default function FridgePage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-background text-foreground pb-24">
+        <main className="bg-background text-foreground">
           <div className="text-center text-muted py-20">...</div>
         </main>
       }
@@ -351,7 +351,7 @@ function FridgePageContent() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-24">
+    <main className="bg-background text-foreground">
       <TopBar title={t('fridge.title')} />
       <div className="max-w-mobile mx-auto px-4 py-4">
         <div className="grid grid-cols-3 gap-3 mb-4 anim-rise-in">

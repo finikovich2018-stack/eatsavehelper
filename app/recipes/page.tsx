@@ -246,7 +246,7 @@ export default function RecipesPage() {
   if (selectedSaved) {
     const steps = Array.isArray(selectedSaved.steps) ? selectedSaved.steps : [];
     return (
-      <main className="min-h-screen bg-background text-foreground pb-24">
+      <main className="bg-background text-foreground">
         <TopBar title={selectedSaved.name} />
         <div className="max-w-mobile mx-auto px-4 py-6">
           <div className="text-center py-8">
@@ -299,7 +299,7 @@ export default function RecipesPage() {
 
   if (selected) {
     return (
-      <main className="min-h-screen bg-background text-foreground pb-24">
+      <main className="bg-background text-foreground">
         <TopBar title={selected.name} />
         <div className="max-w-mobile mx-auto px-4 py-6">
           <div className="text-center py-8">
@@ -339,9 +339,9 @@ export default function RecipesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-24">
+    <main className="bg-background text-foreground">
       <TopBar title={t('recipes.title')} />
-      <div className="max-w-mobile mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-mobile mx-auto px-4 py-3 space-y-4">
         <button
           onClick={() => getAIRecipes()}
           className="w-full bg-gradient-to-r from-accent/30 to-accent/10 hover:from-accent/40 hover:to-accent/20 border border-accent rounded-2xl p-5 text-left transition-all glow-pulse anim-rise-in"

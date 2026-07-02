@@ -73,7 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
         <AppProviders>
           <SwipeNavigator>
-            <main className="pb-16">{children}</main>
+            <main className="pb-[4.75rem]">{children}</main>
           </SwipeNavigator>
           <BottomNav />
         </AppProviders>

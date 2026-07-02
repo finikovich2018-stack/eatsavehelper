@@ -108,7 +108,7 @@ export default function AdminPage() {
 
   if (tgLoading || (auth && status === 'loading')) {
     return (
-      <div className="min-h-screen bg-background pb-24">
+      <div className="bg-background">
         <TopBar title="Admin" />
         <div className="p-4 text-muted text-center">Загрузка…</div>
       </div>
@@ -117,7 +117,7 @@ export default function AdminPage() {
 
   if (!auth || !user) {
     return (
-      <div className="min-h-screen bg-background pb-24">
+      <div className="bg-background">
         <TopBar title="Admin" />
         <div className="p-4 text-center text-muted">Откройте страницу через Telegram Mini App.</div>
       </div>
@@ -126,7 +126,7 @@ export default function AdminPage() {
 
   if (status === 'forbidden') {
     return (
-      <div className="min-h-screen bg-background pb-24">
+      <div className="bg-background">
         <TopBar title="Admin" />
         <div className="p-4 text-center space-y-2">
           <p className="text-muted">Нет доступа.</p>
@@ -143,7 +143,7 @@ export default function AdminPage() {
 
   if (status === 'error') {
     return (
-      <div className="min-h-screen bg-background pb-24">
+      <div className="bg-background">
         <TopBar title="Admin" />
         <div className="p-4 text-center text-red-400">{error}</div>
       </div>
@@ -162,7 +162,7 @@ export default function AdminPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="bg-background">
       <TopBar title="EatSave Admin" />
       <div className="p-4 space-y-4">
         <div className="grid grid-cols-2 gap-3">

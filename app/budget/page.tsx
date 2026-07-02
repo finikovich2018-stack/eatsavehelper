@@ -227,7 +227,7 @@ export default function BudgetPage() {
   }, [monthExpenses, primaryCur]);
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-24">
+    <main className="bg-background text-foreground">
       <TopBar title={t('budget.title')} />
       <div className="max-w-mobile mx-auto px-4 py-4">
         {activeCurrencies.length === 0 ? (

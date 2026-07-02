@@ -67,7 +67,7 @@ export default function TgStatusPage() {
 
   if (!status) {
     return (
-      <main className="min-h-screen bg-background text-foreground p-4">
+      <main className="bg-background text-foreground p-4">
         <p className="text-sm text-muted">Диагностика…</p>
       </main>
     );
@@ -91,7 +91,7 @@ export default function TgStatusPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-background text-foreground p-4 pb-24">
+    <main className="bg-background text-foreground p-4">
       <h1 className="text-xl font-bold mb-2">Диагностика Telegram</h1>
       <p className="text-sm text-muted mb-4">
         Откройте эту страницу через бота и сделайте скриншот, если профиль показывает «Пользователь».

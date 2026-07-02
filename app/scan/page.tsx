@@ -286,7 +286,7 @@ export default function ScanPage() {
   };
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-24">
+    <main className="bg-background text-foreground">
       <TopBar title={t('scan.title')} />
       <div className="max-w-mobile mx-auto px-4 py-4">
         <div className="mb-4 text-sm text-muted">

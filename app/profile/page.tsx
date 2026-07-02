@@ -582,9 +582,9 @@ export default function ProfilePage() {
   };
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-24">
+    <main className="bg-background text-foreground">
       <TopBar title={t('profile.title')} />
-      <div className="max-w-mobile mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-mobile mx-auto px-4 py-3 space-y-4">
 
         <div className="bg-gradient-to-br from-surface/80 to-background border border-accent/20 rounded-3xl p-8 overflow-hidden relative anim-rise-in">
           <div className="absolute top-0 right-0 w-48 h-48 bg-accent/5 rounded-full -mr-24 -mt-24 pointer-events-none" />

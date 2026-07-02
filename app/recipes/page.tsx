@@ -9,6 +9,7 @@ import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_AI_RECIPES_PER_MONTH } from '@/lib/constants';
 import { findMissingIngredients } from '@/lib/shopping-utils';
 import { hasPremiumAccess, isPremiumActive } from '@/lib/user-utils';
+import { readSessionCache, writeSessionCache } from '@/lib/session-cache';
 import type { Locale } from '@/lib/i18n/translations';
 
 type Recipe = {
@@ -60,15 +61,24 @@ function daysLeft(date: string) {
   return Math.ceil((new Date(date).getTime() - Date.now()) / 86400000);
 }
 
+const RECIPES_CACHE_KEY = 'eatsave:recipes';
+type RecipesCache = { expiringItems: FridgeItem[]; savedRecipes: SavedRecipe[] };
+
 export default function RecipesPage() {
   const auth = useDataAuth();
   const { user, dbUser, initData, refreshUser } = useTelegram();
   const { t, locale } = useI18n();
   const [aiMode, setAiMode] = useState<'fridge' | 'budget'>('fridge');
   const recipes = useMemo(() => RECIPES_BY_LOCALE[locale], [locale]);
-  const [expiringItems, setExpiringItems] = useState<FridgeItem[]>([]);
-  const [savedRecipes, setSavedRecipes] = useState<SavedRecipe[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [expiringItems, setExpiringItems] = useState<FridgeItem[]>(
+    () => readSessionCache<RecipesCache>(RECIPES_CACHE_KEY)?.expiringItems ?? []
+  );
+  const [savedRecipes, setSavedRecipes] = useState<SavedRecipe[]>(
+    () => readSessionCache<RecipesCache>(RECIPES_CACHE_KEY)?.savedRecipes ?? []
+  );
+  const [loading, setLoading] = useState(
+    () => !readSessionCache<RecipesCache>(RECIPES_CACHE_KEY)
+  );
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [selectedSaved, setSelectedSaved] = useState<SavedRecipe | null>(null);
   const [showAI, setShowAI] = useState(false);
@@ -168,7 +178,6 @@ export default function RecipesPage() {
 
   const loadExpiringItems = useCallback(async () => {
     if (!auth) return;
-    setLoading(true);
     try {
       const { items } = await dataApi.fridge.list(auth);
       const data = (items || []) as FridgeItem[];
@@ -187,6 +196,12 @@ export default function RecipesPage() {
   useEffect(() => {
     loadExpiringItems();
   }, [loadExpiringItems]);
+
+  useEffect(() => {
+    if (!loading) {
+      writeSessionCache<RecipesCache>(RECIPES_CACHE_KEY, { expiringItems, savedRecipes });
+    }
+  }, [expiringItems, savedRecipes, loading]);
 
   // Deep link from the daily reminder: "🍳 Что приготовить" opens /recipes?cook=expiring
   // and immediately generates an AI recipe focused on soon-to-expire products.

@@ -11,6 +11,7 @@ import { FEEDBACK_CHANNEL_URL, PREMIUM_PRICE_STARS, REFERRAL_BONUS_DAYS } from '
 import { ACHIEVEMENT_BONUS_DAYS, computeAchievements } from '@/lib/achievements';
 import { hasPremiumAccess, isPremiumActive } from '@/lib/user-utils';
 import { formatLocalDate } from '@/lib/utils';
+import { readSessionCache, writeSessionCache } from '@/lib/session-cache';
 import type { TranslationKey } from '@/lib/i18n/translations';
 
 type ReceiptRow = {
@@ -44,6 +45,43 @@ type Stats = {
   expenses: { amount: number; date: string; currency?: string | null }[];
 };
 
+type HouseholdData = {
+  role: 'owner' | 'member';
+  members: { telegram_user_id: number; first_name: string | null; username: string | null; role: string }[];
+  memberCount: number;
+  maxMembers: number;
+  canInvite: boolean;
+  ownerHasPremium: boolean;
+};
+
+type ReferralData = {
+  link: string;
+  invited: number;
+  bonusDays: number;
+  bonusPerInvite: number;
+  milestoneSize?: number;
+  milestoneBonusDays?: number;
+  toNextMilestone?: number;
+};
+
+const PROFILE_CACHE_KEY = 'eatsave:profile';
+type ProfileCache = {
+  stats: Stats;
+  recentReceipts: ReceiptRow[];
+  household: HouseholdData | null;
+  referral: ReferralData | null;
+};
+
+const DEFAULT_STATS: Stats = {
+  fridgeCount: 0,
+  byCurrency: {},
+  receiptCount: 0,
+  aiRecipeCount: 0,
+  budgetLimit: 15000,
+  primaryCurrency: 'RUB',
+  expenses: [],
+};
+
 const ACHIEVEMENT_META: Record<
   string,
   { icon: string; titleKey: TranslationKey; descKey: TranslationKey }
@@ -62,39 +100,30 @@ export default function ProfilePage() {
   const [premiumBusy, setPremiumBusy] = useState(false);
   const [notificationsBusy, setNotificationsBusy] = useState(false);
   const [notifyTimeBusy, setNotifyTimeBusy] = useState(false);
-  const [recentReceipts, setRecentReceipts] = useState<ReceiptRow[]>([]);
-  const [stats, setStats] = useState<Stats>({
-    fridgeCount: 0,
-    byCurrency: {},
-    receiptCount: 0,
-    aiRecipeCount: 0,
-    budgetLimit: 15000,
-    primaryCurrency: 'RUB',
-    expenses: [],
-  });
-  const [loading, setLoading] = useState(true);
+  const [recentReceipts, setRecentReceipts] = useState<ReceiptRow[]>(
+    () => readSessionCache<ProfileCache>(PROFILE_CACHE_KEY)?.recentReceipts ?? []
+  );
+  const [stats, setStats] = useState<Stats>(
+    () => readSessionCache<ProfileCache>(PROFILE_CACHE_KEY)?.stats ?? DEFAULT_STATS
+  );
+  const [loading, setLoading] = useState(
+    () => !readSessionCache<ProfileCache>(PROFILE_CACHE_KEY)
+  );
   const [isAdmin, setIsAdmin] = useState(false);
   const [claimBusy, setClaimBusy] = useState(false);
-  const [household, setHousehold] = useState<{
-    role: 'owner' | 'member';
-    members: { telegram_user_id: number; first_name: string | null; username: string | null; role: string }[];
-    memberCount: number;
-    maxMembers: number;
-    canInvite: boolean;
-    ownerHasPremium: boolean;
-  } | null>(null);
+  const [household, setHousehold] = useState<HouseholdData | null>(
+    () => readSessionCache<ProfileCache>(PROFILE_CACHE_KEY)?.household ?? null
+  );
   const [familyBusy, setFamilyBusy] = useState(false);
-  const [householdLoading, setHouseholdLoading] = useState(true);
-  const [referralLoading, setReferralLoading] = useState(true);
-  const [referral, setReferral] = useState<{
-    link: string;
-    invited: number;
-    bonusDays: number;
-    bonusPerInvite: number;
-    milestoneSize?: number;
-    milestoneBonusDays?: number;
-    toNextMilestone?: number;
-  } | null>(null);
+  const [householdLoading, setHouseholdLoading] = useState(
+    () => !readSessionCache<ProfileCache>(PROFILE_CACHE_KEY)
+  );
+  const [referralLoading, setReferralLoading] = useState(
+    () => !readSessionCache<ProfileCache>(PROFILE_CACHE_KEY)
+  );
+  const [referral, setReferral] = useState<ReferralData | null>(
+    () => readSessionCache<ProfileCache>(PROFILE_CACHE_KEY)?.referral ?? null
+  );
   const [referralBusy, setReferralBusy] = useState(false);
 
   const loadUserProfile = useCallback(async () => {
@@ -106,7 +135,6 @@ export default function ProfilePage() {
 
   const loadStats = useCallback(async () => {
     if (!auth) return;
-    setLoading(true);
 
     try {
       const monthStart = formatLocalDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
@@ -297,6 +325,16 @@ export default function ProfilePage() {
     loadHousehold();
     loadReferral();
   }, [loadUserProfile, loadStats, loadHousehold, loadReferral]);
+
+  useEffect(() => {
+    if (loading || householdLoading || referralLoading) return;
+    writeSessionCache<ProfileCache>(PROFILE_CACHE_KEY, {
+      stats,
+      recentReceipts,
+      household,
+      referral,
+    });
+  }, [loading, householdLoading, referralLoading, stats, recentReceipts, household, referral]);
 
   useEffect(() => {
     if (!auth) return;

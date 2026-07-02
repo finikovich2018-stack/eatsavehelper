@@ -9,20 +9,29 @@ import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
 import { defaultExpiryDate } from '@/lib/shopping-utils';
 import { hasPremiumAccess } from '@/lib/user-utils';
+import { readSessionCache, writeSessionCache } from '@/lib/session-cache';
 
 const SUGGEST_ICONS: Record<string, string> = {
   dairy: '🥛', meat: '🍗', veg: '🥦', grains: '🌾', other: '📦',
 };
 
+const SHOPPING_CACHE_KEY = 'eatsave:shopping';
+type SuggestionRow = { name: string; category: string | null; count: number };
+type ShoppingCache = { items: ApiShoppingItem[]; suggestions: SuggestionRow[] };
+
 export default function ShoppingPage() {
   const auth = useDataAuth();
   const { dbUser, refreshUser } = useTelegram();
   const { t } = useI18n();
-  const [items, setItems] = useState<ApiShoppingItem[]>([]);
-  const [suggestions, setSuggestions] = useState<
-    { name: string; category: string | null; count: number }[]
-  >([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<ApiShoppingItem[]>(
+    () => readSessionCache<ShoppingCache>(SHOPPING_CACHE_KEY)?.items ?? []
+  );
+  const [suggestions, setSuggestions] = useState<SuggestionRow[]>(
+    () => readSessionCache<ShoppingCache>(SHOPPING_CACHE_KEY)?.suggestions ?? []
+  );
+  const [loading, setLoading] = useState(
+    () => !readSessionCache<ShoppingCache>(SHOPPING_CACHE_KEY)
+  );
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', quantity: '' });
   const [localUser, setLocalUser] = useState<typeof dbUser>(null);
@@ -34,7 +43,6 @@ export default function ShoppingPage() {
 
   const loadItems = useCallback(async () => {
     if (!auth) return;
-    setLoading(true);
     try {
       const { items: rows } = await dataApi.shopping.list(auth);
       setItems(rows || []);
@@ -57,6 +65,10 @@ export default function ShoppingPage() {
     loadItems();
     loadSuggestions();
   }, [loadItems, loadSuggestions]);
+
+  useEffect(() => {
+    if (!loading) writeSessionCache<ShoppingCache>(SHOPPING_CACHE_KEY, { items, suggestions });
+  }, [items, suggestions, loading]);
 
   const pending = useMemo(() => items.filter((i) => !i.checked), [items]);
   const bought = useMemo(() => items.filter((i) => i.checked), [items]);

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomNav from "../components/layout/BottomNav";
+import SwipeNavigator from "../components/layout/SwipeNavigator";
 import { AppProviders } from "../components/AppProviders";
 
 export const metadata: Metadata = {
@@ -30,7 +31,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="bg-background text-foreground">
         <AppProviders>
-          <main className="pb-16">{children}</main>
+          <SwipeNavigator>
+            <main className="pb-16">{children}</main>
+          </SwipeNavigator>
           <BottomNav />
         </AppProviders>
       </body>

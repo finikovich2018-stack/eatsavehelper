@@ -48,7 +48,7 @@ const MESSAGES = {
     activateOk: '✅ Premium активирован! Откройте приложение.',
     activateFail: '❌ Не найдена недавняя оплата Stars. Оплатите Premium в приложении или напишите в поддержку.',
     help:
-      '📖 Меню внизу 👇\n\n📱 Открыть EatSave — приложение\n✉️ Написать поддержку — личное сообщение\n💬 Комментарий в канале — отзыв под постом\n⭐ Купить Premium — оплата Stars в боте\n⭐ Статус Premium — подписка и уведомления\n❓ Помощь — эта подсказка\n\nКоманды: /start /status /subscribe /feedback',
+      '📖 Меню внизу 👇\n\n▶️ Старт — главное меню\n📱 Открыть EatSave — приложение\n✉️ Написать поддержку — личное сообщение\n💬 Комментарий в канале — отзыв под постом\n⭐ Купить Premium — оплата Stars в боте\n⭐ Статус Premium — подписка и уведомления\n❓ Помощь — эта подсказка\n\nКоманды: /start /status /subscribe /feedback',
     premiumInvoiceFailed: '❌ Не удалось выставить счёт. Попробуйте позже или купите Premium в приложении.',
     feedbackChoose:
       '💬 Отзыв или вопрос:\n\n✉️ <b>Написать поддержку</b> — лично разработчику (ответ в боте)\n💬 <b>Комментарий в канале</b> — публичный отзыв под постом\n\nКнопки меню внизу 👇',
@@ -102,7 +102,7 @@ const MESSAGES = {
     activateOk: '✅ Premium activated! Open the app.',
     activateFail: '❌ No recent Stars payment found. Pay for Premium in the app or contact support.',
     help:
-      '📖 Menu below 👇\n\n📱 Open EatSave — the app\n✉️ Contact support — private message\n💬 Channel comment — public feedback\n⭐ Buy Premium — pay with Stars in bot\n⭐ Premium status — subscription & notifications\n❓ Help — this guide\n\nCommands: /start /status /subscribe /feedback',
+      '📖 Menu below 👇\n\n▶️ Start — main menu\n📱 Open EatSave — the app\n✉️ Contact support — private message\n💬 Channel comment — public feedback\n⭐ Buy Premium — pay with Stars in bot\n⭐ Premium status — subscription & notifications\n❓ Help — this guide\n\nCommands: /start /status /subscribe /feedback',
     premiumInvoiceFailed: '❌ Could not create invoice. Try again later or buy Premium in the app.',
     feedbackChoose:
       '💬 Feedback or question:\n\n✉️ <b>Contact support</b> — private message (reply in bot)\n💬 <b>Channel comment</b> — public comment under our post\n\nUse the menu buttons below 👇',

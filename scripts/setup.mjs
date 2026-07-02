@@ -109,13 +109,7 @@ async function runDirectSetup() {
   const menuRes = await fetch(`https://api.telegram.org/bot${botToken}/setChatMenuButton`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      menu_button: {
-        type: 'web_app',
-        text: 'Открыть EatSave',
-        web_app: { url: `${prodUrl}/home` },
-      },
-    }),
+    body: JSON.stringify({ menu_button: { type: 'default' } }),
   });
   const menuData = await menuRes.json();
 
@@ -141,7 +135,7 @@ async function runDirectSetup() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       commands: [
-        { command: 'start', description: 'Открыть EatSave' },
+        { command: 'start', description: 'Главное меню' },
         { command: 'status', description: 'Premium и уведомления' },
         { command: 'subscribe', description: 'Включить напоминания' },
         { command: 'unsubscribe', description: 'Выключить напоминания' },

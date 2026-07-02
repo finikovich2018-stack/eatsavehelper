@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAppBaseUrl, getAppHomeUrl } from '@/lib/app-url';
+import { applyBotTelegramUi } from '@/lib/bot-telegram-setup';
 import { getBotToken, isBotTokenConfigured } from '@/lib/bot-token';
 import { checkPremiumDb } from '@/lib/premium';
 import { getAdminTelegramIds } from '@/lib/admin';
@@ -107,18 +108,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const menuRes = await fetch(`https://api.telegram.org/bot${botToken}/setChatMenuButton`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      menu_button: {
-        type: 'web_app',
-        text: 'Открыть EatSave',
-        web_app: { url: getAppHomeUrl() },
-      },
-    }),
-  });
-  const menuData = await menuRes.json();
+  const ui = await applyBotTelegramUi(botToken);
 
   const meRes = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
   const meData = await meRes.json();
@@ -127,8 +117,10 @@ export async function POST(req: NextRequest) {
     ok: true,
     bot: meData.ok ? meData.result.username : null,
     webhookUrl,
-    menuButton: menuData.ok,
-    menuError: menuData.ok ? undefined : menuData.description,
+    menuButton: ui.menuOk,
+    menuError: ui.menuError,
+    commandsOk: ui.commandsOk,
+    commandsError: ui.commandsError,
     adminIdsConfigured: getAdminTelegramIds().length,
     feedbackRelayReady: getAdminTelegramIds().length > 0,
   });

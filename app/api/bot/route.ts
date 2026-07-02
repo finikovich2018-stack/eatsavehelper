@@ -170,14 +170,75 @@ async function sendStatusReply(
   );
 }
 
+async function handleStart(
+  chatId: number,
+  from: { first_name?: string; username?: string; language_code?: string },
+  supabase: ReturnType<typeof getSupabase>,
+  startPayload = ''
+) {
+  const firstName = from.first_name || '';
+  const username = from.username;
+  const locale = botLocale(from.language_code);
+  const msg = botMsg(locale);
+
+  await supabase.from('users').upsert(
+    {
+      telegram_user_id: chatId,
+      telegram_chat_id: chatId,
+      notifications_enabled: true,
+    },
+    { onConflict: 'telegram_user_id' }
+  );
+
+  await syncUserProfile(supabase, chatId, {
+    first_name: firstName,
+    username: username || null,
+  });
+
+  if (startPayload.startsWith('join_')) {
+    await sendMessage(chatId, msg.familyInviteOpen, {
+      reply_markup: {
+        inline_keyboard: [[
+          {
+            text: msg.openApp,
+            url: `https://t.me/EatSavehelper_bot?startapp=${startPayload}`,
+          },
+        ]],
+      },
+    });
+    return;
+  }
+
+  if (startPayload.startsWith('ref_')) {
+    await sendMessage(chatId, msg.referralInviteOpen, {
+      reply_markup: {
+        inline_keyboard: [[
+          {
+            text: msg.openApp,
+            url: `https://t.me/EatSavehelper_bot?startapp=${startPayload}`,
+          },
+        ]],
+      },
+    });
+    return;
+  }
+
+  await sendMessage(chatId, msg.start(firstName), withMainMenu(locale));
+}
+
 async function handleMenuAction(
   chatId: number,
   locale: ReturnType<typeof botLocale>,
   action: BotMenuAction,
   supabase: ReturnType<typeof getSupabase>,
-  userId: number
+  userId: number,
+  from: { first_name?: string; username?: string; language_code?: string }
 ) {
   const msg = botMsg(locale);
+  if (action === 'start') {
+    await handleStart(chatId, from, supabase, '');
+    return;
+  }
   if (action === 'support') {
     await sendMessage(chatId, msg.feedbackWriteHere, withMainMenu(locale));
     return;
@@ -332,56 +393,8 @@ export async function POST(req: NextRequest) {
     if (body.message?.text?.startsWith('/start')) {
       const from = body.message.from;
       const chatId = from.id;
-      const firstName = from.first_name || '';
-      const username = from.username;
-      const locale = botLocale(from.language_code);
-      const msg = botMsg(locale);
       const startPayload = body.message.text.split(/\s+/)[1] || '';
-
-      await supabase.from('users').upsert(
-        {
-          telegram_user_id: chatId,
-          telegram_chat_id: chatId,
-          notifications_enabled: true,
-        },
-        { onConflict: 'telegram_user_id' }
-      );
-
-      await syncUserProfile(supabase, chatId, {
-        first_name: firstName,
-        username: username || null,
-      });
-
-      if (startPayload.startsWith('join_')) {
-        await sendMessage(chatId, msg.familyInviteOpen, {
-          reply_markup: {
-            inline_keyboard: [[
-              {
-                text: msg.openApp,
-                url: `https://t.me/EatSavehelper_bot?startapp=${startPayload}`,
-              },
-            ]],
-          },
-        });
-        return NextResponse.json({ ok: true });
-      }
-
-      if (startPayload.startsWith('ref_')) {
-        await sendMessage(chatId, msg.referralInviteOpen, {
-          reply_markup: {
-            inline_keyboard: [[
-              {
-                text: msg.openApp,
-                url: `https://t.me/EatSavehelper_bot?startapp=${startPayload}`,
-              },
-            ]],
-          },
-        });
-        return NextResponse.json({ ok: true });
-      }
-
-      await sendMessage(chatId, msg.start(firstName), withMainMenu(locale));
-
+      await handleStart(chatId, from, supabase, startPayload);
       return NextResponse.json({ ok: true });
     }
 
@@ -390,7 +403,14 @@ export async function POST(req: NextRequest) {
       if (menuAction) {
         const chatId = body.message.from.id;
         const locale = botLocale(body.message.from.language_code);
-        await handleMenuAction(chatId, locale, menuAction, supabase, body.message.from.id);
+        await handleMenuAction(
+          chatId,
+          locale,
+          menuAction,
+          supabase,
+          body.message.from.id,
+          body.message.from
+        );
         return NextResponse.json({ ok: true });
       }
     }

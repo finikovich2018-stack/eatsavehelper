@@ -5,6 +5,7 @@ type BotLocale = ReturnType<typeof botLocale>;
 
 export const BOT_MENU_BTN = {
   ru: {
+    start: '▶️ Старт',
     openApp: '📱 Открыть EatSave',
     support: '✉️ Написать поддержку',
     channel: '💬 Комментарий в канале',
@@ -13,6 +14,7 @@ export const BOT_MENU_BTN = {
     help: '❓ Помощь',
   },
   en: {
+    start: '▶️ Start',
     openApp: '📱 Open EatSave',
     support: '✉️ Contact support',
     channel: '💬 Channel comment',
@@ -22,10 +24,11 @@ export const BOT_MENU_BTN = {
   },
 } as const;
 
-export type BotMenuAction = 'support' | 'channel' | 'status' | 'buyPremium' | 'help';
+export type BotMenuAction = 'start' | 'support' | 'channel' | 'status' | 'buyPremium' | 'help';
 
 export function matchMenuAction(text: string, locale: BotLocale): BotMenuAction | null {
   const btn = BOT_MENU_BTN[locale];
+  if (text === btn.start) return 'start';
   if (text === btn.support) return 'support';
   if (text === btn.channel) return 'channel';
   if (text === btn.premiumStatus) return 'status';
@@ -40,6 +43,7 @@ export function mainMenuReplyMarkup(locale: BotLocale) {
   return {
     reply_markup: {
       keyboard: [
+        [{ text: btn.start }],
         [{ text: btn.openApp, web_app: { url: getAppHomeUrl() } }],
         [{ text: btn.support }, { text: btn.channel }],
         [{ text: btn.buyPremium }],

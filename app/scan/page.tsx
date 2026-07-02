@@ -306,7 +306,7 @@ export default function ScanPage() {
           onClick={openGallery}
           className={`w-full py-5 rounded-3xl text-lg font-medium transition anim-rise-in ${
             canScan
-              ? 'home-scan-card bg-surface border border-accent/50 glow-pulse'
+              ? 'home-scan-card bg-surface border border-accent/50'
               : 'bg-surface border border-border text-muted cursor-not-allowed'
           }`}
         >

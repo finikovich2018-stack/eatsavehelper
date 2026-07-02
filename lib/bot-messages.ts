@@ -7,6 +7,28 @@ export function botLocale(languageCode?: string): BotLocale {
   return 'ru';
 }
 
+function premiumDaysLeft(premiumUntil: string): number {
+  return Math.max(0, Math.ceil((new Date(premiumUntil).getTime() - Date.now()) / 86400000));
+}
+
+function formatDaysLeft(n: number, locale: BotLocale): string {
+  if (locale === 'en') return n === 1 ? '1 day' : `${n} days`;
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 14) return `${n} дней`;
+  if (mod10 === 1) return `${n} день`;
+  if (mod10 >= 2 && mod10 <= 4) return `${n} дня`;
+  return `${n} дней`;
+}
+
+function formatPremiumLine(premium: boolean, premiumUntil: string | null | undefined, locale: BotLocale): string {
+  if (!premium) return locale === 'en' ? '❌ none' : '❌ нет';
+  if (!premiumUntil) return locale === 'en' ? '✅ active' : '✅ активен';
+  const days = premiumDaysLeft(premiumUntil);
+  const left = formatDaysLeft(days, locale);
+  return locale === 'en' ? `✅ active · ${left} left` : `✅ активен · осталось ${left}`;
+}
+
 const MESSAGES = {
   ru: {
     start: (name: string) =>
@@ -21,8 +43,8 @@ const MESSAGES = {
       '⚠️ Оплата получена, но активация Premium не удалась. Нажмите «Активировать Premium» в профиле приложения.',
     subscribed: '✅ Уведомления включены. Буду напоминать о продуктах, которые скоро испортятся.',
     unsubscribed: '🔕 Уведомления отключены.',
-    status: (premium: boolean, notifications: boolean) =>
-      `📊 Статус EatSave\n\nPremium: ${premium ? '✅ активен' : '❌ нет'}\nУведомления: ${notifications ? '✅ вкл' : '🔕 выкл'}`,
+    status: (premium: boolean, notifications: boolean, premiumUntil?: string | null) =>
+      `📊 Статус EatSave\n\nPremium: ${formatPremiumLine(premium, premiumUntil, 'ru')}\nУведомления: ${notifications ? '✅ вкл' : '🔕 выкл'}`,
     activateOk: '✅ Premium активирован! Откройте приложение.',
     activateFail: '❌ Не найдена недавняя оплата Stars. Оплатите Premium в приложении или напишите в поддержку.',
     help:
@@ -74,8 +96,8 @@ const MESSAGES = {
       '⚠️ Payment received but Premium activation failed. Tap «Activate Premium» in the app profile.',
     subscribed: '✅ Notifications enabled. I will remind you about expiring products.',
     unsubscribed: '🔕 Notifications disabled.',
-    status: (premium: boolean, notifications: boolean) =>
-      `📊 EatSave status\n\nPremium: ${premium ? '✅ active' : '❌ none'}\nNotifications: ${notifications ? '✅ on' : '🔕 off'}`,
+    status: (premium: boolean, notifications: boolean, premiumUntil?: string | null) =>
+      `📊 EatSave status\n\nPremium: ${formatPremiumLine(premium, premiumUntil, 'en')}\nNotifications: ${notifications ? '✅ on' : '🔕 off'}`,
     activateOk: '✅ Premium activated! Open the app.',
     activateFail: '❌ No recent Stars payment found. Pay for Premium in the app or contact support.',
     help:

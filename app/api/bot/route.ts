@@ -15,6 +15,7 @@ import {
 } from '@/lib/bot-admin-reply';
 import { getFeedbackCommentUrl, parseFeedbackMessage, relayFeedbackToAdmins } from '@/lib/bot-feedback';
 import { matchMenuAction, withMainMenu } from '@/lib/bot-keyboard';
+import { isPremiumActive } from '@/lib/user-utils';
 import { syncUserProfile } from '@/lib/sync-user-profile';
 import { getAppHomeUrl } from '@/lib/app-url';
 import { getBotToken } from '@/lib/bot-token';
@@ -155,13 +156,15 @@ async function sendStatusReply(
 ) {
   const { data } = await supabase
     .from('users')
-    .select('is_premium, notifications_enabled')
+    .select('is_premium, premium_until, notifications_enabled')
     .eq('telegram_user_id', chatId)
     .single();
 
+  const premium = isPremiumActive(data ?? {});
+
   await sendMessage(
     chatId,
-    botMsg(locale).status(Boolean(data?.is_premium), data?.notifications_enabled !== false),
+    botMsg(locale).status(premium, data?.notifications_enabled !== false, data?.premium_until),
     withMainMenu(locale)
   );
 }

@@ -612,12 +612,18 @@ export default function ProfilePage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-surface border border-border rounded-2xl p-5 text-center anim-rise-in anim-delay-1">
+              <Link
+                href="/fridge"
+                className="bg-surface border border-border rounded-2xl p-5 text-center anim-rise-in anim-delay-1 active:scale-[0.97] transition hover:border-accent/40"
+              >
                 <div className="text-3xl mb-2 home-action-icon home-action-icon-1">❄️</div>
                 <div className="text-3xl font-bold text-accent mb-1">{stats.fridgeCount}</div>
                 <div className="text-xs text-muted">{t('profile.products')}</div>
-              </div>
-              <div className="bg-surface border border-border rounded-2xl p-5 text-center anim-rise-in anim-delay-2">
+              </Link>
+              <Link
+                href="/budget"
+                className="bg-surface border border-border rounded-2xl p-5 text-center anim-rise-in anim-delay-2 active:scale-[0.97] transition hover:border-accent/40"
+              >
                 <div className="text-3xl mb-2 home-action-icon home-action-icon-2">💰</div>
                 {Object.keys(stats.byCurrency).length === 0 ? (
                   <div className="text-3xl font-bold text-accent mb-1">0 ₽</div>
@@ -634,17 +640,23 @@ export default function ProfilePage() {
                   </div>
                 )}
                 <div className="text-xs text-muted">{t('profile.spent')}</div>
-              </div>
-              <div className="bg-surface border border-border rounded-2xl p-5 text-center anim-rise-in anim-delay-3">
+              </Link>
+              <a
+                href="#profile-receipts"
+                className="bg-surface border border-border rounded-2xl p-5 text-center anim-rise-in anim-delay-3 active:scale-[0.97] transition hover:border-accent/40"
+              >
                 <div className="text-3xl mb-2 home-action-icon home-action-icon-3">🧾</div>
                 <div className="text-3xl font-bold text-accent mb-1">{stats.receiptCount}</div>
                 <div className="text-xs text-muted">{t('profile.receiptsCount')}</div>
-              </div>
-              <div className="bg-surface border border-border rounded-2xl p-5 text-center anim-rise-in anim-delay-4">
+              </a>
+              <Link
+                href="/recipes"
+                className="bg-surface border border-border rounded-2xl p-5 text-center anim-rise-in anim-delay-4 active:scale-[0.97] transition hover:border-accent/40"
+              >
                 <div className="text-3xl mb-2 home-action-icon home-action-icon-4">🍳</div>
                 <div className="text-3xl font-bold text-accent mb-1">{stats.aiRecipeCount}</div>
                 <div className="text-xs text-muted">{t('profile.aiRecipesCount')}</div>
-              </div>
+              </Link>
             </div>
           )}
         </div>
@@ -948,7 +960,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div id="profile-receipts" className="space-y-4 scroll-mt-4">
           <h3 className="font-semibold text-foreground text-lg">{t('profile.receiptHistory')}</h3>
           <div className="bg-surface border border-border rounded-2xl p-5 space-y-3">
             {recentReceipts.length === 0 ? (

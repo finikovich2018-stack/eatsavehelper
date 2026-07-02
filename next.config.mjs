@@ -1,5 +1,13 @@
 /** @type {import('next').NextConfig} */
+const buildId =
+  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ||
+  process.env.GITHUB_SHA?.slice(0, 12) ||
+  `build-${Date.now()}`;
+
 const nextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_BUILD_ID: buildId,
+  },
   images: {
     remotePatterns: [],
   },

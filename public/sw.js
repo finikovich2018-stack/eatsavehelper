@@ -1,6 +1,6 @@
-// EatSave service worker — network-first to avoid stale CSS/JS after deploys.
+// Minimal service worker: offline page only. Never caches CSS/JS (prevents stale-style bugs).
 
-const CACHE = 'eatsave-v8';
+const CACHE = 'eatsave-offline-only';
 const OFFLINE_URL = '/offline.html';
 
 self.addEventListener('install', (event) => {
@@ -17,37 +17,19 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-async function networkFirst(request) {
-  try {
-    const response = await fetch(request);
-    if (response.ok && request.url.startsWith(self.location.origin)) {
-      const copy = response.clone();
-      caches.open(CACHE).then((cache) => cache.put(request, copy));
-    }
-    return response;
-  } catch {
-    const cached = await caches.match(request);
-    if (cached) return cached;
-    throw new Error('offline');
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
   }
-}
+});
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  if (request.method !== 'GET') return;
+  if (request.method !== 'GET' || request.mode !== 'navigate') return;
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
 
-  if (url.pathname.startsWith('/_next/static/') || url.pathname === '/eatsave-logo.png' || url.pathname === '/logo.png') {
-    event.respondWith(networkFirst(request));
-    return;
-  }
-
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match(OFFLINE_URL))
-    );
-  }
+  event.respondWith(fetch(request).catch(() => caches.match(OFFLINE_URL)));
 });

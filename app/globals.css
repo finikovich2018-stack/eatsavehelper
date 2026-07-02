@@ -103,7 +103,112 @@ body {
   .float-soft,
   .glow-pulse,
   .nav-active-icon,
-  .arrow-nudge {
+  .arrow-nudge,
+  .eatsave-splash-logo,
+  .eatsave-splash-glow,
+  .eatsave-splash-dots span {
     animation: none;
   }
+}
+
+/* ─── Startup splash (shown before React hydrates) ─── */
+.eatsave-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0c0f0a;
+  transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+
+.eatsave-splash-out {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.eatsave-splash-glow {
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(126, 217, 87, 0.22) 0%, transparent 70%);
+  animation: splashGlow 2.4s ease-in-out infinite;
+}
+
+.eatsave-splash-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0 24px;
+}
+
+.eatsave-splash-logo-wrap {
+  margin-bottom: 20px;
+  filter: drop-shadow(0 8px 24px rgba(126, 217, 87, 0.25));
+}
+
+.eatsave-splash-logo {
+  display: block;
+  border-radius: 22%;
+  animation: splashLogo 2.4s ease-in-out infinite;
+}
+
+.eatsave-splash-title {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #f0f4ec;
+  margin: 0 0 8px;
+}
+
+.eatsave-splash-tagline {
+  font-size: 0.875rem;
+  color: #9baa8e;
+  margin: 0 0 28px;
+  max-width: 260px;
+  line-height: 1.4;
+}
+
+.eatsave-splash-dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.eatsave-splash-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #7ed957;
+  opacity: 0.35;
+  animation: splashDot 1.2s ease-in-out infinite;
+}
+
+.eatsave-splash-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.eatsave-splash-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes splashGlow {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+@keyframes splashLogo {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes splashDot {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(1); }
+  40% { opacity: 1; transform: scale(1.15); }
 }

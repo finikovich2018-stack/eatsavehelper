@@ -227,24 +227,30 @@ export default function BudgetPage() {
       <TopBar title={t('budget.title')} />
       <div className="max-w-mobile mx-auto px-4 py-4">
         {activeCurrencies.length === 0 ? (
-          <div className="bg-gradient-to-br from-surface to-background border border-border rounded-2xl p-5 mb-4">
+          <div className="bg-gradient-to-br from-surface to-background border border-border rounded-2xl p-5 mb-4 anim-rise-in">
             <div className="text-xs text-muted">{t('budget.spentMonth')}</div>
             <div className="text-3xl font-bold mt-1">0 ₽</div>
-            <div className="bg-background/60 rounded-full h-3 mt-4">
-              <div className="h-3 rounded-full bg-accent" style={{ width: '0%' }} />
+            <div className="bg-background/60 rounded-full h-3 mt-4 overflow-hidden">
+              <div className="h-3 rounded-full bg-accent home-bar-fill" style={{ width: '0%' }} />
             </div>
             <div className="text-xs text-muted mt-2">{t('budget.noExpenses')}</div>
           </div>
         ) : (
           <div className="space-y-3 mb-4">
-            {activeCurrencies.map((cur) => {
+            {activeCurrencies.map((cur, idx) => {
               const total = byCurrency[cur];
               const symbol = CURRENCY_SYMBOLS[cur] || cur;
               const limit = budgetLimits[cur] || DEFAULT_LIMITS[cur] || total * 2;
               const percent = Math.min((total / limit) * 100, 100);
               const remaining = limit - total;
               return (
-                <div key={cur} className="bg-gradient-to-br from-surface to-background border border-border rounded-2xl p-5">
+                <div
+                  key={cur}
+                  className={`bg-gradient-to-br from-surface to-background border rounded-2xl p-5 anim-rise-in ${
+                    percent >= 100 ? 'border-red-500/40 glow-pulse' : percent >= 80 ? 'border-yellow-500/35' : 'border-border'
+                  }`}
+                  style={{ animationDelay: `${idx * 0.08}s` }}
+                >
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <div className="text-xs text-muted">{t('budget.spent', { cur })}</div>
@@ -259,12 +265,12 @@ export default function BudgetPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="bg-background/60 rounded-full h-3 mb-2">
+                  <div className="bg-background/60 rounded-full h-3 mb-2 overflow-hidden">
                     <div
-                      className={`h-3 rounded-full transition-all ${
+                      className={`home-bar-fill h-3 rounded-full ${
                         percent > 80 ? 'bg-red-500' : percent > 60 ? 'bg-yellow-500' : 'bg-accent'
                       }`}
-                      style={{ width: `${percent}%` }}
+                      style={{ width: `${percent}%`, animationDelay: `${0.15 + idx * 0.1}s` }}
                     />
                   </div>
                   <div className="flex justify-between text-xs text-muted">
@@ -286,10 +292,10 @@ export default function BudgetPage() {
 
         {activeCurrencies.length > 0 && primaryPercent >= 80 && (
           <div
-            className={`rounded-2xl p-4 mb-4 text-sm font-medium ${
+            className={`rounded-2xl p-4 mb-4 text-sm font-medium anim-rise-in ${
               primaryPercent >= 100
-                ? 'bg-red-500/10 border border-red-500/30 text-red-400'
-                : 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-400'
+                ? 'bg-red-500/10 border border-red-500/30 text-red-400 glow-pulse'
+                : 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 home-urgent-badge'
             }`}
           >
             {t('budget.nearLimit', { pct: Math.round(primaryPercent) })}
@@ -309,7 +315,7 @@ export default function BudgetPage() {
         )}
 
         {savedEstimate > 0 && activeCurrencies.length > 0 && (
-          <div className="bg-accent/10 border border-accent/30 rounded-2xl p-4 mb-4 text-center">
+          <div className="bg-accent/10 border border-accent/30 rounded-2xl p-4 mb-4 text-center glow-pulse anim-rise-in">
             <span className="text-sm text-muted">{t('budget.savings')}</span>
             <span className="text-accent font-bold">
               {savedEstimate.toLocaleString()} {CURRENCY_SYMBOLS[primaryCur] || primaryCur}
@@ -335,9 +341,9 @@ export default function BudgetPage() {
                         {Math.round(row.amount).toLocaleString()} {symbol} · {row.pct.toFixed(0)}%
                       </span>
                     </div>
-                    <div className="bg-background/60 rounded-full h-2">
+                    <div className="bg-background/60 rounded-full h-2 overflow-hidden">
                       <div
-                        className="h-2 rounded-full bg-accent transition-all"
+                        className="h-2 rounded-full bg-accent home-bar-fill"
                         style={{ width: `${row.pct}%` }}
                       />
                     </div>
@@ -369,10 +375,10 @@ export default function BudgetPage() {
           </div>
         )}
 
-        <div className="bg-surface border border-border rounded-2xl p-4 mb-4">
+        <div className="bg-surface border border-border rounded-2xl p-4 mb-4 anim-rise-in anim-delay-2">
           <h3 className="text-sm font-medium text-muted mb-3">{t('budget.chart7days')}</h3>
           <div className="flex items-end justify-between gap-1 h-24">
-            {weeklyChart.map((day) => {
+            {weeklyChart.map((day, i) => {
               const barPx =
                 day.total > 0 ? Math.max(Math.round((day.total / maxWeekly) * 72), 10) : 4;
               return (
@@ -381,8 +387,8 @@ export default function BudgetPage() {
                   className="flex-1 flex flex-col items-center justify-end h-full min-w-0"
                 >
                   <div
-                    className="w-full bg-accent/80 rounded-t-md transition-all"
-                    style={{ height: `${barPx}px` }}
+                    className="w-full bg-accent/80 rounded-t-md bar-grow-v"
+                    style={{ height: `${barPx}px`, animationDelay: `${i * 0.06}s` }}
                     title={`${day.total}`}
                   />
                   <span className="text-[10px] text-muted mt-1 shrink-0">{day.label}</span>
@@ -428,7 +434,7 @@ export default function BudgetPage() {
 
         <button
           onClick={() => setShowForm(!showForm)}
-          className="w-full bg-accent text-background py-3 rounded-2xl font-medium mb-4"
+          className="w-full bg-accent text-background py-3 rounded-2xl font-medium mb-4 glow-pulse anim-rise-in anim-delay-3"
         >
           {t('budget.addExpense')}
         </button>
@@ -496,11 +502,17 @@ export default function BudgetPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {expenses.map((exp) => {
+            {expenses.map((exp, i) => {
               const symbol = CURRENCY_SYMBOLS[exp.currency] || exp.currency || '₽';
               return (
-                <div key={exp.id} className="bg-surface border border-border rounded-2xl p-4 flex items-center gap-3">
-                  <span className="text-2xl">{exp.category}</span>
+                <div
+                  key={exp.id}
+                  className="bg-surface border border-border rounded-2xl p-4 flex items-center gap-3 anim-rise-in"
+                  style={{ animationDelay: `${0.06 + i * 0.05}s` }}
+                >
+                  <span className="text-2xl home-action-icon" style={{ animationDelay: `${i * 0.2}s` }}>
+                    {exp.category}
+                  </span>
                   <div className="flex-1">
                     <div className="font-medium">{exp.name}</div>
                     <div className="text-xs text-muted mt-0.5">{exp.date}</div>

@@ -304,17 +304,31 @@ export default function ScanPage() {
 
         <button
           onClick={openGallery}
-          className={`w-full py-5 rounded-3xl text-lg font-medium transition ${
+          className={`w-full py-5 rounded-3xl text-lg font-medium transition anim-rise-in ${
             canScan
-              ? 'bg-surface border border-border hover:border-accent/50'
+              ? 'home-scan-card bg-surface border border-accent/50 glow-pulse'
               : 'bg-surface border border-border text-muted cursor-not-allowed'
           }`}
         >
-          {canScan ? t('scan.pickGallery') : t('scan.limitLocked')}
+          {canScan ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="text-2xl home-action-icon">📷</span>
+              {t('scan.pickGallery')}
+            </span>
+          ) : (
+            t('scan.limitLocked')
+          )}
         </button>
 
+        {!saved && images.length === 0 && canScan && (
+          <div className="mt-8 text-center text-muted anim-rise-in anim-delay-1">
+            <div className="text-5xl mb-4 float-soft inline-block">🧾</div>
+            <p className="text-sm">{t('scan.reviewHint')}</p>
+          </div>
+        )}
+
         {saved && (
-          <div className="mt-6 bg-accent/10 border border-accent/30 rounded-2xl p-4 text-center text-accent font-medium">
+          <div className="mt-6 bg-accent/10 border border-accent/30 rounded-2xl p-4 text-center text-accent font-medium glow-pulse anim-rise-in">
             {t('scan.savedSuccess')}
           </div>
         )}
@@ -349,7 +363,7 @@ export default function ScanPage() {
             <button
               onClick={parseReceipt}
               disabled={loading}
-              className="w-full bg-accent text-background py-4 rounded-3xl font-medium text-lg disabled:opacity-50"
+              className="w-full bg-accent text-background py-4 rounded-3xl font-medium text-lg disabled:opacity-50 glow-pulse"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -433,7 +447,7 @@ export default function ScanPage() {
             <button
               onClick={addToFridge}
               disabled={saving || fridgeFull}
-              className="w-full bg-accent text-background py-4 rounded-2xl font-medium text-lg disabled:opacity-50"
+              className="w-full bg-accent text-background py-4 rounded-2xl font-medium text-lg disabled:opacity-50 glow-pulse"
             >
               {saving
                 ? t('scan.saving')

@@ -132,7 +132,7 @@ export default function HomePage() {
         </div>
 
         {consumeStats && consumeStats.eaten + consumeStats.wasted > 0 && (
-          <Link href="/fridge" className="block bg-surface border border-border rounded-2xl p-4 active:scale-[0.99] transition anim-rise-in anim-delay-1">
+          <Link href="/fridge" className="block bg-surface border border-border rounded-2xl p-4 active:scale-[0.99] transition anim-rise-in anim-delay-1 glow-pulse">
             <div className="text-xs text-muted mb-3">{t('home.savingsSummary')} ›</div>
             <div className="flex items-center justify-around text-center">
               <div>
@@ -169,6 +169,7 @@ export default function HomePage() {
           </div>
           {expiring.length === 0 ? (
             <div className="bg-surface border border-border rounded-2xl p-5 text-center text-muted text-sm">
+              <div className="text-3xl mb-2 float-soft inline-block">✅</div>
               {t('home.noExpiring')}
             </div>
           ) : (

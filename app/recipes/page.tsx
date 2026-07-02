@@ -342,7 +342,7 @@ export default function RecipesPage() {
       <div className="max-w-mobile mx-auto px-4 py-6 space-y-6">
         <button
           onClick={() => getAIRecipes()}
-          className="w-full bg-gradient-to-r from-accent/30 to-accent/10 hover:from-accent/40 hover:to-accent/20 border border-accent rounded-2xl p-5 text-left transition-all glow-pulse"
+          className="w-full bg-gradient-to-r from-accent/30 to-accent/10 hover:from-accent/40 hover:to-accent/20 border border-accent rounded-2xl p-5 text-left transition-all glow-pulse anim-rise-in"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -359,7 +359,7 @@ export default function RecipesPage() {
 
         <button
           onClick={() => getAIRecipes({ budget: true })}
-          className="w-full bg-gradient-to-r from-surface to-accent/5 hover:from-surface hover:to-accent/10 border border-accent/50 rounded-2xl p-4 text-left transition-all glow-pulse"
+          className="w-full bg-gradient-to-r from-surface to-accent/5 hover:from-surface hover:to-accent/10 border border-accent/50 rounded-2xl p-4 text-left transition-all glow-pulse anim-rise-in anim-delay-1"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -420,20 +420,23 @@ export default function RecipesPage() {
         )}
 
         {savedRecipes.length > 0 && (
-          <div>
+          <div className="anim-rise-in anim-delay-2">
             <h3 className="font-semibold mb-4">{t('recipes.saved')}</h3>
             <div className="space-y-3">
-              {savedRecipes.map((recipe) => (
+              {savedRecipes.map((recipe, i) => (
                 <div
                   key={recipe.id}
-                  className="w-full bg-surface border border-border rounded-2xl p-4 flex items-center gap-4"
+                  className="w-full bg-surface border border-border rounded-2xl p-4 flex items-center gap-4 anim-rise-in"
+                  style={{ animationDelay: `${0.06 + i * 0.05}s` }}
                 >
                   <button
                     type="button"
                     onClick={() => setSelectedSaved(recipe)}
                     className="flex flex-1 items-center gap-4 text-left active:scale-[0.98] transition min-w-0"
                   >
-                    <span className="text-4xl shrink-0">{recipe.icon}</span>
+                    <span className="text-4xl shrink-0 home-action-icon" style={{ animationDelay: `${i * 0.25}s` }}>
+                      {recipe.icon}
+                    </span>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold truncate">{recipe.name}</div>
                       <div className="text-xs text-muted mt-1 truncate">
@@ -460,7 +463,7 @@ export default function RecipesPage() {
           <button
             type="button"
             onClick={() => getAIRecipes({ preferExpiring: true })}
-            className="w-full bg-surface border border-yellow-400/40 rounded-2xl p-5 text-left active:scale-[0.99] transition glow-pulse"
+            className="w-full bg-surface border border-yellow-400/40 rounded-2xl p-5 text-left active:scale-[0.99] transition glow-pulse anim-rise-in anim-delay-3"
           >
             <h3 className="font-semibold mb-4">{t('recipes.expiringSoon')}</h3>
             <div className="space-y-2">
@@ -487,16 +490,19 @@ export default function RecipesPage() {
           </button>
         )}
 
-        <div>
+        <div className="anim-rise-in anim-delay-4">
           <h3 className="font-semibold mb-4">{t('recipes.popular')}</h3>
           <div className="space-y-3">
-            {recipes.map((recipe) => (
+            {recipes.map((recipe, i) => (
               <button
                 key={recipe.id}
                 onClick={() => setSelected(recipe)}
-                className="w-full bg-surface border border-border rounded-2xl p-4 flex items-center gap-4 text-left active:scale-[0.98] transition"
+                className="w-full bg-surface border border-border rounded-2xl p-4 flex items-center gap-4 text-left active:scale-[0.98] transition anim-rise-in"
+                style={{ animationDelay: `${0.08 + i * 0.06}s` }}
               >
-                <span className="text-5xl">{recipe.icon}</span>
+                <span className="text-5xl home-action-icon" style={{ animationDelay: `${i * 0.3}s` }}>
+                  {recipe.icon}
+                </span>
                 <div className="flex-1">
                   <div className="font-semibold">{recipe.name}</div>
                   <div className="text-xs text-muted mt-1">

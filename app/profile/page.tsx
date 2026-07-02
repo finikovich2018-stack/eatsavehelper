@@ -568,10 +568,10 @@ export default function ProfilePage() {
       <TopBar title={t('profile.title')} />
       <div className="max-w-mobile mx-auto px-4 py-6 space-y-6">
 
-        <div className="bg-gradient-to-br from-surface/80 to-background border border-accent/20 rounded-3xl p-8 overflow-hidden relative">
+        <div className="bg-gradient-to-br from-surface/80 to-background border border-accent/20 rounded-3xl p-8 overflow-hidden relative anim-rise-in">
           <div className="absolute top-0 right-0 w-48 h-48 bg-accent/5 rounded-full -mr-24 -mt-24 pointer-events-none" />
           <div className="flex flex-col items-center text-center relative">
-            <div className="w-24 h-24 rounded-full bg-accent/20 border-2 border-accent/40 flex items-center justify-center text-4xl mb-4">
+            <div className="w-24 h-24 rounded-full bg-accent/20 border-2 border-accent/40 flex items-center justify-center text-4xl mb-4 home-action-icon">
               👤
             </div>
             <h1 className="text-2xl font-bold text-foreground">
@@ -581,8 +581,8 @@ export default function ProfilePage() {
               <p className="text-accent font-medium mt-1">@{user.username}</p>
             )}
             {isPremium ? (
-              <div className="bg-accent/20 rounded-2xl px-5 py-3 border border-accent/50 text-center mt-4">
-                <span className="text-accent font-bold text-sm block">{t('profile.premiumActive')}</span>
+              <div className="bg-accent/20 rounded-2xl px-5 py-3 border border-accent/50 text-center mt-4 glow-pulse">
+                <span className="text-accent font-bold text-sm block">⭐ {t('profile.premiumActive')}</span>
                 <span className="text-xs text-muted mt-1 block">
                   {premiumUntil
                     ? t('profile.premiumUntil', {
@@ -612,13 +612,13 @@ export default function ProfilePage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-surface border border-border rounded-2xl p-5 text-center">
-                <div className="text-3xl mb-2">❄️</div>
+              <div className="bg-surface border border-border rounded-2xl p-5 text-center anim-rise-in anim-delay-1">
+                <div className="text-3xl mb-2 home-action-icon home-action-icon-1">❄️</div>
                 <div className="text-3xl font-bold text-accent mb-1">{stats.fridgeCount}</div>
                 <div className="text-xs text-muted">{t('profile.products')}</div>
               </div>
-              <div className="bg-surface border border-border rounded-2xl p-5 text-center">
-                <div className="text-3xl mb-2">💰</div>
+              <div className="bg-surface border border-border rounded-2xl p-5 text-center anim-rise-in anim-delay-2">
+                <div className="text-3xl mb-2 home-action-icon home-action-icon-2">💰</div>
                 {Object.keys(stats.byCurrency).length === 0 ? (
                   <div className="text-3xl font-bold text-accent mb-1">0 ₽</div>
                 ) : (
@@ -635,13 +635,13 @@ export default function ProfilePage() {
                 )}
                 <div className="text-xs text-muted">{t('profile.spent')}</div>
               </div>
-              <div className="bg-surface border border-border rounded-2xl p-5 text-center">
-                <div className="text-3xl mb-2">🧾</div>
+              <div className="bg-surface border border-border rounded-2xl p-5 text-center anim-rise-in anim-delay-3">
+                <div className="text-3xl mb-2 home-action-icon home-action-icon-3">🧾</div>
                 <div className="text-3xl font-bold text-accent mb-1">{stats.receiptCount}</div>
                 <div className="text-xs text-muted">{t('profile.receiptsCount')}</div>
               </div>
-              <div className="bg-surface border border-border rounded-2xl p-5 text-center">
-                <div className="text-3xl mb-2">🍳</div>
+              <div className="bg-surface border border-border rounded-2xl p-5 text-center anim-rise-in anim-delay-4">
+                <div className="text-3xl mb-2 home-action-icon home-action-icon-4">🍳</div>
                 <div className="text-3xl font-bold text-accent mb-1">{stats.aiRecipeCount}</div>
                 <div className="text-xs text-muted">{t('profile.aiRecipesCount')}</div>
               </div>
@@ -657,7 +657,7 @@ export default function ProfilePage() {
         )}
 
         {!householdLoading && household && (
-          <div className="space-y-4">
+          <div className="space-y-4 anim-rise-in anim-delay-2">
             <h2 className="font-semibold text-foreground text-lg">{t('family.title')}</h2>
             <div className="bg-surface border border-border rounded-2xl p-5 space-y-4">
               <p className="text-sm text-muted">
@@ -704,7 +704,7 @@ export default function ProfilePage() {
                   type="button"
                   disabled={familyBusy}
                   onClick={inviteToFamily}
-                  className="w-full bg-accent text-background font-medium py-3 rounded-xl disabled:opacity-60"
+                  className="w-full bg-accent text-background font-medium py-3 rounded-xl disabled:opacity-60 glow-pulse"
                 >
                   {t('family.invite')}
                 </button>
@@ -731,16 +731,16 @@ export default function ProfilePage() {
         )}
 
         {!referralLoading && referral && (
-          <div className="space-y-4">
+          <div className="space-y-4 anim-rise-in anim-delay-3">
             <h2 className="font-semibold text-foreground text-lg">{t('referral.title')}</h2>
             <div className="bg-surface border border-border rounded-2xl p-5 space-y-4">
               <p className="text-sm text-muted">
                 {t('referral.desc', { days: referral.bonusPerInvite || REFERRAL_BONUS_DAYS })}
               </p>
               {referral.milestoneBonusDays && referral.milestoneSize && (
-                <div className="bg-accent/10 border border-accent/30 rounded-xl p-3 text-sm">
+                <div className="bg-accent/10 border border-accent/30 rounded-xl p-3 text-sm glow-pulse">
                   <div className="text-accent font-medium">
-                    {t('referral.milestone', {
+                    🏆 {t('referral.milestone', {
                       count: referral.milestoneSize,
                       days: referral.milestoneBonusDays,
                     })}
@@ -763,7 +763,7 @@ export default function ProfilePage() {
                 type="button"
                 disabled={referralBusy}
                 onClick={inviteFriend}
-                className="w-full bg-accent text-background font-medium py-3 rounded-xl disabled:opacity-60"
+                className="w-full bg-accent text-background font-medium py-3 rounded-xl disabled:opacity-60 glow-pulse"
               >
                 {t('referral.invite')}
               </button>
@@ -771,23 +771,23 @@ export default function ProfilePage() {
           </div>
         )}
 
-        <div className="space-y-4">
+        <div className="space-y-4 anim-rise-in anim-delay-4">
           <h2 className="font-semibold text-foreground text-lg">{t('profile.channelTitle')}</h2>
           <button
             type="button"
             onClick={openChannel}
-            className="w-full bg-surface border border-border rounded-2xl p-5 flex items-center gap-4 text-left active:scale-[0.99] transition"
+            className="w-full bg-surface border border-accent/40 rounded-2xl p-5 flex items-center gap-4 text-left active:scale-[0.99] transition glow-pulse"
           >
-            <span className="text-3xl shrink-0">📣</span>
+            <span className="text-3xl shrink-0 home-action-icon">📣</span>
             <div className="flex-1 min-w-0">
               <div className="font-medium text-foreground">{t('profile.channelBtn')}</div>
               <div className="text-sm text-muted mt-0.5">{t('profile.channelDesc')}</div>
             </div>
-            <span className="text-accent text-xl shrink-0">›</span>
+            <span className="text-accent text-xl shrink-0 arrow-nudge">›</span>
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 anim-rise-in anim-delay-5">
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-semibold text-foreground text-lg">
               {t('profile.achievements')}
@@ -802,16 +802,16 @@ export default function ProfilePage() {
           {!loading && (
             <div className="h-2 bg-border rounded-full overflow-hidden">
               <div
-                className="h-full bg-accent transition-all duration-500 rounded-full"
+                className="h-full bg-accent transition-all duration-500 rounded-full home-bar-fill"
                 style={{ width: `${(unlockedCount / achievements.length) * 100}%` }}
               />
             </div>
           )}
 
           {!loading && allAchievementsUnlocked && (
-            <div className="bg-gradient-to-r from-accent/20 via-accent/10 to-transparent border border-accent/40 rounded-2xl p-4 space-y-3">
+            <div className="bg-gradient-to-r from-accent/20 via-accent/10 to-transparent border border-accent/40 rounded-2xl p-4 space-y-3 glow-pulse">
               <div className="flex items-start gap-3">
-                <span className="text-3xl">🏆</span>
+                <span className="text-3xl float-soft">🏆</span>
                 <div>
                   <p className="font-bold text-accent">{t('ach.masterTitle')}</p>
                   <p className="text-sm text-muted mt-0.5">{t('ach.masterDesc')}</p>
@@ -826,7 +826,7 @@ export default function ProfilePage() {
                   type="button"
                   disabled={claimBusy}
                   onClick={claimAchievementBonus}
-                  className="w-full bg-accent hover:bg-accent/90 text-background font-bold py-3 rounded-xl transition active:scale-[0.98] disabled:opacity-60"
+                  className="w-full bg-accent hover:bg-accent/90 text-background font-bold py-3 rounded-xl transition active:scale-[0.98] disabled:opacity-60 glow-pulse"
                 >
                   {t('ach.claimBonus')}
                 </button>
@@ -835,16 +835,19 @@ export default function ProfilePage() {
           )}
 
           <div className="grid grid-cols-2 gap-3">
-            {achievements.map((a) => (
+            {achievements.map((a, i) => (
               <div
                 key={a.id}
-                className={`rounded-2xl p-4 border text-center transition ${
+                className={`rounded-2xl p-4 border text-center transition anim-rise-in ${
                   a.unlocked
-                    ? 'bg-accent/10 border-accent/40'
+                    ? 'bg-accent/10 border-accent/50 shadow-[0_0_18px_rgba(126,217,87,0.15)]'
                     : 'bg-surface border-border opacity-70'
                 }`}
+                style={{ animationDelay: `${0.08 + i * 0.06}s` }}
               >
-                <div className="text-3xl mb-2">{a.icon}</div>
+                <div className={`text-3xl mb-2 ${a.unlocked ? 'home-action-icon' : ''}`} style={a.unlocked ? { animationDelay: `${i * 0.25}s` } : undefined}>
+                  {a.icon}
+                </div>
                 <div className="text-sm font-semibold">{t(a.titleKey)}</div>
                 <div className="text-xs text-muted mt-1">{t(a.descKey)}</div>
                 {a.unlocked ? (
@@ -1071,7 +1074,7 @@ export default function ProfilePage() {
                 setPremiumBusy(false);
               }
             }}
-            className="w-full bg-gradient-to-r from-accent to-accent/90 hover:from-accent/90 hover:to-accent/80 text-background font-bold py-4 rounded-2xl transition-all duration-200 active:scale-95 shadow-lg shadow-accent/30 disabled:opacity-60"
+            className="w-full bg-gradient-to-r from-accent to-accent/90 hover:from-accent/90 hover:to-accent/80 text-background font-bold py-4 rounded-2xl transition-all duration-200 active:scale-95 shadow-lg shadow-accent/30 disabled:opacity-60 glow-pulse"
           >
             <span className="flex items-center justify-center gap-2">
               <span>⭐</span> {t('profile.buyPremium', { price: PREMIUM_PRICE_STARS })}

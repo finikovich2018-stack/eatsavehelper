@@ -154,11 +154,11 @@ export default function ShoppingPage() {
     <main className="min-h-screen bg-background text-foreground pb-24">
       <TopBar title={t('shopping.title')} />
       <div className="max-w-mobile mx-auto px-4 py-4">
-        <div className="flex gap-3 mb-4">
+        <div className="flex gap-3 mb-4 anim-rise-in">
           <button
             type="button"
             onClick={() => setShowForm(!showForm)}
-            className="flex-1 bg-accent text-background py-3 rounded-2xl font-medium"
+            className="flex-1 bg-accent text-background py-3 rounded-2xl font-medium glow-pulse"
           >
             {t('shopping.add')}
           </button>
@@ -171,7 +171,7 @@ export default function ShoppingPage() {
         )}
 
         {suggestions.length > 0 && (
-          <div className="mb-5">
+          <div className="mb-5 anim-rise-in anim-delay-1">
             <div className="text-xs text-muted mb-1.5">💡 {t('shopping.suggestTitle')}</div>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
               {suggestions.map((s) => (
@@ -230,10 +230,11 @@ export default function ShoppingPage() {
               <section>
                 <h2 className="font-semibold text-sm text-muted mb-3">{t('shopping.toBuy')}</h2>
                 <div className="space-y-2">
-                  {pending.map((item) => (
+                  {pending.map((item, i) => (
                     <div
                       key={item.id}
-                      className="bg-surface border border-border rounded-2xl p-4 flex items-center gap-3"
+                      className="bg-surface border border-border rounded-2xl p-4 flex items-center gap-3 anim-rise-in"
+                      style={{ animationDelay: `${0.06 + i * 0.05}s` }}
                     >
                       <button
                         type="button"

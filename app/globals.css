@@ -157,6 +157,16 @@ body {
   animation: barGrow 0.9s ease-out both;
 }
 
+.bar-grow-v {
+  transform-origin: bottom center;
+  animation: barGrowV 0.85s ease-out both;
+}
+
+@keyframes barGrowV {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tab-anim-right,
   .tab-anim-left,
@@ -171,7 +181,8 @@ body {
   .home-scan-card,
   .home-action-icon,
   .home-urgent-badge,
-  .home-bar-fill {
+  .home-bar-fill,
+  .bar-grow-v {
     animation: none;
   }
 }

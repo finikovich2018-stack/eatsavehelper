@@ -310,23 +310,23 @@ function FridgePageContent() {
     <main className="min-h-screen bg-background text-foreground pb-24">
       <TopBar title={t('fridge.title')} />
       <div className="max-w-mobile mx-auto px-4 py-4">
-        <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-3 gap-3 mb-4 anim-rise-in">
           <button
             onClick={() => setShowForm(!showForm)}
             disabled={atFridgeLimit}
-            className="bg-accent text-background py-3 rounded-2xl font-medium disabled:opacity-50 text-sm"
+            className="bg-accent text-background py-3 rounded-2xl font-medium disabled:opacity-50 text-sm glow-pulse"
           >
             {t('fridge.add')}
           </button>
           <Link
             href="/scan"
-            className="bg-surface border border-border py-3 rounded-2xl font-medium text-center active:scale-[0.98] transition text-sm"
+            className="home-scan-card bg-surface border border-border py-3 rounded-2xl font-medium text-center active:scale-[0.98] transition text-sm"
           >
             {t('fridge.scanReceipt')}
           </Link>
           <Link
             href="/shopping"
-            className="bg-surface border border-accent/40 py-3 rounded-2xl font-medium text-center active:scale-[0.98] transition text-sm text-accent"
+            className="bg-surface border border-accent/40 py-3 rounded-2xl font-medium text-center active:scale-[0.98] transition text-sm text-accent glow-pulse"
           >
             🛒 {t('nav.shopping')}
           </Link>
@@ -427,17 +427,17 @@ function FridgePageContent() {
         )}
 
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-surface border border-border rounded-2xl p-3 text-center">
+          <div className="bg-surface border border-border rounded-2xl p-3 text-center anim-rise-in anim-delay-1">
             <div className="text-2xl font-bold text-accent">{items.length}</div>
             <div className="text-xs text-muted mt-1">{t('fridge.statsProducts')}</div>
           </div>
-          <div className="bg-surface border border-border rounded-2xl p-3 text-center">
-            <div className="text-2xl font-bold text-red-400">
+          <div className="bg-surface border border-red-400/30 rounded-2xl p-3 text-center anim-rise-in anim-delay-2">
+            <div className="text-2xl font-bold text-red-400 home-urgent-badge">
               {items.filter((i) => daysLeft(i.expiry_date) <= 1).length}
             </div>
             <div className="text-xs text-muted mt-1">{t('fridge.statsExpiring')}</div>
           </div>
-          <div className="bg-surface border border-border rounded-2xl p-3 text-center">
+          <div className="bg-surface border border-yellow-400/30 rounded-2xl p-3 text-center anim-rise-in anim-delay-3">
             <div className="text-2xl font-bold text-yellow-400">
               {items.filter((i) => daysLeft(i.expiry_date) <= 3 && daysLeft(i.expiry_date) > 1).length}
             </div>
@@ -482,7 +482,7 @@ function FridgePageContent() {
         )}
 
         {consumeStats && consumeStats.wasteFreeDays > 0 && (
-          <div className="bg-accent/10 border border-accent/30 rounded-2xl px-4 py-2.5 mb-6 text-center text-sm font-medium text-accent">
+          <div className="bg-accent/10 border border-accent/30 rounded-2xl px-4 py-2.5 mb-6 text-center text-sm font-medium text-accent glow-pulse">
             {t('fridge.wasteFree', { n: consumeStats.wasteFreeDays })}
           </div>
         )}
@@ -593,18 +593,30 @@ function FridgePageContent() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredItems.map((item) => {
+            {filteredItems.map((item, i) => {
               const days = daysLeft(item.expiry_date);
               const catKey = item.category in CAT_I18N ? item.category : 'other';
               return (
-                <div key={item.id} className="bg-surface border border-border rounded-2xl p-4 flex items-center gap-3">
-                  <span className="text-3xl">{item.icon}</span>
+                <div
+                  key={item.id}
+                  className={`bg-surface border rounded-2xl p-4 flex items-center gap-3 anim-rise-in ${
+                    days <= 1
+                      ? 'border-red-400/45 glow-pulse'
+                      : days <= 3
+                        ? 'border-yellow-400/35'
+                        : 'border-border'
+                  }`}
+                  style={{ animationDelay: `${0.06 + i * 0.05}s` }}
+                >
+                  <span className="text-3xl home-action-icon" style={{ animationDelay: `${i * 0.25}s` }}>
+                    {item.icon}
+                  </span>
                   <div className="flex-1">
                     <div className="font-medium">{item.name}</div>
                     <div className="text-xs text-muted mt-0.5">
                       {item.quantity} · {t(CAT_I18N[catKey])}
                     </div>
-                    <div className={`text-xs mt-1 font-medium ${expiryColor(days)}`}>
+                    <div className={`text-xs mt-1 font-medium ${expiryColor(days)} ${days <= 1 ? 'home-urgent-badge' : ''}`}>
                       {days <= 0
                         ? t('fridge.expired')
                         : days === 1

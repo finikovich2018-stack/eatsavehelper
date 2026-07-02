@@ -84,6 +84,8 @@ export default function ProfilePage() {
     ownerHasPremium: boolean;
   } | null>(null);
   const [familyBusy, setFamilyBusy] = useState(false);
+  const [householdLoading, setHouseholdLoading] = useState(true);
+  const [referralLoading, setReferralLoading] = useState(true);
   const [referral, setReferral] = useState<{
     link: string;
     invited: number;
@@ -176,6 +178,8 @@ export default function ProfilePage() {
       setHousehold(data);
     } catch {
       setHousehold(null);
+    } finally {
+      setHouseholdLoading(false);
     }
   }, [auth]);
 
@@ -186,6 +190,8 @@ export default function ProfilePage() {
       setReferral(data);
     } catch {
       setReferral(null);
+    } finally {
+      setReferralLoading(false);
     }
   }, [auth]);
 
@@ -558,7 +564,14 @@ export default function ProfilePage() {
 
         <div className="space-y-4">
           {loading ? (
-            <p className="text-muted text-sm">{t('common.loading')}</p>
+            <div className="grid grid-cols-2 gap-4 animate-pulse">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-surface border border-border rounded-2xl p-5 h-[124px]"
+                />
+              ))}
+            </div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-surface border border-border rounded-2xl p-5 text-center">
@@ -598,7 +611,14 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {household && (
+        {householdLoading && (
+          <div className="space-y-4 animate-pulse">
+            <div className="h-6 w-32 bg-surface rounded" />
+            <div className="bg-surface border border-border rounded-2xl p-5 h-40" />
+          </div>
+        )}
+
+        {!householdLoading && household && (
           <div className="space-y-4">
             <h2 className="font-semibold text-foreground text-lg">{t('family.title')}</h2>
             <div className="bg-surface border border-border rounded-2xl p-5 space-y-4">
@@ -665,7 +685,14 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {referral && (
+        {referralLoading && (
+          <div className="space-y-4 animate-pulse">
+            <div className="h-6 w-40 bg-surface rounded" />
+            <div className="bg-surface border border-border rounded-2xl p-5 h-32" />
+          </div>
+        )}
+
+        {!referralLoading && referral && (
           <div className="space-y-4">
             <h2 className="font-semibold text-foreground text-lg">{t('referral.title')}</h2>
             <div className="bg-surface border border-border rounded-2xl p-5 space-y-4">

@@ -49,7 +49,7 @@ function reminderAppUrl(user: ReminderUser): string {
 
 /** Deep link that opens Recipes and auto-generates from soon-to-expire items. */
 function cookRecipeUrl(user: ReminderUser): string | undefined {
-  const hasFood = user.expiringTomorrow.length > 0 || user.expired.length > 0;
+  const hasFood = user.expiringSoon.length > 0 || user.expired.length > 0;
   return hasFood ? `${getAppBaseUrl()}/recipes?cook=expiring` : undefined;
 }
 
@@ -73,7 +73,7 @@ export async function GET(req: Request) {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   const dryRun = new URL(req.url).searchParams.get('dry_run') === '1';
-  const { users, targetDate, rpcErrors } = await fetchFoodReminders(supabase);
+  const { users, maxDays, rpcErrors } = await fetchFoodReminders(supabase);
 
   if (rpcErrors.length > 0 && users.length === 0) {
     return NextResponse.json(
@@ -94,7 +94,7 @@ export async function GET(req: Request) {
       ok: true,
       dry_run: dryRun,
       message: 'Nothing to remind today',
-      target_date: targetDate,
+      max_days: maxDays,
       users_notified: 0,
       preview: [],
       rpc_errors: rpcErrors.length ? rpcErrors : undefined,
@@ -105,7 +105,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       ok: true,
       dry_run: true,
-      target_date: targetDate,
+      max_days: maxDays,
       would_notify: preview.length,
       preview,
       rpc_errors: rpcErrors.length ? rpcErrors : undefined,
@@ -138,7 +138,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     ok: true,
-    target_date: targetDate,
+    max_days: maxDays,
     users_notified: sent,
     users_with_reminders: users.length,
     rpc_errors: rpcErrors.length ? rpcErrors : undefined,

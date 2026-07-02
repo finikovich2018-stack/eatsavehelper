@@ -27,15 +27,13 @@ if (!url || !key) {
 }
 
 const supabase = createClient(url, key);
-const tomorrow = new Date();
-tomorrow.setDate(tomorrow.getDate() + 1);
-const targetDate = tomorrow.toISOString().split('T')[0];
+const EXPIRING_SOON_DAYS = 3;
 
 console.log('=== EatSave food reminders check ===\n');
-console.log('Target date (expiring tomorrow):', targetDate);
+console.log('Expiring within days:', EXPIRING_SOON_DAYS);
 
 const checks = [
-  { name: 'get_expiring_items', call: () => supabase.rpc('get_expiring_items', { target_date: targetDate }) },
+  { name: 'get_expiring_items', call: () => supabase.rpc('get_expiring_items', { max_days: EXPIRING_SOON_DAYS }) },
   { name: 'get_expired_items', call: () => supabase.rpc('get_expired_items', { max_days: 7 }) },
   { name: 'get_shopping_reminders', call: () => supabase.rpc('get_shopping_reminders') },
 ];

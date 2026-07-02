@@ -1,0 +1,29 @@
+---
+description: Telegram Mini App auth bootstrap and regression guards
+globs: "{app/layout.tsx,components/TelegramProvider.tsx,components/ServiceWorkerRegister.tsx,lib/telegram*.ts,lib/auth-recovery.ts,lib/use-data-auth.ts,lib/client-api.ts,app/api/**/route.ts}"
+alwaysApply: false
+---
+
+# Telegram Mini App Auth (EatSave)
+
+## Bootstrap order (do not reorder)
+
+1. `installTelegramCaptureScript()` in `app/layout.tsx` **before** `telegram-web-app.js`
+2. Telegram SDK script
+3. Theme/capture poll script calling `__EATSAVE_CAPTURE_TG__()`
+4. React `TelegramProvider` polls `getTelegramAuthSnapshot()`
+
+## Rules
+
+- **Single client auth path**: read via `getTelegramAuthSnapshot()` / `useDataAuth()`. Do not add parallel auth helpers.
+- **Launch params**: URL parsing lives in `lib/telegram-launch-params.ts`. If inline capture script changes, update `scripts/check-capture-script.mjs` markers and run `npm run check:auth`.
+- **Service Worker**: never register SW inside Telegram WebView. Always purge SW+caches in TG (`lib/telegram-webview.ts`).
+- **Navigation URL**: auth may only exist in `performance.getEntriesByType('navigation')[0].name` after hash is cleared — always include this source.
+- **Server routes**: user-facing POST APIs must use `verifyApiUser()` from `lib/verify-api-user.ts` (checked by `scripts/check-api-auth.mjs`).
+- **Stale initData**: on 401/403 auth errors, call `recoverFromStaleAuth()` (clears session + reload). Do not silently keep expired sessionStorage.
+- **Tests**: add/update tests in `lib/**/*.test.ts` when changing auth parsing or verification.
+
+## Diagnostics
+
+- Production debug page: `/tg-status`
+- Never remove without replacement.

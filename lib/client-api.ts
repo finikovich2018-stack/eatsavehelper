@@ -1,7 +1,18 @@
+import { recoverFromStaleAuth } from '@/lib/auth-recovery';
+
 type AuthPayload = {
   initData: string;
   telegram_user_id: number;
 };
+
+class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
 
 export type ApiFridgeItem = {
   id: string;
@@ -74,7 +85,9 @@ async function apiPost<T>(path: string, body: Record<string, unknown>): Promise<
     });
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.error || data.details || 'Request failed');
+      const message = (data.error || data.details || 'Request failed') as string;
+      recoverFromStaleAuth(message, res.status);
+      throw new ApiError(message, res.status);
     }
     return data as T;
   } finally {

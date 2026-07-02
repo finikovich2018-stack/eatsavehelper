@@ -2,7 +2,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { init as initTelegramSdk } from "@telegram-apps/sdk";
 import { prefetchHomeSummary } from "@/lib/home-summary";
-import { getTelegramAuthSnapshot } from "@/lib/telegram-auth";
+import { recoverFromStaleAuth } from "@/lib/auth-recovery";
+import { getTelegramAuthSnapshot, isTelegramWebView } from "@/lib/telegram-auth";
 
 interface TelegramUser {
   id: number;
@@ -36,6 +37,7 @@ interface TelegramData {
   dbUser: DbUser | null;
   initData: string;
   loading: boolean;
+  authFailed: boolean;
   refreshUser: () => Promise<DbUser | null>;
 }
 
@@ -44,6 +46,7 @@ const TgCtx = createContext<TelegramData>({
   dbUser: null,
   initData: "",
   loading: true,
+  authFailed: false,
   refreshUser: async () => null,
 });
 
@@ -80,7 +83,15 @@ async function loadDbUser(initData: string, telegramUserId: number): Promise<DbU
   });
 
   if (!res.ok) {
-    console.error('get-or-create failed:', res.status, await res.text().catch(() => ''));
+    const text = await res.text().catch(() => '');
+    let message = text;
+    try {
+      message = JSON.parse(text).error || text;
+    } catch {
+      /* raw text */
+    }
+    recoverFromStaleAuth(message, res.status);
+    console.error('get-or-create failed:', res.status, message);
     return null;
   }
   const data = await res.json();
@@ -92,6 +103,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   const [dbUser, setDbUser] = useState<DbUser | null>(null);
   const [initData, setInitData] = useState("");
   const [loading, setLoading] = useState(true);
+  const [authFailed, setAuthFailed] = useState(false);
   const bootstrappedUserId = useRef<number | null>(null);
 
   const refreshUser = useCallback(async () => {
@@ -150,6 +162,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
       attempts += 1;
       if (attempts >= maxAttempts) {
         if (IS_DEV) setUser(DEV_USER);
+        setAuthFailed(!IS_DEV && isTelegramWebView());
         setLoading(false);
         return;
       }
@@ -164,7 +177,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <TgCtx.Provider value={{ user, dbUser, initData, loading, refreshUser }}>
+    <TgCtx.Provider value={{ user, dbUser, initData, loading, authFailed, refreshUser }}>
       {children}
     </TgCtx.Provider>
   );

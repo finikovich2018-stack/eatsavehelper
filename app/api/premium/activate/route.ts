@@ -5,12 +5,7 @@ import {
   hasRecoverablePremiumPayment,
   markLatestPaymentActivated,
 } from '@/lib/premium-payments';
-import { getBotToken } from '@/lib/bot-token';
-import {
-  getInitDataAuthDate,
-  parseTelegramUser,
-  verifyTelegramInitData,
-} from '@/lib/telegram';
+import { verifyApiUser } from '@/lib/verify-api-user';
 import { normalizeUser, isPremiumActive } from '@/lib/user-utils';
 
 export const runtime = 'nodejs';
@@ -20,26 +15,13 @@ export const fetchCache = 'force-no-store';
 /** Activate Premium only if a recent Stars payment was logged */
 export async function POST(req: NextRequest) {
   try {
-    const { initData } = await req.json();
-    const botToken = getBotToken();
-
-    if (!botToken) {
-      return NextResponse.json({ error: 'TELEGRAM_BOT_TOKEN not configured' }, { status: 500 });
+    const body = await req.json();
+    const auth = verifyApiUser(body);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    if (!initData || !verifyTelegramInitData(initData, botToken)) {
-      return NextResponse.json({ error: 'Invalid initData' }, { status: 401 });
-    }
-
-    const authDate = getInitDataAuthDate(initData);
-    if (authDate && Date.now() / 1000 - authDate > 86_400) {
-      return NextResponse.json({ error: 'initData expired' }, { status: 401 });
-    }
-
-    const tgUser = parseTelegramUser(initData);
-    if (!tgUser) {
-      return NextResponse.json({ error: 'No user in initData' }, { status: 400 });
-    }
+    const tgUser = auth.tgUser;
 
     const supabase = getSupabaseAdmin();
 

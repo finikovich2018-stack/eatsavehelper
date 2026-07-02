@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getTelegramAuthSnapshot, isTelegramWebView } from '@/lib/telegram-auth';
+import { getInitDataAuthAgeSeconds } from '@/lib/telegram-launch-params';
 
 type Status = {
   ua: string;
@@ -17,8 +18,8 @@ type Status = {
   swCount: number;
   storageInitLen: number;
   captureOk: boolean;
+  authAgeSeconds: number | null;
 };
-
 export default function TgStatusPage() {
   const [status, setStatus] = useState<Status | null>(null);
 
@@ -59,6 +60,7 @@ export default function TgStatusPage() {
         swCount,
         storageInitLen: sessionStorage.getItem('eatsave_tg_init')?.length || 0,
         captureOk,
+        authAgeSeconds: snap?.initData ? getInitDataAuthAgeSeconds(snap.initData) : null,
       });
     })();
   }, []);
@@ -79,6 +81,7 @@ export default function TgStatusPage() {
     ['имя', status.userName ?? '—'],
     ['sessionStorage initData', status.storageInitLen],
     ['capture()', status.captureOk],
+    ['initData age (sec)', status.authAgeSeconds ?? '—'],
     ['service workers', status.swCount],
     ['User-Agent', status.ua],
     ['location.href', status.href],

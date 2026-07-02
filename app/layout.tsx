@@ -9,8 +9,8 @@ export const metadata: Metadata = {
   description: "Smart fridge + smart wallet",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
+    icon: "/logo.svg",
+    apple: "/logo.svg",
   },
   appleWebApp: {
     capable: true,
@@ -41,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="eatsave-splash-content">
             <div className="eatsave-splash-logo-wrap">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/icon.svg" alt="" width={96} height={96} className="eatsave-splash-logo" />
+              <img src="/logo.svg" alt="" width={96} height={96} className="eatsave-splash-logo" />
             </div>
             <h1 className="eatsave-splash-title">EatSave</h1>
             <p className="eatsave-splash-tagline">Умный холодильник и кошелёк</p>

@@ -9,6 +9,7 @@ export const BOT_MENU_BTN = {
     support: '✉️ Написать поддержку',
     channel: '💬 Комментарий в канале',
     premiumStatus: '⭐ Статус Premium',
+    buyPremium: '⭐ Купить Premium',
     help: '❓ Помощь',
   },
   en: {
@@ -16,17 +17,19 @@ export const BOT_MENU_BTN = {
     support: '✉️ Contact support',
     channel: '💬 Channel comment',
     premiumStatus: '⭐ Premium status',
+    buyPremium: '⭐ Buy Premium',
     help: '❓ Help',
   },
 } as const;
 
-export type BotMenuAction = 'support' | 'channel' | 'status' | 'help';
+export type BotMenuAction = 'support' | 'channel' | 'status' | 'buyPremium' | 'help';
 
 export function matchMenuAction(text: string, locale: BotLocale): BotMenuAction | null {
   const btn = BOT_MENU_BTN[locale];
   if (text === btn.support) return 'support';
   if (text === btn.channel) return 'channel';
   if (text === btn.premiumStatus) return 'status';
+  if (text === btn.buyPremium) return 'buyPremium';
   if (text === btn.help) return 'help';
   return null;
 }
@@ -39,6 +42,7 @@ export function mainMenuReplyMarkup(locale: BotLocale) {
       keyboard: [
         [{ text: btn.openApp, web_app: { url: getAppHomeUrl() } }],
         [{ text: btn.support }, { text: btn.channel }],
+        [{ text: btn.buyPremium }],
         [{ text: btn.premiumStatus }, { text: btn.help }],
       ],
       resize_keyboard: true,

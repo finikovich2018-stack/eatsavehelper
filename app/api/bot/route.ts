@@ -14,7 +14,8 @@ import {
   sendAdminReplyToUser,
 } from '@/lib/bot-admin-reply';
 import { getFeedbackCommentUrl, parseFeedbackMessage, relayFeedbackToAdmins } from '@/lib/bot-feedback';
-import { matchMenuAction, withMainMenu } from '@/lib/bot-keyboard';
+import { matchMenuAction, withMainMenu, type BotMenuAction } from '@/lib/bot-keyboard';
+import { sendPremiumInvoice } from '@/lib/premium-invoice';
 import { isPremiumActive } from '@/lib/user-utils';
 import { syncUserProfile } from '@/lib/sync-user-profile';
 import { getAppHomeUrl } from '@/lib/app-url';
@@ -172,8 +173,9 @@ async function sendStatusReply(
 async function handleMenuAction(
   chatId: number,
   locale: ReturnType<typeof botLocale>,
-  action: 'support' | 'channel' | 'status' | 'help',
-  supabase: ReturnType<typeof getSupabase>
+  action: BotMenuAction,
+  supabase: ReturnType<typeof getSupabase>,
+  userId: number
 ) {
   const msg = botMsg(locale);
   if (action === 'support') {
@@ -186,6 +188,18 @@ async function handleMenuAction(
   }
   if (action === 'status') {
     await sendStatusReply(chatId, locale, supabase);
+    return;
+  }
+  if (action === 'buyPremium') {
+    const botToken = getBotToken();
+    if (!botToken) {
+      await sendMessage(chatId, msg.premiumInvoiceFailed, withMainMenu(locale));
+      return;
+    }
+    const result = await sendPremiumInvoice(botToken, chatId, userId, locale);
+    if (!result.ok) {
+      await sendMessage(chatId, msg.premiumInvoiceFailed, withMainMenu(locale));
+    }
     return;
   }
   await sendHelpReply(chatId, locale);
@@ -243,7 +257,7 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     message: 'EatSave bot webhook is live',
-    features: { feedbackChoice: true, adminReply: true, replyKeyboardMenu: true },
+    features: { feedbackChoice: true, adminReply: true, replyKeyboardMenu: true, buyPremium: true },
     commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'local',
   });
 }
@@ -376,7 +390,7 @@ export async function POST(req: NextRequest) {
       if (menuAction) {
         const chatId = body.message.from.id;
         const locale = botLocale(body.message.from.language_code);
-        await handleMenuAction(chatId, locale, menuAction, supabase);
+        await handleMenuAction(chatId, locale, menuAction, supabase, body.message.from.id);
         return NextResponse.json({ ok: true });
       }
     }

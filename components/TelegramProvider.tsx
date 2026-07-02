@@ -1,5 +1,6 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { init as initTelegramSdk } from "@telegram-apps/sdk";
 import { prefetchHomeSummary } from "@/lib/home-summary";
 import { getTelegramAuthSnapshot } from "@/lib/telegram-auth";
 
@@ -107,6 +108,12 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
     let alive = true;
     let attempts = 0;
     const maxAttempts = 300;
+
+    try {
+      initTelegramSdk();
+    } catch {
+      /* optional outside Telegram */
+    }
 
     const applySnapshot = async (snap: NonNullable<ReturnType<typeof getTelegramAuthSnapshot>>) => {
       setUser(snap.user);

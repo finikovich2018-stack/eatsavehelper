@@ -586,6 +586,14 @@ export default function ProfilePage() {
             <h1 className="text-2xl font-bold text-foreground">
               {user?.first_name || t('profile.user')}
             </h1>
+            {ready && !user && (
+              <p className="text-xs text-yellow-400 mt-2 max-w-xs">
+                Telegram не передал данные входа. Закройте приложение полностью и откройте снова через кнопку «📱 Открыть EatSave» в боте.{' '}
+                <a href="/tg-status" className="underline text-accent">
+                  Диагностика
+                </a>
+              </p>
+            )}
             {user?.username && (
               <p className="text-accent font-medium mt-1">@{user.username}</p>
             )}

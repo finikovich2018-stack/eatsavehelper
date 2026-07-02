@@ -77,6 +77,41 @@ body {
   animation: glowPulse 2.2s ease-in-out infinite;
 }
 
+/* Entrance + glow on the same node (single `animation` property otherwise overrides). */
+.anim-rise-in.glow-pulse {
+  animation:
+    riseIn 0.5s ease-out both,
+    glowPulse 2.2s ease-in-out 0.45s infinite;
+}
+
+.anim-rise-in.anim-delay-1.glow-pulse {
+  animation:
+    riseIn 0.5s ease-out 0.06s both,
+    glowPulse 2.2s ease-in-out 0.56s infinite;
+}
+
+.anim-rise-in.anim-delay-3.glow-pulse {
+  animation:
+    riseIn 0.5s ease-out 0.18s both,
+    glowPulse 2.2s ease-in-out 0.68s infinite;
+}
+
+.home-scan-card {
+  animation: scanGlow 2.8s ease-in-out infinite;
+}
+
+.anim-rise-in.home-scan-card {
+  animation:
+    riseIn 0.5s ease-out both,
+    scanGlow 2.8s ease-in-out 0.45s infinite;
+}
+
+.anim-rise-in.anim-delay-4.home-scan-card {
+  animation:
+    riseIn 0.5s ease-out 0.24s both,
+    scanGlow 2.8s ease-in-out 0.69s infinite;
+}
+
 @keyframes navActive {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.14); }
@@ -134,10 +169,6 @@ body {
 .anim-delay-5 { animation-delay: 0.3s; }
 .anim-delay-6 { animation-delay: 0.36s; }
 
-.home-scan-card {
-  animation: scanGlow 2.8s ease-in-out infinite;
-}
-
 .home-action-icon {
   display: inline-block;
   animation: iconBob 2.6s ease-in-out infinite;
@@ -181,6 +212,8 @@ body {
   .eatsave-splash-glow,
   .eatsave-splash-dots span,
   .anim-rise-in,
+  .anim-rise-in.glow-pulse,
+  .anim-rise-in.home-scan-card,
   .home-scan-card,
   .home-action-icon,
   .home-urgent-badge,

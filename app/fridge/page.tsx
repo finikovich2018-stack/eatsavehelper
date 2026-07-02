@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import TopBar from '@/components/layout/TopBar';
@@ -17,6 +17,8 @@ import type { TranslationKey } from '@/lib/i18n/translations';
 
 const CATEGORY_KEYS = ['all', 'dairy', 'meat', 'veg', 'grains', 'other'] as const;
 type CategoryKey = (typeof CATEGORY_KEYS)[number];
+
+type ExpiryFilter = 'all' | 'urgent' | 'soon' | 'expiring';
 
 const CAT_I18N: Record<CategoryKey, TranslationKey> = {
   all: 'cat.all',
@@ -98,7 +100,10 @@ export default function FridgePage() {
 
 function FridgePageContent() {
   const searchParams = useSearchParams();
-  const expiringOnly = searchParams.get('filter') === 'expiring';
+  const listRef = useRef<HTMLDivElement>(null);
+  const [expiryFilter, setExpiryFilter] = useState<ExpiryFilter>(() =>
+    searchParams.get('filter') === 'expiring' ? 'expiring' : 'all'
+  );
   const { auth, ready } = useAuthReady();
   const { dbUser, refreshUser } = useTelegram();
   const { t, dateLocale } = useI18n();
@@ -108,6 +113,20 @@ function FridgePageContent() {
   useEffect(() => {
     refreshUser().then(setLocalUser);
   }, [refreshUser]);
+
+  useEffect(() => {
+    if (searchParams.get('filter') === 'expiring') {
+      setExpiryFilter('expiring');
+    }
+  }, [searchParams]);
+
+  const applyExpiryFilter = (next: ExpiryFilter) => {
+    setExpiryFilter((prev) => (prev === next ? 'all' : next));
+    requestAnimationFrame(() => {
+      listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   const [items, setItems] = useState<Item[]>([]);
   const [consumeStats, setConsumeStats] = useState<{
     eaten: number;
@@ -136,6 +155,19 @@ function FridgePageContent() {
   const [form, setForm] = useState({
     name: '', category: 'other' as CategoryKey, expiry_date: '', quantity: '',
   });
+
+  const urgentCount = useMemo(
+    () => items.filter((i) => daysLeft(i.expiry_date) <= 1).length,
+    [items]
+  );
+  const soonCount = useMemo(
+    () =>
+      items.filter((i) => {
+        const d = daysLeft(i.expiry_date);
+        return d > 1 && d <= 3;
+      }).length,
+    [items]
+  );
 
   const loadItems = useCallback(async () => {
     if (!auth) return;
@@ -208,10 +240,14 @@ function FridgePageContent() {
       const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
       const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
       const days = daysLeft(item.expiry_date);
-      const matchesExpiring = !expiringOnly || (days >= 0 && days <= 3);
-      return matchesSearch && matchesCategory && matchesExpiring;
+      const matchesExpiry =
+        expiryFilter === 'all' ||
+        (expiryFilter === 'urgent' && days <= 1) ||
+        (expiryFilter === 'soon' && days > 1 && days <= 3) ||
+        (expiryFilter === 'expiring' && days >= 0 && days <= 3);
+      return matchesSearch && matchesCategory && matchesExpiry;
     });
-  }, [items, search, categoryFilter, expiringOnly]);
+  }, [items, search, categoryFilter, expiryFilter]);
 
   const atFridgeLimit = !isPremium && items.length >= FREE_FRIDGE_ITEMS;
 
@@ -371,12 +407,16 @@ function FridgePageContent() {
           </div>
         </div>
 
-        {expiringOnly && (
+        {expiryFilter !== 'all' && (
           <div className="flex items-center justify-between mb-3 bg-yellow-400/10 border border-yellow-400/30 rounded-xl px-3 py-2">
             <span className="text-sm text-yellow-400">{t('fridge.expiringFilter')}</span>
-            <Link href="/fridge" className="text-xs text-accent font-medium">
+            <button
+              type="button"
+              onClick={() => setExpiryFilter('all')}
+              className="text-xs text-accent font-medium"
+            >
               {t('fridge.showAll')}
-            </Link>
+            </button>
           </div>
         )}
 
@@ -435,22 +475,40 @@ function FridgePageContent() {
         )}
 
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-surface border border-border rounded-2xl p-3 text-center anim-rise-in anim-delay-1">
+          <button
+            type="button"
+            onClick={() => applyExpiryFilter('all')}
+            className={`bg-surface border rounded-2xl p-3 text-center anim-rise-in anim-delay-1 active:scale-[0.97] transition ${
+              expiryFilter === 'all' ? 'border-accent ring-2 ring-accent/30' : 'border-border'
+            }`}
+          >
             <div className="text-2xl font-bold text-accent">{items.length}</div>
             <div className="text-xs text-muted mt-1">{t('fridge.statsProducts')}</div>
-          </div>
-          <div className="bg-surface border border-red-400/30 rounded-2xl p-3 text-center anim-rise-in anim-delay-2">
-            <div className="text-2xl font-bold text-red-400 home-urgent-badge">
-              {items.filter((i) => daysLeft(i.expiry_date) <= 1).length}
+          </button>
+          <button
+            type="button"
+            onClick={() => applyExpiryFilter('urgent')}
+            className={`bg-surface border rounded-2xl p-3 text-center anim-rise-in anim-delay-2 active:scale-[0.97] transition ${
+              expiryFilter === 'urgent' ? 'border-red-400 ring-2 ring-red-400/30' : 'border-red-400/30'
+            }`}
+          >
+            <div className={`text-2xl font-bold text-red-400 ${expiryFilter !== 'urgent' ? 'home-urgent-badge' : ''}`}>
+              {urgentCount}
             </div>
             <div className="text-xs text-muted mt-1">{t('fridge.statsExpiring')}</div>
-          </div>
-          <div className="bg-surface border border-yellow-400/30 rounded-2xl p-3 text-center anim-rise-in anim-delay-3">
-            <div className="text-2xl font-bold text-yellow-400">
-              {items.filter((i) => daysLeft(i.expiry_date) <= 3 && daysLeft(i.expiry_date) > 1).length}
-            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => applyExpiryFilter('soon')}
+            className={`bg-surface border rounded-2xl p-3 text-center anim-rise-in anim-delay-3 active:scale-[0.97] transition ${
+              expiryFilter === 'soon' || expiryFilter === 'expiring'
+                ? 'border-yellow-400 ring-2 ring-yellow-400/30'
+                : 'border-yellow-400/30'
+            }`}
+          >
+            <div className="text-2xl font-bold text-yellow-400">{soonCount}</div>
             <div className="text-xs text-muted mt-1">{t('fridge.statsSoon')}</div>
-          </div>
+          </button>
         </div>
 
         {consumeStats && consumeStats.eaten + consumeStats.wasted > 0 && (
@@ -600,7 +658,7 @@ function FridgePageContent() {
             </div>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div ref={listRef} className="space-y-3 scroll-mt-4">
             {filteredItems.map((item, i) => {
               const days = daysLeft(item.expiry_date);
               const catKey = item.category in CAT_I18N ? item.category : 'other';

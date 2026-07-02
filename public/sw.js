@@ -3,7 +3,7 @@
 // cache-first only for content-hashed static assets, and a friendly offline
 // fallback. API requests are never touched.
 
-const CACHE = 'eatsave-v1';
+const CACHE = 'eatsave-v2';
 const OFFLINE_URL = '/offline.html';
 
 self.addEventListener('install', (event) => {

@@ -35,7 +35,7 @@ export default function BottomNav() {
                   isActive ? "text-accent opacity-100" : "text-muted opacity-60"
                 }`}
               >
-                <span className="text-lg">{tab.icon}</span>
+                <span className={`text-lg ${isActive ? 'nav-active-icon' : ''}`}>{tab.icon}</span>
                 <span>{t(tab.labelKey)}</span>
               </Link>
             </li>

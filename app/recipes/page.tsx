@@ -353,7 +353,7 @@ export default function RecipesPage() {
                   : t('recipes.aiLeft', { left: aiLeft, limit: FREE_AI_RECIPES_PER_MONTH })}
               </p>
             </div>
-            <span className="text-2xl">→</span>
+            <span className="text-2xl arrow-nudge">→</span>
           </div>
         </button>
 

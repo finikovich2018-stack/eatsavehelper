@@ -36,46 +36,74 @@ body {
 }
 
 @keyframes tabInFromRight {
-  from { opacity: 0; transform: translateX(28px); }
+  from { opacity: 0; transform: translateX(40px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes tabInFromLeft {
-  from { opacity: 0; transform: translateX(-28px); }
+  from { opacity: 0; transform: translateX(-40px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
 .tab-anim-right {
-  animation: tabInFromRight 0.22s ease-out;
+  animation: tabInFromRight 0.32s ease-out;
 }
 
 .tab-anim-left {
-  animation: tabInFromLeft 0.22s ease-out;
+  animation: tabInFromLeft 0.32s ease-out;
 }
 
 @keyframes floatSoft {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-7px); }
+  50% { transform: translateY(-12px); }
 }
 
 .float-soft {
-  animation: floatSoft 2.4s ease-in-out infinite;
+  animation: floatSoft 2.2s ease-in-out infinite;
 }
 
 @keyframes glowPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(126, 217, 87, 0.0); }
-  50% { box-shadow: 0 0 18px 1px rgba(126, 217, 87, 0.28); }
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(126, 217, 87, 0);
+    border-color: rgba(126, 217, 87, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 28px 4px rgba(126, 217, 87, 0.45);
+    border-color: rgba(126, 217, 87, 1);
+  }
 }
 
 .glow-pulse {
-  animation: glowPulse 3s ease-in-out infinite;
+  animation: glowPulse 2.2s ease-in-out infinite;
+}
+
+@keyframes navActive {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.14); }
+}
+
+.nav-active-icon {
+  display: inline-block;
+  animation: navActive 2.2s ease-in-out infinite;
+}
+
+@keyframes arrowNudge {
+  0%, 100% { transform: translateX(0); opacity: 0.85; }
+  50% { transform: translateX(5px); opacity: 1; }
+}
+
+.arrow-nudge {
+  display: inline-block;
+  animation: arrowNudge 1.8s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .tab-anim-right,
   .tab-anim-left,
   .float-soft,
-  .glow-pulse {
+  .glow-pulse,
+  .nav-active-icon,
+  .arrow-nudge {
     animation: none;
   }
 }

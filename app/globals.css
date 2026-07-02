@@ -231,13 +231,12 @@ body {
 }
 
 .eatsave-splash-welcome {
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #9baa8e;
-  margin: 0 0 20px;
-  animation: riseIn 0.55s ease-out both;
+  letter-spacing: 0.02em;
+  color: #c8ffae;
+  margin: 0 0 10px;
+  animation: riseIn 0.55s ease-out 0.1s both;
 }
 
 .eatsave-splash-logo-wrap {
@@ -268,14 +267,14 @@ body {
 }
 
 .eatsave-splash-tagline {
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 400;
   letter-spacing: 0.01em;
   color: #9baa8e;
   margin: 0 0 28px;
   max-width: 280px;
   line-height: 1.45;
-  animation: riseIn 0.55s ease-out 0.14s both;
+  animation: riseIn 0.55s ease-out 0.16s both;
 }
 
 .eatsave-splash-title {

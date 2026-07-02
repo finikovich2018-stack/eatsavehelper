@@ -50,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <img src="/eatsave-logo.png" alt="" width={200} height={200} className="eatsave-splash-logo" />
             </div>
             <p className="eatsave-splash-brand">EatSave</p>
+            <p className="eatsave-splash-welcome">Добро пожаловать</p>
             <p className="eatsave-splash-tagline">Умный холодильник и кошелёк</p>
             <div className="eatsave-splash-dots" aria-hidden="true">
               <span />

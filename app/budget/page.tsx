@@ -251,7 +251,7 @@ export default function BudgetPage() {
                 <div
                   key={cur}
                   className={`bg-gradient-to-br from-surface to-background border rounded-2xl p-5 anim-rise-in ${
-                    percent >= 100 ? 'border-red-500/40 glow-pulse' : percent >= 80 ? 'border-yellow-500/35' : 'border-border'
+                    percent >= 100 ? 'border-red-500/40 glow-pulse-red' : percent >= 80 ? 'border-yellow-500/35 glow-pulse-yellow' : 'border-border'
                   }`}
                   style={{ animationDelay: `${idx * 0.08}s` }}
                 >
@@ -298,7 +298,7 @@ export default function BudgetPage() {
           <div
             className={`rounded-2xl p-4 mb-4 text-sm font-medium anim-rise-in ${
               primaryPercent >= 100
-                ? 'bg-red-500/10 border border-red-500/30 text-red-400 glow-pulse'
+                ? 'bg-red-500/10 border border-red-500/30 text-red-400 glow-pulse-red'
                 : 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 home-urgent-badge'
             }`}
           >

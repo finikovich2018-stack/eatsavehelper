@@ -667,9 +667,9 @@ function FridgePageContent() {
                   key={item.id}
                   className={`bg-surface border rounded-2xl p-4 flex items-center gap-3 anim-rise-in ${
                     days <= 1
-                      ? 'border-red-400/45 glow-pulse'
+                      ? 'border-red-400/45 glow-pulse-red'
                       : days <= 3
-                        ? 'border-yellow-400/35'
+                        ? 'border-yellow-400/35 glow-pulse-yellow'
                         : 'border-border'
                   }`}
                   style={{ animationDelay: `${0.06 + i * 0.05}s` }}

@@ -77,6 +77,36 @@ body {
   animation: glowPulse 2.2s ease-in-out infinite;
 }
 
+@keyframes glowPulseRed {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(248, 113, 113, 0);
+    border-color: rgba(248, 113, 113, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 28px 4px rgba(248, 113, 113, 0.5);
+    border-color: rgba(248, 113, 113, 1);
+  }
+}
+
+.glow-pulse-red {
+  animation: glowPulseRed 2.2s ease-in-out infinite;
+}
+
+@keyframes glowPulseYellow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(250, 204, 21, 0);
+    border-color: rgba(250, 204, 21, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 22px 3px rgba(250, 204, 21, 0.38);
+    border-color: rgba(250, 204, 21, 0.9);
+  }
+}
+
+.glow-pulse-yellow {
+  animation: glowPulseYellow 2.4s ease-in-out infinite;
+}
+
 /* Entrance + glow on the same node (single `animation` property otherwise overrides). */
 .anim-rise-in.glow-pulse {
   animation:
@@ -94,6 +124,18 @@ body {
   animation:
     riseIn 0.5s ease-out 0.18s both,
     glowPulse 2.2s ease-in-out 0.68s infinite;
+}
+
+.anim-rise-in.glow-pulse-red {
+  animation:
+    riseIn 0.5s ease-out both,
+    glowPulseRed 2.2s ease-in-out 0.45s infinite;
+}
+
+.anim-rise-in.glow-pulse-yellow {
+  animation:
+    riseIn 0.5s ease-out both,
+    glowPulseYellow 2.4s ease-in-out 0.45s infinite;
 }
 
 .home-scan-card {
@@ -203,6 +245,8 @@ body {
   .tab-anim-left,
   .float-soft,
   .glow-pulse,
+  .glow-pulse-red,
+  .glow-pulse-yellow,
   .nav-active-icon,
   .arrow-nudge,
   .eatsave-splash-welcome,
@@ -213,6 +257,8 @@ body {
   .eatsave-splash-dots span,
   .anim-rise-in,
   .anim-rise-in.glow-pulse,
+  .anim-rise-in.glow-pulse-red,
+  .anim-rise-in.glow-pulse-yellow,
   .anim-rise-in.home-scan-card,
   .home-scan-card,
   .home-action-icon,

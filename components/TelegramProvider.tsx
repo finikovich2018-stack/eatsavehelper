@@ -22,6 +22,9 @@ export interface DbUser {
   notifications_enabled?: boolean;
   notify_hour?: number;
   timezone?: string;
+  notify_shopping?: boolean;
+  notify_expiring?: boolean;
+  notify_expired?: boolean;
 }
 
 function getBrowserTimezone(): string | undefined {

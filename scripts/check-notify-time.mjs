@@ -34,6 +34,19 @@ if (colError) {
   console.log('✅ columns notify_hour/timezone/last_reminder_date present');
 }
 
+const { error: typeColError } = await supabase
+  .from('users')
+  .select('notify_shopping, notify_expiring, notify_expired')
+  .limit(1);
+
+if (typeColError) {
+  ok = false;
+  console.log('❌ notify type columns:', typeColError.message);
+  console.log('   → Apply supabase/patch_notify_types_hourly.sql');
+} else {
+  console.log('✅ notify_shopping / notify_expiring / notify_expired present');
+}
+
 // 2) mark_reminded RPC (empty array = no-op)
 const { error: rpcError } = await supabase.rpc('mark_reminded', { user_ids: [] });
 if (rpcError) {
@@ -44,7 +57,7 @@ if (rpcError) {
 }
 
 if (!ok) {
-  console.log('\n⚠️  Apply supabase/patch_notify_time.sql in Supabase SQL Editor, then re-run.');
+  console.log('\n⚠️  Apply missing SQL patches in Supabase SQL Editor, then re-run.');
   process.exit(1);
 }
-console.log('\n✅ patch_notify_time.sql is applied.');
+console.log('\n✅ Notification DB schema is ready.');

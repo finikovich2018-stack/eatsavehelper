@@ -53,11 +53,17 @@ export async function POST(req: NextRequest) {
       patch.notifications_enabled = true;
     }
 
+    for (const key of ['notify_shopping', 'notify_expiring', 'notify_expired'] as const) {
+      if (body[key] !== undefined && body[key] !== null) {
+        patch[key] = Boolean(body[key]);
+      }
+    }
+
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from('users')
       .upsert(patch, { onConflict: 'telegram_user_id' })
-      .select('notifications_enabled, notify_hour, timezone')
+      .select('notifications_enabled, notify_hour, timezone, notify_shopping, notify_expiring, notify_expired')
       .maybeSingle();
 
     if (error) {
@@ -70,6 +76,9 @@ export async function POST(req: NextRequest) {
       notifications_enabled: data?.notifications_enabled ?? true,
       notify_hour: data?.notify_hour ?? 12,
       timezone: data?.timezone ?? 'Europe/Moscow',
+      notify_shopping: data?.notify_shopping ?? true,
+      notify_expiring: data?.notify_expiring ?? true,
+      notify_expired: data?.notify_expired ?? true,
     });
   } catch (e) {
     console.error('Notification settings error:', e);

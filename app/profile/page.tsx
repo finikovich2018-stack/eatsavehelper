@@ -28,8 +28,13 @@ type UserProfile = {
   notifications_enabled?: boolean;
   notify_hour?: number;
   timezone?: string;
+  notify_shopping?: boolean;
+  notify_expiring?: boolean;
+  notify_expired?: boolean;
   achievement_bonus_month?: string | null;
 };
+
+type NotifyTypeKey = 'notify_shopping' | 'notify_expiring' | 'notify_expired';
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   RUB: '₽', USD: '$', EUR: '€', GBP: '£', UAH: '₴', KZT: '₸', AUD: 'A$', CAD: 'C$',
@@ -109,6 +114,7 @@ export default function ProfilePage() {
   const [premiumBusy, setPremiumBusy] = useState(false);
   const [notificationsBusy, setNotificationsBusy] = useState(false);
   const [notifyTimeBusy, setNotifyTimeBusy] = useState(false);
+  const [notifyTypeBusy, setNotifyTypeBusy] = useState<NotifyTypeKey | null>(null);
   const [recentReceipts, setRecentReceipts] = useState<ReceiptRow[]>(
     () => readSessionCache<ProfileCache>(PROFILE_CACHE_KEY)?.recentReceipts ?? []
   );
@@ -369,6 +375,9 @@ export default function ProfilePage() {
   const isPremium = hasPremiumAccess(userProfile || dbUser || {});
   const premiumUntil = (userProfile || dbUser)?.premium_until;
   const notificationsEnabled = userProfile?.notifications_enabled !== false;
+  const notifyShoppingEnabled = userProfile?.notify_shopping !== false;
+  const notifyExpiringEnabled = userProfile?.notify_expiring !== false;
+  const notifyExpiredEnabled = userProfile?.notify_expired !== false;
 
   const waitForPremium = useCallback(async (attempts = 12) => {
     for (let i = 0; i < attempts; i++) {
@@ -519,6 +528,62 @@ export default function ProfilePage() {
       setNotifyTimeBusy(false);
     }
   };
+
+  const toggleNotifyType = async (key: NotifyTypeKey) => {
+    if (!user?.id || notifyTypeBusy) return;
+
+    const nextValue = userProfile?.[key] === false;
+    setNotifyTypeBusy(key);
+    setUserProfile((p) => (p ? { ...p, [key]: nextValue } : p));
+
+    let timezone = userProfile?.timezone || 'Europe/Moscow';
+    try {
+      timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || timezone;
+    } catch {
+      /* keep default */
+    }
+
+    try {
+      const res = await fetch('/api/notifications/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          initData,
+          telegram_user_id: user.id,
+          telegram_chat_id: user.id,
+          timezone,
+          [key]: nextValue,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setUserProfile((p) => (p ? { ...p, [key]: !nextValue } : p));
+        alert(data.error || t('profile.notifySaveError'));
+        return;
+      }
+      setUserProfile((p) =>
+        p
+          ? {
+              ...p,
+              notify_shopping: data.notify_shopping ?? p.notify_shopping,
+              notify_expiring: data.notify_expiring ?? p.notify_expiring,
+              notify_expired: data.notify_expired ?? p.notify_expired,
+            }
+          : p
+      );
+    } catch {
+      setUserProfile((p) => (p ? { ...p, [key]: !nextValue } : p));
+      alert(t('common.networkError'));
+    } finally {
+      setNotifyTypeBusy(null);
+    }
+  };
+
+  const notifyTypeRows: { key: NotifyTypeKey; label: string; enabled: boolean }[] = [
+    { key: 'notify_shopping', label: t('profile.notifyShopping'), enabled: notifyShoppingEnabled },
+    { key: 'notify_expiring', label: t('profile.notifyExpiring'), enabled: notifyExpiringEnabled },
+    { key: 'notify_expired', label: t('profile.notifyExpired'), enabled: notifyExpiredEnabled },
+  ];
 
   const monthName = new Date().toLocaleString(dateLocale, { month: 'long' });
   const monthStartDate = useMemo(
@@ -997,6 +1062,32 @@ export default function ProfilePage() {
                     </option>
                   ))}
                 </select>
+              </div>
+            )}
+
+            {notificationsEnabled && (
+              <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+                <p className="font-medium text-foreground">{t('profile.notifyTypes')}</p>
+                {notifyTypeRows.map(({ key, label, enabled }) => (
+                  <div key={key} className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-foreground">{label}</span>
+                    <button
+                      type="button"
+                      disabled={notifyTypeBusy === key}
+                      onClick={() => toggleNotifyType(key)}
+                      className={`relative w-12 h-7 rounded-full transition-colors disabled:opacity-60 shrink-0 ${
+                        enabled ? 'bg-accent' : 'bg-border'
+                      }`}
+                      aria-label={label}
+                    >
+                      <span
+                        className={`absolute top-0.5 w-6 h-6 rounded-full bg-background transition-transform ${
+                          enabled ? 'left-5' : 'left-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>

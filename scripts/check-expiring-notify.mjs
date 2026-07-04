@@ -83,7 +83,7 @@ for (const u of users || []) {
   const tz = u.timezone || 'Europe/Moscow';
   const hour = localHour(tz);
   const today = localDateStr(tz);
-  const due = hour >= (u.notify_hour ?? 12) && u.last_reminder_date !== today;
+  const due = hour === (u.notify_hour ?? 12) && u.last_reminder_date !== today;
   console.log(
     `  • ${u.first_name || u.telegram_user_id}: notify ${String(u.notify_hour ?? 12).padStart(2, '0')}:00 (${tz}), local now ${hour}:00`
   );
@@ -109,5 +109,6 @@ if (rpcError) {
   );
 }
 
-console.log('\nNote: RPC returns rows only during user notify_hour (or later) if not sent today.');
+console.log('\nNote: RPC returns rows only at the user\'s notify_hour (exact match) if not sent today.');
+console.log('Cron runs hourly — see vercel.json schedule "0 * * * *".');
 console.log('Dry run: GET /api/cron/check-expiry?dry_run=1');

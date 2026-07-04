@@ -85,7 +85,7 @@ export async function GET(req: Request) {
         ok: false,
         error: 'Database functions missing or failed',
         rpc_errors: rpcErrors,
-        hint: 'Run supabase/patch_food_reminders.sql in Supabase SQL Editor',
+        hint: 'Run supabase/patch_food_reminders.sql and patch_notify_types_hourly.sql in Supabase SQL Editor',
       },
       { status: 500 }
     );

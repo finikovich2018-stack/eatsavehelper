@@ -1067,7 +1067,10 @@ export default function ProfilePage() {
 
             {notificationsEnabled && (
               <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
-                <p className="font-medium text-foreground">{t('profile.notifyTypes')}</p>
+                <div>
+                  <p className="font-medium text-foreground">{t('profile.notifyTypes')}</p>
+                  <p className="text-sm text-muted mt-1">{t('profile.notifyTypesDesc')}</p>
+                </div>
                 {notifyTypeRows.map(({ key, label, enabled }) => (
                   <div key={key} className="flex items-center justify-between gap-3">
                     <span className="text-sm text-foreground">{label}</span>

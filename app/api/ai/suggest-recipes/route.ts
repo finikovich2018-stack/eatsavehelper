@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { callClaudeViaWorker } from '@/lib/ai';
 import { getClaudeModel } from '@/lib/ai-model';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
-import { assertCanUseAiRecipes, UsageLimitError } from '@/lib/usage-limits';
+import { assertCanUseAiRecipes, consumeRecipeSlot, UsageLimitError } from '@/lib/usage-limits';
 import { isPremiumActive } from '@/lib/user-utils';
 import { verifyApiUser } from '@/lib/verify-api-user';
 
@@ -94,6 +94,7 @@ export async function POST(req: NextRequest) {
     const match = cleaned.match(/\[[\s\S]*\]/);
     if (!match) throw new Error('No JSON');
     const recipes = JSON.parse(match[0]);
+    const aiRecipesThisMonth = await consumeRecipeSlot(supabase, auth.userId);
 
     if (save && Array.isArray(recipes)) {
       const rows = recipes.map((recipe: {
@@ -113,7 +114,7 @@ export async function POST(req: NextRequest) {
       await supabase.from('saved_recipes').insert(rows);
     }
 
-    return NextResponse.json({ recipes });
+    return NextResponse.json({ recipes, ai_recipes_this_month: aiRecipesThisMonth });
   } catch (error: unknown) {
     if (error instanceof UsageLimitError) {
       return NextResponse.json(

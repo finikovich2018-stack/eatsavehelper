@@ -18,7 +18,11 @@ export function verifyApiUser(body: {
   const { initData, telegram_user_id } = body;
 
   if (!initData) {
-    if (process.env.NODE_ENV === 'development' && telegram_user_id) {
+    if (
+      process.env.NODE_ENV === 'development' &&
+      process.env.ALLOW_DEV_AUTH === 'true' &&
+      telegram_user_id
+    ) {
       return {
         ok: true,
         userId: Number(telegram_user_id),

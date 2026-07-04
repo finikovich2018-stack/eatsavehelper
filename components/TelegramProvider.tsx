@@ -4,6 +4,10 @@ import { init as initTelegramSdk } from "@telegram-apps/sdk";
 import { prefetchHomeSummary } from "@/lib/home-summary";
 import { recoverFromStaleAuth } from "@/lib/auth-recovery";
 import { getTelegramAuthSnapshot, isTelegramWebView } from "@/lib/telegram-auth";
+import {
+  deepLinkStorageKey,
+  getTelegramStartParam,
+} from "@/lib/telegram-start-param";
 
 interface TelegramUser {
   id: number;
@@ -78,6 +82,52 @@ async function registerChatForNotifications(
   }
 }
 
+async function processDeepLinks(initData: string, telegramUserId: number): Promise<DbUser | null> {
+  const startParam = getTelegramStartParam(initData);
+  if (!startParam) return null;
+
+  try {
+    if (sessionStorage.getItem(deepLinkStorageKey(telegramUserId, startParam))) {
+      return null;
+    }
+  } catch {
+    /* sessionStorage unavailable */
+  }
+
+  const body = { initData, telegram_user_id: telegramUserId };
+  let refreshed: DbUser | null = null;
+
+  try {
+    if (startParam.startsWith('ref_')) {
+      await fetch('/api/referral/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, token: startParam }),
+      });
+    } else if (startParam.startsWith('join_')) {
+      await fetch('/api/household/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, token: startParam }),
+      });
+    } else {
+      return null;
+    }
+
+    try {
+      sessionStorage.setItem(deepLinkStorageKey(telegramUserId, startParam), '1');
+    } catch {
+      /* ignore */
+    }
+
+    refreshed = await loadDbUser(initData, telegramUserId);
+  } catch (e) {
+    console.error('Deep link handling failed:', e);
+  }
+
+  return refreshed;
+}
+
 async function loadDbUser(initData: string, telegramUserId: number): Promise<DbUser | null> {
   const res = await fetch('/api/user/get-or-create', {
     method: 'POST',
@@ -148,7 +198,9 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
       bootstrappedUserId.current = snap.user.id;
 
       prefetchHomeSummary(snap.initData, snap.user.id);
-      const profile = await loadDbUser(snap.initData, snap.user.id);
+      let profile = await loadDbUser(snap.initData, snap.user.id);
+      const afterDeepLink = await processDeepLinks(snap.initData, snap.user.id);
+      if (afterDeepLink) profile = afterDeepLink;
       if (profile && alive) setDbUser(profile);
       void registerChatForNotifications(snap.user.id, snap.user.id, snap.initData);
     };

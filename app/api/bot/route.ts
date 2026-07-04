@@ -18,6 +18,7 @@ import { matchMenuAction, withMainMenu, type BotMenuAction } from '@/lib/bot-key
 import { sendPremiumInvoice } from '@/lib/premium-invoice';
 import { isPremiumActive } from '@/lib/user-utils';
 import { syncUserProfile } from '@/lib/sync-user-profile';
+import { ensureBotUser } from '@/lib/ensure-bot-user';
 import { getAppHomeUrl } from '@/lib/app-url';
 import { getBotToken } from '@/lib/bot-token';
 
@@ -181,14 +182,7 @@ async function handleStart(
   const locale = botLocale(from.language_code);
   const msg = botMsg(locale);
 
-  await supabase.from('users').upsert(
-    {
-      telegram_user_id: chatId,
-      telegram_chat_id: chatId,
-      notifications_enabled: true,
-    },
-    { onConflict: 'telegram_user_id' }
-  );
+  await ensureBotUser(supabase, chatId, { notifications_enabled: true });
 
   await syncUserProfile(supabase, chatId, {
     first_name: firstName,
@@ -418,10 +412,7 @@ export async function POST(req: NextRequest) {
     if (body.message?.text === '/subscribe') {
       const chatId = body.message.from.id;
       const locale = botLocale(body.message.from.language_code);
-      await supabase
-        .from('users')
-        .update({ notifications_enabled: true, telegram_chat_id: chatId })
-        .eq('telegram_user_id', chatId);
+      await ensureBotUser(supabase, chatId, { notifications_enabled: true });
 
       await sendMessage(chatId, botMsg(locale).subscribed, withMainMenu(locale));
       return NextResponse.json({ ok: true });
@@ -430,10 +421,7 @@ export async function POST(req: NextRequest) {
     if (body.message?.text === '/unsubscribe') {
       const chatId = body.message.from.id;
       const locale = botLocale(body.message.from.language_code);
-      await supabase
-        .from('users')
-        .update({ notifications_enabled: false })
-        .eq('telegram_user_id', chatId);
+      await ensureBotUser(supabase, chatId, { notifications_enabled: false });
 
       await sendMessage(chatId, botMsg(locale).unsubscribed, withMainMenu(locale));
       return NextResponse.json({ ok: true });
@@ -444,6 +432,17 @@ export async function POST(req: NextRequest) {
       const locale = botLocale(body.message.from.language_code);
       const msg = botMsg(locale);
       try {
+        const { data: current } = await supabase
+          .from('users')
+          .select('is_premium, premium_until')
+          .eq('telegram_user_id', chatId)
+          .maybeSingle();
+
+        if (current && isPremiumActive(current)) {
+          await sendMessage(chatId, msg.activateOk, withMainMenu(locale));
+          return NextResponse.json({ ok: true });
+        }
+
         const canRecover = await hasRecoverablePremiumPayment(supabase, chatId);
         if (!canRecover) {
           await sendMessage(chatId, msg.activateFail, withMainMenu(locale));

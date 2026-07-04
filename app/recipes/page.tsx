@@ -144,14 +144,15 @@ export default function RecipesPage() {
       }
       setAiRecipes(json.recipes || []);
 
-      await fetch('/api/user/increment-recipes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData, telegram_user_id: user?.id }),
-      });
-      setUserProfile((prev: any) =>
-        prev ? { ...prev, ai_recipes_this_month: (prev.ai_recipes_this_month || 0) + 1 } : prev
-      );
+      if (typeof json.ai_recipes_this_month === 'number') {
+        setUserProfile((prev: any) =>
+          prev ? { ...prev, ai_recipes_this_month: json.ai_recipes_this_month } : prev
+        );
+      } else {
+        await refreshUser().then((profile) => {
+          if (profile) setUserProfile(profile);
+        });
+      }
       loadSavedRecipes();
     } catch (err) {
       const message = err instanceof Error ? err.message : t('common.error');

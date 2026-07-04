@@ -7,8 +7,19 @@ function getBotToken() {
   return process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN;
 }
 
+function verifySetupAuth(req: NextRequest): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return false;
+  const auth = req.headers.get('authorization');
+  return auth === `Bearer ${secret}`;
+}
+
 /** @deprecated Use POST /api/setup instead */
 export async function POST(req: NextRequest) {
+  if (!verifySetupAuth(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const botToken = getBotToken();
     if (!botToken) {

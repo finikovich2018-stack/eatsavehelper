@@ -51,18 +51,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await activatePremium(userId, ACHIEVEMENT_BONUS_DAYS);
-
-    const { data: updated, error: updateError } = await supabase
+    const { data: claimed, error: claimError } = await supabase
       .from('users')
       .update({ achievement_bonus_month: currentMonth })
       .eq('telegram_user_id', userId)
+      .or(`achievement_bonus_month.is.null,achievement_bonus_month.neq.${currentMonth}`)
       .select('*')
       .maybeSingle();
 
-    if (updateError) {
-      const missingColumn = updateError.message.includes('achievement_bonus_month');
+    if (claimError) {
+      const missingColumn = claimError.message.includes('achievement_bonus_month');
       if (missingColumn) {
+        await activatePremium(userId, ACHIEVEMENT_BONUS_DAYS);
         const { data: refreshed } = await supabase
           .from('users')
           .select('*')
@@ -75,8 +75,37 @@ export async function POST(req: NextRequest) {
           user: normalizeUser(refreshed),
         });
       }
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      return NextResponse.json({ error: claimError.message }, { status: 500 });
     }
+
+    if (!claimed) {
+      const { data: already } = await supabase
+        .from('users')
+        .select('*')
+        .eq('telegram_user_id', userId)
+        .maybeSingle();
+      return NextResponse.json({
+        ok: true,
+        alreadyClaimed: true,
+        user: normalizeUser(already),
+      });
+    }
+
+    try {
+      await activatePremium(userId, ACHIEVEMENT_BONUS_DAYS);
+    } catch (premiumError) {
+      await supabase
+        .from('users')
+        .update({ achievement_bonus_month: userRow?.achievement_bonus_month ?? null })
+        .eq('telegram_user_id', userId);
+      throw premiumError;
+    }
+
+    const { data: updated } = await supabase
+      .from('users')
+      .select('*')
+      .eq('telegram_user_id', userId)
+      .maybeSingle();
 
     return NextResponse.json({
       ok: true,

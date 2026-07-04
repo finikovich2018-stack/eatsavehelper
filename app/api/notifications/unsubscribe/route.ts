@@ -35,26 +35,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const { data: created, error: upsertError } = await supabase
-      .from('users')
-      .upsert(
-        {
-          telegram_user_id: userId,
-          telegram_chat_id: userId,
-          notifications_enabled: false,
-        },
-        { onConflict: 'telegram_user_id' }
-      )
-      .select('notifications_enabled')
-      .maybeSingle();
-
-    if (upsertError) {
-      return NextResponse.json({ error: upsertError.message }, { status: 500 });
-    }
-
     return NextResponse.json({
       ok: true,
-      notifications_enabled: created?.notifications_enabled ?? false,
+      notifications_enabled: false,
     });
   } catch {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

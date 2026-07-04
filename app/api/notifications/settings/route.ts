@@ -60,9 +60,20 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+    const { data: existing } = await supabase
+      .from('users')
+      .select('telegram_user_id')
+      .eq('telegram_user_id', userId)
+      .maybeSingle();
+
+    if (!existing) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const { data, error } = await supabase
       .from('users')
-      .upsert(patch, { onConflict: 'telegram_user_id' })
+      .update(patch)
+      .eq('telegram_user_id', userId)
       .select('notifications_enabled, notify_hour, timezone, notify_shopping, notify_expiring, notify_expired')
       .maybeSingle();
 

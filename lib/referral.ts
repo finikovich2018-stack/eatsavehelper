@@ -152,6 +152,20 @@ export async function claimReferralByToken(
     throw new Error('Referrer monthly limit reached');
   }
 
+  const { count: totalInvited } = await supabase
+    .from('referrals')
+    .select('*', { count: 'exact', head: true })
+    .eq('referrer_telegram_user_id', referrer.telegram_user_id);
+
+  const nextTotal = (totalInvited || 0) + 1;
+  const milestoneDays =
+    nextTotal % REFERRAL_MILESTONE === 0 ? REFERRAL_MILESTONE_BONUS_DAYS : 0;
+
+  const premium = await activatePremium(
+    referrer.telegram_user_id,
+    REFERRAL_BONUS_DAYS + milestoneDays
+  );
+
   const rewardedAt = new Date().toISOString();
   const { error: insertError } = await supabase.from('referrals').insert({
     referrer_telegram_user_id: referrer.telegram_user_id,
@@ -171,21 +185,6 @@ export async function claimReferralByToken(
     .from('users')
     .update({ referred_by: referrer.telegram_user_id })
     .eq('telegram_user_id', refereeTelegramId);
-
-  // Milestone bonus: every REFERRAL_MILESTONE invited friends grants extra days.
-  // Count includes the referral we just inserted, so each multiple is hit once.
-  const { count: totalInvited } = await supabase
-    .from('referrals')
-    .select('*', { count: 'exact', head: true })
-    .eq('referrer_telegram_user_id', referrer.telegram_user_id);
-
-  const milestoneDays =
-    totalInvited && totalInvited % REFERRAL_MILESTONE === 0 ? REFERRAL_MILESTONE_BONUS_DAYS : 0;
-
-  const premium = await activatePremium(
-    referrer.telegram_user_id,
-    REFERRAL_BONUS_DAYS + milestoneDays
-  );
 
   return {
     ok: true,

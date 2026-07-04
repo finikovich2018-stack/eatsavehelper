@@ -130,6 +130,70 @@ export async function assertCanUseAiRecipes(
   return user;
 }
 
+/** Reserve one free scan slot (compare-and-swap; safe under parallel requests). */
+export async function consumeScanSlot(
+  supabase: SupabaseClient,
+  telegramUserId: number
+): Promise<number> {
+  if (await hasEffectivePremium(supabase, telegramUserId)) {
+    const user = await getUserWithLimits(supabase, telegramUserId);
+    return user?.scans_this_month || 0;
+  }
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const user = await getUserWithLimits(supabase, telegramUserId);
+    if (!user || (user.scans_this_month || 0) >= FREE_SCANS_PER_MONTH) {
+      throw new UsageLimitError('scan_limit');
+    }
+
+    const current = user.scans_this_month || 0;
+    const next = current + 1;
+    const { data } = await supabase
+      .from('users')
+      .update({ scans_this_month: next })
+      .eq('telegram_user_id', telegramUserId)
+      .eq('scans_this_month', current)
+      .select('scans_this_month')
+      .maybeSingle();
+
+    if (data) return data.scans_this_month ?? next;
+  }
+
+  throw new UsageLimitError('scan_limit');
+}
+
+/** Reserve one free AI recipe slot (compare-and-swap). */
+export async function consumeRecipeSlot(
+  supabase: SupabaseClient,
+  telegramUserId: number
+): Promise<number> {
+  if (await hasEffectivePremium(supabase, telegramUserId)) {
+    const user = await getUserWithLimits(supabase, telegramUserId);
+    return user?.ai_recipes_this_month || 0;
+  }
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const user = await getUserWithLimits(supabase, telegramUserId);
+    if (!user || (user.ai_recipes_this_month || 0) >= FREE_AI_RECIPES_PER_MONTH) {
+      throw new UsageLimitError('recipe_limit');
+    }
+
+    const current = user.ai_recipes_this_month || 0;
+    const next = current + 1;
+    const { data } = await supabase
+      .from('users')
+      .update({ ai_recipes_this_month: next })
+      .eq('telegram_user_id', telegramUserId)
+      .eq('ai_recipes_this_month', current)
+      .select('ai_recipes_this_month')
+      .maybeSingle();
+
+    if (data) return data.ai_recipes_this_month ?? next;
+  }
+
+  throw new UsageLimitError('recipe_limit');
+}
+
 export async function incrementScanCount(
   supabase: SupabaseClient,
   telegramUserId: number,

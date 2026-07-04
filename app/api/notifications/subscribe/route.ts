@@ -56,22 +56,32 @@ export async function POST(req: NextRequest) {
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
+
+      // User not created yet — get-or-create runs on app open; skip bare upsert.
+      return NextResponse.json({ ok: true, notifications_enabled: true });
     }
 
     const patch: Record<string, unknown> = {
-      telegram_user_id: userId,
       telegram_chat_id: chatId,
+      notifications_enabled: true,
     };
 
     if (validTimezone) patch.timezone = validTimezone;
 
-    if (!register_only) {
-      patch.notifications_enabled = true;
+    const { data: existing } = await supabase
+      .from('users')
+      .select('telegram_user_id')
+      .eq('telegram_user_id', userId)
+      .maybeSingle();
+
+    if (!existing) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     const { data, error } = await supabase
       .from('users')
-      .upsert(patch, { onConflict: 'telegram_user_id' })
+      .update(patch)
+      .eq('telegram_user_id', userId)
       .select('notifications_enabled')
       .maybeSingle();
 
@@ -82,7 +92,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      notifications_enabled: data?.notifications_enabled ?? !register_only,
+      notifications_enabled: data?.notifications_enabled ?? true,
     });
   } catch (e) {
     console.error('Subscribe error:', e);

@@ -4,7 +4,10 @@ import { ensureHouseholdContext, hasEffectivePremium } from '@/lib/household';
 import { normalizeUser } from '@/lib/user-utils';
 import { syncUserProfile } from '@/lib/sync-user-profile';
 import { verifyApiUser } from '@/lib/verify-api-user';
-import { TRIAL_PREMIUM_DAYS } from '@/lib/constants';
+import {
+  grantWelcomeTrialIfEligible,
+  welcomeTrialUserFields,
+} from '@/lib/welcome-trial';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -68,14 +71,12 @@ export async function POST(req: NextRequest) {
           console.error('Update error:', error);
           return NextResponse.json({ error: error.message }, { status: 500 });
         }
-        await syncUserProfile(supabase, userId, auth.tgUser);
-        const { data: fresh } = await supabase
-          .from('users')
-          .select('*')
-          .eq('telegram_user_id', userId)
-          .maybeSingle();
-        return respondWithUser(fresh || updated || user);
+        user = updated || user;
       }
+
+      // Bot /start may create the row first without trial — grant it here once.
+      const trialGranted = await grantWelcomeTrialIfEligible(supabase, userId, user);
+      if (trialGranted) user = trialGranted;
 
       await syncUserProfile(supabase, userId, auth.tgUser);
       const { data: fresh } = await supabase
@@ -86,26 +87,30 @@ export async function POST(req: NextRequest) {
       return respondWithUser(fresh || user);
     }
 
-    // Welcome trial: brand-new users get a few days of Premium to try everything.
-    const trialUntil = new Date();
-    trialUntil.setDate(trialUntil.getDate() + TRIAL_PREMIUM_DAYS);
-
     const { data: newUser, error } = await supabase
       .from('users')
       .insert({
         telegram_user_id: userId,
-        is_premium: true,
-        premium_until: trialUntil.toISOString(),
-        scans_this_month: 0,
-        scans_month: currentMonth,
-        ai_recipes_this_month: 0,
-        ai_recipes_month: currentMonth,
+        ...welcomeTrialUserFields(currentMonth),
       })
       .select()
       .maybeSingle();
 
     if (error) {
       console.error('Insert error:', error);
+      if (error.code === '23505') {
+        const { data: raced } = await supabase
+          .from('users')
+          .select('*')
+          .eq('telegram_user_id', userId)
+          .maybeSingle();
+        if (raced) {
+          const trialGranted = await grantWelcomeTrialIfEligible(supabase, userId, raced);
+          const userRow = trialGranted || raced;
+          await syncUserProfile(supabase, userId, auth.tgUser);
+          return respondWithUser(userRow);
+        }
+      }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 

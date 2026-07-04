@@ -225,6 +225,11 @@ export const dataApi = {
         '/api/household',
         withAuth(auth, { op: 'remove_member', member_telegram_user_id: memberTelegramUserId })
       ),
+    join: (auth: AuthPayload, token: string) =>
+      apiPost<{ ok: true; householdId: string; memberCount: number }>(
+        '/api/household/join',
+        withAuth(auth, { token })
+      ),
   },
   referral: {
     get: (auth: AuthPayload) =>
@@ -235,5 +240,10 @@ export const dataApi = {
         bonusDays: number;
         bonusPerInvite: number;
       }>('/api/referral', withAuth(auth)),
+    claim: (auth: AuthPayload, token: string) =>
+      apiPost<{ ok: true; alreadyClaimed?: boolean; bonusDays?: number }>(
+        '/api/referral/claim',
+        withAuth(auth, { token })
+      ),
   },
 };

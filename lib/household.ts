@@ -291,11 +291,33 @@ export async function joinHouseholdByToken(
     await dissolveSoloHousehold(supabase, telegramUserId);
   }
 
-  await supabase.from('household_members').insert({
+  const { error: joinError } = await supabase.from('household_members').insert({
     household_id: invite.household_id,
     telegram_user_id: telegramUserId,
     role: 'member',
   });
+
+  if (joinError) {
+    if (joinError.code === '23505') {
+      const existing = await getHouseholdContext(supabase, telegramUserId);
+      if (existing && existing.householdId === invite.household_id) return existing;
+    }
+    throw new Error(joinError.message);
+  }
+
+  const { count: afterCount } = await supabase
+    .from('household_members')
+    .select('*', { count: 'exact', head: true })
+    .eq('household_id', invite.household_id);
+
+  if ((afterCount || 0) > MAX_HOUSEHOLD_MEMBERS) {
+    await supabase
+      .from('household_members')
+      .delete()
+      .eq('household_id', invite.household_id)
+      .eq('telegram_user_id', telegramUserId);
+    throw new Error('This family is already full');
+  }
 
   await migrateUserDataToHousehold(supabase, telegramUserId, invite.household_id);
 

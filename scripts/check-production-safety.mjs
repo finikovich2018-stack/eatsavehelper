@@ -43,6 +43,18 @@ if (!premium.includes(".eq('activated', false)")) {
   offenders.push('lib/premium-payments.ts: recovery must require activated=false');
 }
 
+if (!fs.existsSync(path.join(root, 'supabase/patch_atomic_limits.sql'))) {
+  offenders.push('missing supabase/patch_atomic_limits.sql');
+}
+
+if (!read('lib/referral.ts').includes('claim_referral_reward')) {
+  offenders.push('lib/referral.ts: must use claim_referral_reward RPC');
+}
+
+if (!read('lib/run-mutation.ts').includes('runMutation')) {
+  offenders.push('missing lib/run-mutation.ts');
+}
+
 for (const rel of ['app/shopping/page.tsx', 'app/recipes/page.tsx', 'app/profile/page.tsx']) {
   const text = read(rel);
   if (!text.includes('userCacheKey')) {

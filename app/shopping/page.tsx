@@ -10,6 +10,7 @@ import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
 import { defaultExpiryDate } from '@/lib/shopping-utils';
 import { hasPremiumAccess } from '@/lib/user-utils';
 import { readSessionCache, writeSessionCache, userCacheKey } from '@/lib/session-cache';
+import { runMutation } from '@/lib/run-mutation';
 import Spinner from '@/components/ui/Spinner';
 
 const SUGGEST_ICONS: Record<string, string> = {
@@ -82,55 +83,71 @@ export default function ShoppingPage() {
   const pending = useMemo(() => items.filter((i) => !i.checked), [items]);
   const bought = useMemo(() => items.filter((i) => i.checked), [items]);
 
+  const onMutationError = (message: string) => {
+    alert(message || t('common.networkError'));
+  };
+
   async function addItem() {
     if (!form.name.trim() || !auth) return;
-    const { items: inserted } = await dataApi.shopping.insert(auth, [
-      { name: form.name.trim(), quantity: form.quantity.trim() || undefined, source: 'manual' },
-    ]);
-    const row = (inserted || [])[0];
-    if (row) {
-      setItems((prev) => {
-        const without = prev.filter((p) => p.id !== row.id);
-        return [row, ...without];
-      });
-    }
-    setForm({ name: '', quantity: '' });
-    setShowForm(false);
+    const name = form.name.trim();
+    const quantity = form.quantity.trim() || undefined;
+    await runMutation(async () => {
+      const { items: inserted } = await dataApi.shopping.insert(auth, [
+        { name, quantity, source: 'manual' },
+      ]);
+      const row = (inserted || [])[0];
+      if (row) {
+        setItems((prev) => {
+          const without = prev.filter((p) => p.id !== row.id);
+          return [row, ...without];
+        });
+      }
+      setForm({ name: '', quantity: '' });
+      setShowForm(false);
+    }, onMutationError, t('common.networkError'));
   }
 
   async function addSuggestion(name: string) {
     if (!auth) return;
-    setSuggestions((prev) => prev.filter((s) => s.name !== name));
-    const { items: inserted } = await dataApi.shopping.insert(auth, [
-      { name, source: 'suggested' },
-    ]);
-    const row = (inserted || [])[0];
-    if (row) {
-      setItems((prev) => {
-        const without = prev.filter((p) => p.id !== row.id);
-        return [row, ...without];
-      });
-    }
+    await runMutation(async () => {
+      setSuggestions((prev) => prev.filter((s) => s.name !== name));
+      const { items: inserted } = await dataApi.shopping.insert(auth, [
+        { name, source: 'suggested' },
+      ]);
+      const row = (inserted || [])[0];
+      if (row) {
+        setItems((prev) => {
+          const without = prev.filter((p) => p.id !== row.id);
+          return [row, ...without];
+        });
+      }
+    }, onMutationError, t('common.networkError'));
   }
 
   async function toggleItem(item: ApiShoppingItem) {
     if (!auth) return;
-    const { item: updated } = await dataApi.shopping.toggle(auth, item.id, !item.checked);
-    if (updated) {
-      setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
-    }
+    await runMutation(async () => {
+      const { item: updated } = await dataApi.shopping.toggle(auth, item.id, !item.checked);
+      if (updated) {
+        setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+      }
+    }, onMutationError, t('common.networkError'));
   }
 
   async function removeItem(id: string) {
     if (!auth) return;
-    await dataApi.shopping.delete(auth, id);
-    setItems((prev) => prev.filter((i) => i.id !== id));
+    await runMutation(async () => {
+      await dataApi.shopping.delete(auth, id);
+      setItems((prev) => prev.filter((i) => i.id !== id));
+    }, onMutationError, t('common.networkError'));
   }
 
   async function clearBought() {
     if (!auth || bought.length === 0) return;
-    await dataApi.shopping.clearChecked(auth);
-    setItems((prev) => prev.filter((i) => !i.checked));
+    await runMutation(async () => {
+      await dataApi.shopping.clearChecked(auth);
+      setItems((prev) => prev.filter((i) => !i.checked));
+    }, onMutationError, t('common.networkError'));
   }
 
   async function moveToFridge(item: ApiShoppingItem) {

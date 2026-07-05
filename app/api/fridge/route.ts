@@ -51,16 +51,35 @@ export async function POST(req: NextRequest) {
       const user = await getUserWithLimits(supabase, userId);
       const premium = await hasEffectivePremium(supabase, userId);
       if (!user || !premium) {
-        const countQuery = applyDataScope(
-          supabase.from('fridge_items').select('*', { count: 'exact', head: true }),
-          scope
-        );
-        const { count } = await countQuery;
-        if ((count || 0) + items.length > FREE_FRIDGE_ITEMS) {
-          return NextResponse.json(
-            { error: 'Fridge limit reached', code: 'fridge_limit', limit: FREE_FRIDGE_ITEMS },
-            { status: 429 }
+        const { error: capError } = await supabase.rpc('assert_fridge_capacity', {
+          p_household_id: scope.householdId ?? null,
+          p_user_id: userId,
+          p_add_count: items.length,
+          p_limit: FREE_FRIDGE_ITEMS,
+        });
+
+        if (capError) {
+          if (capError.message.includes('fridge_limit')) {
+            return NextResponse.json(
+              { error: 'Fridge limit reached', code: 'fridge_limit', limit: FREE_FRIDGE_ITEMS },
+              { status: 429 }
+            );
+          }
+          if (!capError.message.includes('does not exist')) {
+            return NextResponse.json({ error: capError.message }, { status: 500 });
+          }
+
+          const countQuery = applyDataScope(
+            supabase.from('fridge_items').select('*', { count: 'exact', head: true }),
+            scope
           );
+          const { count } = await countQuery;
+          if ((count || 0) + items.length > FREE_FRIDGE_ITEMS) {
+            return NextResponse.json(
+              { error: 'Fridge limit reached', code: 'fridge_limit', limit: FREE_FRIDGE_ITEMS },
+              { status: 429 }
+            );
+          }
         }
       }
 

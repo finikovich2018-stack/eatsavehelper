@@ -10,6 +10,7 @@ import { FREE_AI_RECIPES_PER_MONTH } from '@/lib/constants';
 import { findMissingIngredients } from '@/lib/shopping-utils';
 import { hasPremiumAccess, isPremiumActive } from '@/lib/user-utils';
 import { readSessionCache, writeSessionCache, userCacheKey } from '@/lib/session-cache';
+import { runMutation } from '@/lib/run-mutation';
 import type { Locale } from '@/lib/i18n/translations';
 
 type Recipe = {
@@ -177,10 +178,11 @@ export default function RecipesPage() {
     if (!auth) return;
     if (!confirm(t('recipes.deleteConfirm'))) return;
 
-    await dataApi.recipes.delete(auth, id);
-
-    setSavedRecipes((prev) => prev.filter((r) => r.id !== id));
-    if (selectedSaved?.id === id) setSelectedSaved(null);
+    await runMutation(async () => {
+      await dataApi.recipes.delete(auth, id);
+      setSavedRecipes((prev) => prev.filter((r) => r.id !== id));
+      if (selectedSaved?.id === id) setSelectedSaved(null);
+    }, (msg) => alert(msg || t('common.networkError')), t('common.networkError'));
   };
 
   const loadExpiringItems = useCallback(async () => {

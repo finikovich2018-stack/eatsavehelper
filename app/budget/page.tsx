@@ -7,6 +7,7 @@ import { useAuthReady, useReleaseLoadingWhenUnauthenticated, useLoadingTimeout }
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { formatLocalDate } from '@/lib/utils';
 import { readSessionCache, writeSessionCache } from '@/lib/session-cache';
+import { runMutation } from '@/lib/run-mutation';
 import Spinner from '@/components/ui/Spinner';
 import type { TranslationKey } from '@/lib/i18n/translations';
 
@@ -131,33 +132,41 @@ export default function BudgetPage() {
   async function saveBudgetLimit() {
     if (!auth || !budgetForm.amount) return;
     const amount = Number(budgetForm.amount);
-    await dataApi.budgets.upsert(auth, {
-      month: monthStart,
-      amount,
-      currency: budgetForm.currency,
-    });
-    setBudgetLimits((prev) => ({ ...prev, [budgetForm.currency]: amount }));
-    setShowBudgetForm(false);
+    const currency = budgetForm.currency;
+    await runMutation(async () => {
+      await dataApi.budgets.upsert(auth, {
+        month: monthStart,
+        amount,
+        currency,
+      });
+      setBudgetLimits((prev) => ({ ...prev, [currency]: amount }));
+      setShowBudgetForm(false);
+    }, (msg) => alert(msg || t('common.networkError')), t('common.networkError'));
   }
 
   async function addExpense() {
     if (!form.name || !form.amount || !auth) return;
-    const { item } = await dataApi.expenses.insert(auth, {
+    const payload = {
       name: form.name,
       amount: Number(form.amount),
       date: formatLocalDate(),
       category: form.category || '🛒',
       currency: form.currency,
-    });
-    if (item) setExpenses([item as Expense, ...expenses]);
-    setForm({ name: '', amount: '', currency: 'RUB', category: '🛒' });
-    setShowForm(false);
+    };
+    await runMutation(async () => {
+      const { item } = await dataApi.expenses.insert(auth, payload);
+      if (item) setExpenses((prev) => [item as Expense, ...prev]);
+      setForm({ name: '', amount: '', currency: 'RUB', category: '🛒' });
+      setShowForm(false);
+    }, (msg) => alert(msg || t('common.networkError')), t('common.networkError'));
   }
 
   async function removeExpense(id: string) {
     if (!auth) return;
-    await dataApi.expenses.delete(auth, id);
-    setExpenses(expenses.filter((e) => e.id !== id));
+    await runMutation(async () => {
+      await dataApi.expenses.delete(auth, id);
+      setExpenses((prev) => prev.filter((e) => e.id !== id));
+    }, (msg) => alert(msg || t('common.networkError')), t('common.networkError'));
   }
 
   const currentMonth = monthStart.slice(0, 7);

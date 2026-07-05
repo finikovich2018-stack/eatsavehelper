@@ -12,6 +12,7 @@ import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
 import { isPremiumActive, hasPremiumAccess } from '@/lib/user-utils';
 import { formatLocalDate } from '@/lib/utils';
 import { readSessionCache, writeSessionCache } from '@/lib/session-cache';
+import { runMutation } from '@/lib/run-mutation';
 import Spinner from '@/components/ui/Spinner';
 import type { TranslationKey } from '@/lib/i18n/translations';
 
@@ -258,17 +259,20 @@ function FridgePageContent() {
       alert(t('fridge.limitAlert', { limit: FREE_FRIDGE_ITEMS }));
       return;
     }
-    const { items: inserted } = await dataApi.fridge.insert(auth, [{
+    const payload = {
       name: form.name,
       category: form.category === 'all' ? 'other' : form.category,
       quantity: form.quantity,
       expiry_date: form.expiry_date,
       icon: ICONS[form.category] || '📦',
-    }]);
-    const data = (inserted || [])[0] as Item | undefined;
-    if (data) setItems([...items, data]);
-    setForm({ name: '', category: 'other', expiry_date: '', quantity: '' });
-    setShowForm(false);
+    };
+    await runMutation(async () => {
+      const { items: inserted } = await dataApi.fridge.insert(auth, [payload]);
+      const data = (inserted || [])[0] as Item | undefined;
+      if (data) setItems((prev) => [...prev, data]);
+      setForm({ name: '', category: 'other', expiry_date: '', quantity: '' });
+      setShowForm(false);
+    }, (msg) => alert(msg || t('common.networkError')), t('common.networkError'));
   }
 
   async function openHistory() {
@@ -303,15 +307,17 @@ function FridgePageContent() {
       alert(t('fridge.limitAlert', { limit: FREE_FRIDGE_ITEMS }));
       return;
     }
-    const { items: inserted } = await dataApi.fridge.insert(auth, [{
-      name: t(tmpl.key),
-      category: tmpl.category,
-      quantity: '',
-      expiry_date: expiryFromDays(tmpl.days),
-      icon: tmpl.icon,
-    }]);
-    const data = (inserted || [])[0] as Item | undefined;
-    if (data) setItems((prev) => [...prev, data]);
+    await runMutation(async () => {
+      const { items: inserted } = await dataApi.fridge.insert(auth, [{
+        name: t(tmpl.key),
+        category: tmpl.category,
+        quantity: '',
+        expiry_date: expiryFromDays(tmpl.days),
+        icon: tmpl.icon,
+      }]);
+      const data = (inserted || [])[0] as Item | undefined;
+      if (data) setItems((prev) => [...prev, data]);
+    }, (msg) => alert(msg || t('common.networkError')), t('common.networkError'));
   }
 
   async function consumeItem(id: string, action: 'eaten' | 'wasted') {

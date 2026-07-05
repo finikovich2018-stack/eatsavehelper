@@ -98,7 +98,65 @@ export type ReferralClaimResult = {
   premiumUntil?: string | null;
 };
 
+type RpcReferralResult = {
+  ok?: boolean;
+  alreadyClaimed?: boolean;
+  referrerId?: number;
+  bonusDays?: number;
+  milestoneDays?: number;
+};
+
 export async function claimReferralByToken(
+  supabase: SupabaseClient,
+  refereeTelegramId: number,
+  token: string
+): Promise<ReferralClaimResult> {
+  const code = parseReferralToken(token);
+  if (!code) throw new Error('Invalid referral link');
+
+  const { data, error } = await supabase.rpc('claim_referral_reward', {
+    p_referee_id: refereeTelegramId,
+    p_referral_code: code,
+    p_bonus_days: REFERRAL_BONUS_DAYS,
+    p_milestone_size: REFERRAL_MILESTONE,
+    p_milestone_bonus_days: REFERRAL_MILESTONE_BONUS_DAYS,
+    p_max_monthly: MAX_REFERRALS_PER_MONTH,
+    p_new_user_hours: REFERRAL_NEW_USER_HOURS,
+  });
+
+  if (error) {
+    if (error.message.includes('function') && error.message.includes('does not exist')) {
+      return claimReferralByTokenLegacy(supabase, refereeTelegramId, token);
+    }
+    throw new Error(error.message);
+  }
+
+  const result = (data || {}) as RpcReferralResult;
+  if (result.alreadyClaimed) {
+    return { ok: true, alreadyClaimed: true };
+  }
+
+  const referrerId = Number(result.referrerId);
+  const bonusDays = Number(result.bonusDays || REFERRAL_BONUS_DAYS);
+  const milestoneDays = Number(result.milestoneDays || 0);
+
+  if (!referrerId) {
+    throw new Error('Referral claim failed');
+  }
+
+  const premium = await activatePremium(referrerId, bonusDays + milestoneDays);
+
+  return {
+    ok: true,
+    bonusDays,
+    milestoneDays,
+    referrerId,
+    premiumUntil: premium.premium_until,
+  };
+}
+
+/** Fallback when patch_atomic_limits.sql is not applied yet. */
+async function claimReferralByTokenLegacy(
   supabase: SupabaseClient,
   refereeTelegramId: number,
   token: string
@@ -117,15 +175,6 @@ export async function claimReferralByToken(
     throw new Error('Cannot use your own link');
   }
 
-  const { data: referee } = await supabase
-    .from('users')
-    .select('telegram_user_id, referred_by, created_at')
-    .eq('telegram_user_id', refereeTelegramId)
-    .maybeSingle();
-
-  if (!referee) throw new Error('User not found');
-  if (referee.referred_by) return { ok: true, alreadyClaimed: true };
-
   const { data: existingReferral } = await supabase
     .from('referrals')
     .select('id')
@@ -134,44 +183,11 @@ export async function claimReferralByToken(
 
   if (existingReferral) return { ok: true, alreadyClaimed: true };
 
-  const createdAt = new Date(referee.created_at || Date.now());
-  const hoursSinceCreate = (Date.now() - createdAt.getTime()) / 3_600_000;
-  if (hoursSinceCreate > REFERRAL_NEW_USER_HOURS) {
-    throw new Error('Referral only for new users');
-  }
-
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  const monthStart = `${currentMonth}-01T00:00:00.000Z`;
-  const { count: monthCount } = await supabase
-    .from('referrals')
-    .select('*', { count: 'exact', head: true })
-    .eq('referrer_telegram_user_id', referrer.telegram_user_id)
-    .gte('created_at', monthStart);
-
-  if ((monthCount || 0) >= MAX_REFERRALS_PER_MONTH) {
-    throw new Error('Referrer monthly limit reached');
-  }
-
-  const { count: totalInvited } = await supabase
-    .from('referrals')
-    .select('*', { count: 'exact', head: true })
-    .eq('referrer_telegram_user_id', referrer.telegram_user_id);
-
-  const nextTotal = (totalInvited || 0) + 1;
-  const milestoneDays =
-    nextTotal % REFERRAL_MILESTONE === 0 ? REFERRAL_MILESTONE_BONUS_DAYS : 0;
-
-  const premium = await activatePremium(
-    referrer.telegram_user_id,
-    REFERRAL_BONUS_DAYS + milestoneDays
-  );
-
-  const rewardedAt = new Date().toISOString();
   const { error: insertError } = await supabase.from('referrals').insert({
     referrer_telegram_user_id: referrer.telegram_user_id,
     referee_telegram_user_id: refereeTelegramId,
     reward_days: REFERRAL_BONUS_DAYS,
-    rewarded_at: rewardedAt,
+    rewarded_at: new Date().toISOString(),
   });
 
   if (insertError) {
@@ -186,10 +202,11 @@ export async function claimReferralByToken(
     .update({ referred_by: referrer.telegram_user_id })
     .eq('telegram_user_id', refereeTelegramId);
 
+  const premium = await activatePremium(referrer.telegram_user_id, REFERRAL_BONUS_DAYS);
+
   return {
     ok: true,
     bonusDays: REFERRAL_BONUS_DAYS,
-    milestoneDays,
     referrerId: referrer.telegram_user_id,
     premiumUntil: premium.premium_until,
   };

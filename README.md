@@ -92,7 +92,7 @@ npm run deploy
 
 Не запускайте `npx vercel --prod` вручную: можно случайно выкатить не туда. Целевой проект зафиксирован в `deploy.config.json`, проверки — `npm run check:deploy` и `npm run check:safety`.
 
-В Supabase выполните `supabase/patch_premium_charge_id.sql` (идемпотентность Stars-платежей).
+В Supabase выполните `supabase/patch_premium_charge_id.sql` (идемпотентность Stars-платежей) и `supabase/patch_atomic_limits.sql` (атомарные рефералы, семья, лимит холодильника).
 
 
 

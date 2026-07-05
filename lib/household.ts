@@ -124,14 +124,25 @@ export async function ensureHouseholdContext(
     .single();
 
   if (hErr || !household) {
+    const retry = await getHouseholdContext(supabase, telegramUserId);
+    if (retry) return retry;
     throw new Error(hErr?.message || 'Failed to create household');
   }
 
-  await supabase.from('household_members').insert({
+  const { error: memberErr } = await supabase.from('household_members').insert({
     household_id: household.id,
     telegram_user_id: telegramUserId,
     role: 'owner',
   });
+
+  if (memberErr) {
+    if (memberErr.code === '23505') {
+      await supabase.from('households').delete().eq('id', household.id);
+      const retry = await getHouseholdContext(supabase, telegramUserId);
+      if (retry) return retry;
+    }
+    throw new Error(memberErr.message);
+  }
 
   await supabase
     .from('users')
@@ -278,45 +289,29 @@ export async function joinHouseholdByToken(
     throw new Error('Leave your current family before joining another');
   }
 
-  const { count } = await supabase
-    .from('household_members')
-    .select('*', { count: 'exact', head: true })
-    .eq('household_id', invite.household_id);
-
-  if ((count || 0) >= MAX_HOUSEHOLD_MEMBERS) {
-    throw new Error('This family is already full');
-  }
-
   if (targetCtx) {
     await dissolveSoloHousehold(supabase, telegramUserId);
   }
 
-  const { error: joinError } = await supabase.from('household_members').insert({
-    household_id: invite.household_id,
-    telegram_user_id: telegramUserId,
-    role: 'member',
+  const { error: joinError } = await supabase.rpc('join_household_member', {
+    p_user_id: telegramUserId,
+    p_household_id: invite.household_id,
+    p_max_members: MAX_HOUSEHOLD_MEMBERS,
   });
 
   if (joinError) {
+    if (joinError.message.includes('household_full')) {
+      throw new Error('This family is already full');
+    }
     if (joinError.code === '23505') {
       const existing = await getHouseholdContext(supabase, telegramUserId);
       if (existing && existing.householdId === invite.household_id) return existing;
     }
-    throw new Error(joinError.message);
-  }
-
-  const { count: afterCount } = await supabase
-    .from('household_members')
-    .select('*', { count: 'exact', head: true })
-    .eq('household_id', invite.household_id);
-
-  if ((afterCount || 0) > MAX_HOUSEHOLD_MEMBERS) {
-    await supabase
-      .from('household_members')
-      .delete()
-      .eq('household_id', invite.household_id)
-      .eq('telegram_user_id', telegramUserId);
-    throw new Error('This family is already full');
+    if (joinError.message.includes('does not exist')) {
+      await joinHouseholdMemberLegacy(supabase, telegramUserId, invite.household_id);
+    } else {
+      throw new Error(joinError.message);
+    }
   }
 
   await migrateUserDataToHousehold(supabase, telegramUserId, invite.household_id);
@@ -363,4 +358,27 @@ export async function removeHouseholdMember(
   await ensureHouseholdContext(supabase, memberTelegramId);
 
   return (await getHouseholdContext(supabase, ownerTelegramId)) || ctx;
+}
+
+async function joinHouseholdMemberLegacy(
+  supabase: SupabaseClient,
+  telegramUserId: number,
+  householdId: string
+) {
+  const { count } = await supabase
+    .from('household_members')
+    .select('*', { count: 'exact', head: true })
+    .eq('household_id', householdId);
+
+  if ((count || 0) >= MAX_HOUSEHOLD_MEMBERS) {
+    throw new Error('This family is already full');
+  }
+
+  const { error: joinError } = await supabase.from('household_members').insert({
+    household_id: householdId,
+    telegram_user_id: telegramUserId,
+    role: 'member',
+  });
+
+  if (joinError) throw new Error(joinError.message);
 }

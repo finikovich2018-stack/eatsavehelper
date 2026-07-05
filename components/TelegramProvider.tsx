@@ -224,6 +224,9 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
       }
 
       attempts += 1;
+      if (attempts === maxAttempts && !IS_DEV) {
+        setLoading(false);
+      }
       if (attempts >= maxAttempts) {
         if (isTelegramWebView() && attempts < slowPollLimit) {
           window.setTimeout(tick, 500);

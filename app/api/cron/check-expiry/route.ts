@@ -55,7 +55,7 @@ function cookRecipeUrl(user: ReminderUser): string | undefined {
 }
 
 function verifyCronAuth(req: Request): boolean {
-  const secret = process.env.CRON_SECRET || process.env.TELEGRAM_WEBHOOK_SECRET;
+  const secret = process.env.CRON_SECRET;
   if (!secret) return false;
   return req.headers.get('authorization') === `Bearer ${secret}`;
 }

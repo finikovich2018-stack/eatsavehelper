@@ -9,14 +9,14 @@ import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
 import { defaultExpiryDate } from '@/lib/shopping-utils';
 import { hasPremiumAccess } from '@/lib/user-utils';
-import { readSessionCache, writeSessionCache } from '@/lib/session-cache';
+import { readSessionCache, writeSessionCache, userCacheKey } from '@/lib/session-cache';
 import Spinner from '@/components/ui/Spinner';
 
 const SUGGEST_ICONS: Record<string, string> = {
   dairy: '🥛', meat: '🍗', veg: '🥦', grains: '🌾', other: '📦',
 };
 
-const SHOPPING_CACHE_KEY = 'eatsave:shopping';
+const SHOPPING_CACHE_BASE = 'eatsave:shopping';
 type SuggestionRow = { name: string; category: string | null; count: number };
 type ShoppingCache = { items: ApiShoppingItem[]; suggestions: SuggestionRow[] };
 
@@ -24,17 +24,21 @@ export default function ShoppingPage() {
   const { auth, ready } = useAuthReady();
   const { dbUser, refreshUser } = useTelegram();
   const { t } = useI18n();
-  const [items, setItems] = useState<ApiShoppingItem[]>(
-    () => readSessionCache<ShoppingCache>(SHOPPING_CACHE_KEY)?.items ?? []
-  );
-  const [suggestions, setSuggestions] = useState<SuggestionRow[]>(
-    () => readSessionCache<ShoppingCache>(SHOPPING_CACHE_KEY)?.suggestions ?? []
-  );
-  const [loading, setLoading] = useState(
-    () => !readSessionCache<ShoppingCache>(SHOPPING_CACHE_KEY)
-  );
+  const cacheKey = auth ? userCacheKey(SHOPPING_CACHE_BASE, auth.telegram_user_id) : null;
+  const [items, setItems] = useState<ApiShoppingItem[]>([]);
+  const [suggestions, setSuggestions] = useState<SuggestionRow[]>([]);
+  const [loading, setLoading] = useState(true);
   useReleaseLoadingWhenUnauthenticated(ready, auth, setLoading);
   useLoadingTimeout(loading, setLoading);
+
+  useEffect(() => {
+    if (!cacheKey) return;
+    const cached = readSessionCache<ShoppingCache>(cacheKey);
+    if (!cached) return;
+    setItems(cached.items ?? []);
+    setSuggestions(cached.suggestions ?? []);
+    setLoading(false);
+  }, [cacheKey]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', quantity: '' });
   const [localUser, setLocalUser] = useState<typeof dbUser>(null);
@@ -71,8 +75,9 @@ export default function ShoppingPage() {
   }, [ready, auth, loadItems, loadSuggestions]);
 
   useEffect(() => {
-    if (!loading) writeSessionCache<ShoppingCache>(SHOPPING_CACHE_KEY, { items, suggestions });
-  }, [items, suggestions, loading]);
+    if (!auth || !cacheKey || loading) return;
+    writeSessionCache<ShoppingCache>(cacheKey, { items, suggestions });
+  }, [auth, cacheKey, items, suggestions, loading]);
 
   const pending = useMemo(() => items.filter((i) => !i.checked), [items]);
   const bought = useMemo(() => items.filter((i) => i.checked), [items]);

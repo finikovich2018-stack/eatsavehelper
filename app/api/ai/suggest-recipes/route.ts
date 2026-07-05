@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { callClaudeViaWorker } from '@/lib/ai';
 import { getClaudeModel } from '@/lib/ai-model';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
-import { assertCanUseAiRecipes, consumeRecipeSlot, UsageLimitError } from '@/lib/usage-limits';
+import { consumeRecipeSlot, getUserWithLimits, UsageLimitError } from '@/lib/usage-limits';
 import { isPremiumActive } from '@/lib/user-utils';
 import { verifyApiUser } from '@/lib/verify-api-user';
 
@@ -64,7 +64,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ recipes: [] });
     }
 
-    const user = await assertCanUseAiRecipes(supabase, auth.userId);
+    const aiRecipesThisMonth = await consumeRecipeSlot(supabase, auth.userId);
+    const user = await getUserWithLimits(supabase, auth.userId);
 
     let text = '';
 
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest) {
     if (process.env.NEXT_PUBLIC_WORKER_URL) {
       text = await callClaudeViaWorker({
         userId: auth.userId,
-        isPremium: isPremiumActive(user),
+        isPremium: isPremiumActive(user || {}),
         messages: [{ role: 'user', content: prompt }],
       });
     } else {
@@ -94,7 +95,6 @@ export async function POST(req: NextRequest) {
     const match = cleaned.match(/\[[\s\S]*\]/);
     if (!match) throw new Error('No JSON');
     const recipes = JSON.parse(match[0]);
-    const aiRecipesThisMonth = await consumeRecipeSlot(supabase, auth.userId);
 
     if (save && Array.isArray(recipes)) {
       const rows = recipes.map((recipe: {

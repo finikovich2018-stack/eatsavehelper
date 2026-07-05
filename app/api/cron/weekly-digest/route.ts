@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
 function verifyCronAuth(req: Request): boolean {
-  const secret = process.env.CRON_SECRET || process.env.TELEGRAM_WEBHOOK_SECRET;
+  const secret = process.env.CRON_SECRET;
   if (!secret) return false;
   return req.headers.get('authorization') === `Bearer ${secret}`;
 }

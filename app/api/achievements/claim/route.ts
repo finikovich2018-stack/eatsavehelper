@@ -62,18 +62,10 @@ export async function POST(req: NextRequest) {
     if (claimError) {
       const missingColumn = claimError.message.includes('achievement_bonus_month');
       if (missingColumn) {
-        await activatePremium(userId, ACHIEVEMENT_BONUS_DAYS);
-        const { data: refreshed } = await supabase
-          .from('users')
-          .select('*')
-          .eq('telegram_user_id', userId)
-          .maybeSingle();
-        return NextResponse.json({
-          ok: true,
-          bonusDays: ACHIEVEMENT_BONUS_DAYS,
-          warning: 'Run supabase/patch_achievements.sql to track monthly bonus',
-          user: normalizeUser(refreshed),
-        });
+        return NextResponse.json(
+          { error: 'Run supabase/patch_achievements.sql on the database first' },
+          { status: 503 }
+        );
       }
       return NextResponse.json({ error: claimError.message }, { status: 500 });
     }

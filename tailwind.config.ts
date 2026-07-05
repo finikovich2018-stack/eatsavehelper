@@ -22,6 +22,9 @@ const config: Config = {
       maxWidth: {
         mobile: "430px",
       },
+      padding: {
+        safe: "env(safe-area-inset-bottom)",
+      },
     },
   },
   plugins: [],

@@ -29,13 +29,11 @@ export async function GET() {
       workerUrl: isConfigured(process.env.NEXT_PUBLIC_WORKER_URL),
       cronSecret: isConfigured(process.env.CRON_SECRET),
       adminTelegramIds: getAdminTelegramIds().length > 0,
-      adminTelegramIdsCount: getAdminTelegramIds().length,
       appUrl: Boolean(appUrl),
     },
     urls: {
       app: appUrl || null,
       home: appUrl ? getAppHomeUrl() : null,
-      webhook: appUrl ? `${appUrl}/api/bot` : null,
     },
     premiumDbError: premiumDb.ok ? undefined : premiumDb.error,
     nextSteps: [

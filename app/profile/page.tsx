@@ -11,7 +11,7 @@ import { FEEDBACK_CHANNEL_URL, PREMIUM_PRICE_STARS, REFERRAL_BONUS_DAYS } from '
 import { ACHIEVEMENT_BONUS_DAYS, computeAchievements } from '@/lib/achievements';
 import { hasPremiumAccess, isPremiumActive } from '@/lib/user-utils';
 import { formatLocalDate } from '@/lib/utils';
-import { readSessionCache, writeSessionCache } from '@/lib/session-cache';
+import { readSessionCache, writeSessionCache, userCacheKey } from '@/lib/session-cache';
 import { readHomeCache } from '@/lib/home-cache';
 import type { TranslationKey } from '@/lib/i18n/translations';
 
@@ -70,7 +70,7 @@ type ReferralData = {
   toNextMilestone?: number;
 };
 
-const PROFILE_CACHE_KEY = 'eatsave:profile';
+const PROFILE_CACHE_BASE = 'eatsave:profile';
 type ProfileCache = {
   stats: Stats;
   recentReceipts: ReceiptRow[];
@@ -111,36 +111,36 @@ export default function ProfilePage() {
   const { auth, ready } = useAuthReady();
   const { user, initData, dbUser, refreshUser } = useTelegram();
   const { t, locale, setLocale, dateLocale } = useI18n();
+  const cacheKey = auth ? userCacheKey(PROFILE_CACHE_BASE, auth.telegram_user_id) : null;
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [premiumBusy, setPremiumBusy] = useState(false);
   const [notificationsBusy, setNotificationsBusy] = useState(false);
   const [notifyTimeBusy, setNotifyTimeBusy] = useState(false);
   const [notifyTypeBusy, setNotifyTypeBusy] = useState<NotifyTypeKey | null>(null);
-  const [recentReceipts, setRecentReceipts] = useState<ReceiptRow[]>(
-    () => readSessionCache<ProfileCache>(PROFILE_CACHE_KEY)?.recentReceipts ?? []
-  );
-  const [stats, setStats] = useState<Stats>(
-    () => readSessionCache<ProfileCache>(PROFILE_CACHE_KEY)?.stats ?? DEFAULT_STATS
-  );
-  const [loading, setLoading] = useState(
-    () => !readSessionCache<ProfileCache>(PROFILE_CACHE_KEY)
-  );
+  const [recentReceipts, setRecentReceipts] = useState<ReceiptRow[]>([]);
+  const [stats, setStats] = useState<Stats>(DEFAULT_STATS);
+  const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [claimBusy, setClaimBusy] = useState(false);
-  const [household, setHousehold] = useState<HouseholdData | null>(
-    () => readSessionCache<ProfileCache>(PROFILE_CACHE_KEY)?.household ?? null
-  );
+  const [household, setHousehold] = useState<HouseholdData | null>(null);
   const [familyBusy, setFamilyBusy] = useState(false);
-  const [householdLoading, setHouseholdLoading] = useState(
-    () => !readSessionCache<ProfileCache>(PROFILE_CACHE_KEY)
-  );
-  const [referralLoading, setReferralLoading] = useState(
-    () => !readSessionCache<ProfileCache>(PROFILE_CACHE_KEY)
-  );
-  const [referral, setReferral] = useState<ReferralData | null>(
-    () => readSessionCache<ProfileCache>(PROFILE_CACHE_KEY)?.referral ?? null
-  );
+  const [householdLoading, setHouseholdLoading] = useState(true);
+  const [referralLoading, setReferralLoading] = useState(true);
+  const [referral, setReferral] = useState<ReferralData | null>(null);
   const [referralBusy, setReferralBusy] = useState(false);
+
+  useEffect(() => {
+    if (!cacheKey) return;
+    const cached = readSessionCache<ProfileCache>(cacheKey);
+    if (!cached) return;
+    setRecentReceipts(cached.recentReceipts ?? []);
+    setStats(cached.stats ?? DEFAULT_STATS);
+    setHousehold(cached.household ?? null);
+    setReferral(cached.referral ?? null);
+    setLoading(false);
+    setHouseholdLoading(false);
+    setReferralLoading(false);
+  }, [cacheKey]);
 
   useReleaseLoadingWhenUnauthenticated(
     ready,
@@ -393,14 +393,14 @@ export default function ProfilePage() {
   }, [loading]);
 
   useEffect(() => {
-    if (loading || householdLoading || referralLoading) return;
-    writeSessionCache<ProfileCache>(PROFILE_CACHE_KEY, {
+    if (!auth || !cacheKey || loading || householdLoading || referralLoading) return;
+    writeSessionCache<ProfileCache>(cacheKey, {
       stats,
       recentReceipts,
       household,
       referral,
     });
-  }, [loading, householdLoading, referralLoading, stats, recentReceipts, household, referral]);
+  }, [auth, cacheKey, stats, recentReceipts, household, referral, loading, householdLoading, referralLoading]);
 
   useEffect(() => {
     if (!auth) return;

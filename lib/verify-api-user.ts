@@ -19,7 +19,7 @@ export function verifyApiUser(body: {
 
   if (!initData) {
     if (
-      process.env.NODE_ENV === 'development' &&
+      process.env.NODE_ENV !== 'production' &&
       process.env.ALLOW_DEV_AUTH === 'true' &&
       telegram_user_id
     ) {

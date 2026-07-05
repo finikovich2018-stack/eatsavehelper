@@ -118,6 +118,7 @@ export default function HomePage() {
     <main className="bg-background text-foreground">
       <TopBar title={t('home.title')} />
       <div className="max-w-mobile mx-auto px-4 py-3 space-y-4">
+        {auth ? (
         <Link
           href="/budget"
           className={`block rounded-3xl p-5 border active:scale-[0.99] transition anim-rise-in ${budgetCardTone}`}
@@ -143,8 +144,9 @@ export default function HomePage() {
               : t('home.overBudget', { amount: Math.abs(remaining).toLocaleString(), symbol })}
           </div>
         </Link>
+        ) : null}
 
-        {consumeStats && consumeStats.eaten + consumeStats.wasted > 0 && (
+        {auth && consumeStats && consumeStats.eaten + consumeStats.wasted > 0 && (
           <Link href="/fridge" className="block bg-surface border border-border rounded-2xl p-4 active:scale-[0.99] transition anim-rise-in anim-delay-1 glow-pulse">
             <div className="text-xs text-muted mb-3">{t('home.savingsSummary')} ›</div>
             <div className="flex items-center justify-around text-center">

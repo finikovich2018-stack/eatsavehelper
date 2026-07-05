@@ -6,8 +6,8 @@ import { parseReceiptJson } from '@/lib/parse-receipt-json';
 import { buildVisionMessage, parseImageDataUrl } from '@/lib/receipt-image';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import {
-  assertCanScan,
   consumeScanSlot,
+  getUserWithLimits,
   UsageLimitError,
 } from '@/lib/usage-limits';
 import { isPremiumActive } from '@/lib/user-utils';
@@ -81,21 +81,14 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
-    await assertCanScan(supabase, auth.userId);
+    const scansThisMonth = await consumeScanSlot(supabase, auth.userId);
 
-    const { data: userRow } = await supabase
-      .from('users')
-      .select('is_premium, premium_until')
-      .eq('telegram_user_id', auth.userId)
-      .maybeSingle();
-
-    const isPremium = isPremiumActive(userRow || {});
+    const user = await getUserWithLimits(supabase, auth.userId);
+    const isPremium = isPremiumActive(user || {});
     const { mediaType, base64Data } = parseImageDataUrl(image);
     const message = buildVisionMessage(base64Data, mediaType, PARSE_PROMPT);
     const text = await callClaudeForReceipt(message, auth.userId, isPremium);
     const parsed = parseReceiptJson(text);
-
-    const scansThisMonth = await consumeScanSlot(supabase, auth.userId);
 
     return NextResponse.json({
       items: parsed.items,

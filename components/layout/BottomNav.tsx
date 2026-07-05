@@ -18,12 +18,17 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { t } = useI18n();
 
-  if (pathname.startsWith('/marketing') || pathname.startsWith('/tutorial-manual')) {
+  if (
+    pathname.startsWith('/marketing') ||
+    pathname.startsWith('/tutorial-manual') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/tg-status')
+  ) {
     return null;
   }
 
   return (
-    <nav className="fixed bottom-0 left-1/2 z-50 w-full max-w-mobile -translate-x-1/2 border-t border-border bg-surface px-1 pb-safe">
+    <nav className="fixed bottom-0 left-1/2 z-40 w-full max-w-mobile -translate-x-1/2 border-t border-border bg-surface px-1 pb-safe">
       <ul className="flex items-center justify-around py-2">
         {tabs.map((tab) => {
           const isActive = pathname === tab.href || pathname.startsWith(`${tab.href}/`);

@@ -1,7 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { activatePremium } from '@/lib/premium';
 
 /** Match Premium subscription length — payments within this window can restore access */
 export const PREMIUM_PAYMENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+export type PremiumPaymentResult = 'activated' | 'already_processed' | 'log_failed';
 
 export async function logPremiumPayment(
   supabase: SupabaseClient,
@@ -12,7 +15,7 @@ export async function logPremiumPayment(
     invoicePayload?: string;
     chargeId?: string;
   }
-) {
+): Promise<string | null> {
   const { data, error } = await supabase
     .from('premium_payments')
     .insert({
@@ -27,6 +30,14 @@ export async function logPremiumPayment(
     .maybeSingle();
 
   if (error) {
+    if (error.code === '23505' && params.chargeId) {
+      const { data: existing } = await supabase
+        .from('premium_payments')
+        .select('id')
+        .eq('telegram_payment_charge_id', params.chargeId)
+        .maybeSingle();
+      return existing?.id as string | null;
+    }
     console.error('logPremiumPayment error:', error);
     return null;
   }
@@ -46,6 +57,7 @@ export async function markLatestPaymentActivated(
     .from('premium_payments')
     .select('id')
     .eq('telegram_user_id', telegramUserId)
+    .eq('activated', false)
     .gte('created_at', since)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -56,7 +68,7 @@ export async function markLatestPaymentActivated(
   }
 }
 
-/** Any logged Stars payment in the last 30 days (paid in app or via bot webhook) */
+/** Unactivated Stars payment in the last 30 days (webhook failed after charge). */
 export async function hasRecoverablePremiumPayment(
   supabase: SupabaseClient,
   telegramUserId: number
@@ -66,6 +78,7 @@ export async function hasRecoverablePremiumPayment(
     .from('premium_payments')
     .select('id')
     .eq('telegram_user_id', telegramUserId)
+    .eq('activated', false)
     .gte('created_at', since)
     .limit(1);
 
@@ -74,4 +87,53 @@ export async function hasRecoverablePremiumPayment(
     return false;
   }
   return (data?.length || 0) > 0;
+}
+
+async function findPaymentByChargeId(
+  supabase: SupabaseClient,
+  chargeId: string
+): Promise<{ id: string; activated: boolean } | null> {
+  const { data } = await supabase
+    .from('premium_payments')
+    .select('id, activated')
+    .eq('telegram_payment_charge_id', chargeId)
+    .maybeSingle();
+  return data as { id: string; activated: boolean } | null;
+}
+
+/** Log + activate Premium once per Telegram charge id (webhook-safe). */
+export async function processSuccessfulPremiumPayment(
+  supabase: SupabaseClient,
+  params: {
+    telegramUserId: number;
+    amount: number;
+    currency: string;
+    invoicePayload?: string;
+    chargeId?: string;
+  }
+): Promise<PremiumPaymentResult> {
+  if (params.chargeId) {
+    const existing = await findPaymentByChargeId(supabase, params.chargeId);
+    if (existing?.activated) return 'already_processed';
+    if (existing && !existing.activated) {
+      await activatePremium(params.telegramUserId);
+      await markPaymentActivated(supabase, existing.id);
+      return 'activated';
+    }
+  }
+
+  const paymentId = await logPremiumPayment(supabase, params);
+  if (!paymentId) return 'log_failed';
+
+  const { data: row } = await supabase
+    .from('premium_payments')
+    .select('activated')
+    .eq('id', paymentId)
+    .maybeSingle();
+
+  if (row?.activated) return 'already_processed';
+
+  await activatePremium(params.telegramUserId);
+  await markPaymentActivated(supabase, paymentId);
+  return 'activated';
 }

@@ -14,6 +14,47 @@ class ApiError extends Error {
   }
 }
 
+export { ApiError };
+
+async function parseResponseBody(res: Response): Promise<Record<string, unknown>> {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return { error: text.slice(0, 240) };
+  }
+}
+
+async function apiPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const data = await parseResponseBody(res);
+    if (!res.ok) {
+      const message = String(data.error || data.details || 'Request failed');
+      recoverFromStaleAuth(message, res.status);
+      throw new ApiError(message, res.status);
+    }
+    return data as T;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new ApiError('Request timeout', 408);
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 export type ApiFridgeItem = {
   id: string;
   name: string;
@@ -71,29 +112,6 @@ export type ApiShoppingItem = {
   fridge_item_id?: string | null;
   created_at?: string;
 };
-
-async function apiPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), 15000);
-
-  try {
-    const res = await fetch(path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      const message = (data.error || data.details || 'Request failed') as string;
-      recoverFromStaleAuth(message, res.status);
-      throw new ApiError(message, res.status);
-    }
-    return data as T;
-  } finally {
-    window.clearTimeout(timer);
-  }
-}
 
 export function withAuth(auth: AuthPayload, extra: Record<string, unknown> = {}) {
   return { initData: auth.initData, telegram_user_id: auth.telegram_user_id, ...extra };

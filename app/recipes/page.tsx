@@ -9,7 +9,7 @@ import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_AI_RECIPES_PER_MONTH } from '@/lib/constants';
 import { findMissingIngredients } from '@/lib/shopping-utils';
 import { hasPremiumAccess, isPremiumActive } from '@/lib/user-utils';
-import { readSessionCache, writeSessionCache } from '@/lib/session-cache';
+import { readSessionCache, writeSessionCache, userCacheKey } from '@/lib/session-cache';
 import type { Locale } from '@/lib/i18n/translations';
 
 type Recipe = {
@@ -61,26 +61,30 @@ function daysLeft(date: string) {
   return Math.ceil((new Date(date).getTime() - Date.now()) / 86400000);
 }
 
-const RECIPES_CACHE_KEY = 'eatsave:recipes';
+const RECIPES_CACHE_BASE = 'eatsave:recipes';
 type RecipesCache = { expiringItems: FridgeItem[]; savedRecipes: SavedRecipe[] };
 
 export default function RecipesPage() {
   const { auth, ready } = useAuthReady();
   const { user, dbUser, initData, refreshUser } = useTelegram();
   const { t, locale } = useI18n();
+  const cacheKey = auth ? userCacheKey(RECIPES_CACHE_BASE, auth.telegram_user_id) : null;
   const [aiMode, setAiMode] = useState<'fridge' | 'budget'>('fridge');
   const recipes = useMemo(() => RECIPES_BY_LOCALE[locale], [locale]);
-  const [expiringItems, setExpiringItems] = useState<FridgeItem[]>(
-    () => readSessionCache<RecipesCache>(RECIPES_CACHE_KEY)?.expiringItems ?? []
-  );
-  const [savedRecipes, setSavedRecipes] = useState<SavedRecipe[]>(
-    () => readSessionCache<RecipesCache>(RECIPES_CACHE_KEY)?.savedRecipes ?? []
-  );
-  const [loading, setLoading] = useState(
-    () => !readSessionCache<RecipesCache>(RECIPES_CACHE_KEY)
-  );
+  const [expiringItems, setExpiringItems] = useState<FridgeItem[]>([]);
+  const [savedRecipes, setSavedRecipes] = useState<SavedRecipe[]>([]);
+  const [loading, setLoading] = useState(true);
   useReleaseLoadingWhenUnauthenticated(ready, auth, setLoading);
   useLoadingTimeout(loading, setLoading);
+
+  useEffect(() => {
+    if (!cacheKey) return;
+    const cached = readSessionCache<RecipesCache>(cacheKey);
+    if (!cached) return;
+    setExpiringItems(cached.expiringItems ?? []);
+    setSavedRecipes(cached.savedRecipes ?? []);
+    setLoading(false);
+  }, [cacheKey]);
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [selectedSaved, setSelectedSaved] = useState<SavedRecipe | null>(null);
   const [showAI, setShowAI] = useState(false);
@@ -202,10 +206,9 @@ export default function RecipesPage() {
   }, [ready, auth, loadExpiringItems]);
 
   useEffect(() => {
-    if (!loading) {
-      writeSessionCache<RecipesCache>(RECIPES_CACHE_KEY, { expiringItems, savedRecipes });
-    }
-  }, [expiringItems, savedRecipes, loading]);
+    if (!auth || !cacheKey || loading) return;
+    writeSessionCache<RecipesCache>(cacheKey, { expiringItems, savedRecipes });
+  }, [auth, cacheKey, expiringItems, savedRecipes, loading]);
 
   // Deep link from the daily reminder: "🍳 Что приготовить" opens /recipes?cook=expiring
   // and immediately generates an AI recipe focused on soon-to-expire products.
@@ -375,7 +378,7 @@ export default function RecipesPage() {
         </button>
 
         {showAI && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
             <div className="bg-surface border border-border rounded-3xl p-6 max-w-sm w-full max-h-[80vh] overflow-y-auto">
               {aiLoading ? (
                 <div className="text-center py-8">

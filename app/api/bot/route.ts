@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { activatePremium } from '@/lib/premium';
 import {
   hasRecoverablePremiumPayment,
-  logPremiumPayment,
   markLatestPaymentActivated,
+  processSuccessfulPremiumPayment,
 } from '@/lib/premium-payments';
 import { botLocale, botMsg } from '@/lib/bot-messages';
 import { isAdminTelegramId } from '@/lib/admin';
@@ -59,6 +59,7 @@ type TelegramUpdate = {
   pre_checkout_query?: {
     id: string;
     invoice_payload: string;
+    from?: { id: number };
   };
 };
 
@@ -333,11 +334,11 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as TelegramUpdate;
 
     if (body.pre_checkout_query) {
-      const { id, invoice_payload } = body.pre_checkout_query;
+      const { id, invoice_payload, from } = body.pre_checkout_query;
       const userId = parsePremiumUserId(invoice_payload);
 
-      if (!userId) {
-        await answerPreCheckout(id, false, 'Некорректный платёж');
+      if (!userId || from?.id !== userId) {
+        await answerPreCheckout(id, false, 'Платёж недоступен для этого аккаунта');
         return NextResponse.json({ ok: true });
       }
 
@@ -352,17 +353,20 @@ export async function POST(req: NextRequest) {
 
       if (userId && payment.currency === 'XTR') {
         try {
-          await logPremiumPayment(supabase, {
+          const result = await processSuccessfulPremiumPayment(supabase, {
             telegramUserId: userId,
             amount: payment.total_amount,
             currency: payment.currency,
             invoicePayload: payment.invoice_payload,
             chargeId: payment.telegram_payment_charge_id,
           });
-          await activatePremium(userId);
-          await markLatestPaymentActivated(supabase, userId);
           const locale = botLocale(body.message?.from?.language_code);
-          await sendMessage(userId, botMsg(locale).premiumActivated, withMainMenu(locale));
+          if (result === 'activated') {
+            await sendMessage(userId, botMsg(locale).premiumActivated, withMainMenu(locale));
+          } else if (result === 'log_failed') {
+            console.error('Premium payment log failed for user', userId);
+            await sendMessage(userId, botMsg(locale).premiumFailed, withMainMenu(locale));
+          }
         } catch (e) {
           console.error('activatePremium failed:', e);
           const locale = botLocale(body.message?.from?.language_code);

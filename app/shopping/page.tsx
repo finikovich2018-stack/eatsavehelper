@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { dataApi, type ApiShoppingItem } from '@/lib/client-api';
-import { useAuthReady, useReleaseLoadingWhenUnauthenticated } from '@/lib/use-data-auth';
+import { useAuthReady, useReleaseLoadingWhenUnauthenticated, useLoadingTimeout } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
@@ -34,6 +34,7 @@ export default function ShoppingPage() {
     () => !readSessionCache<ShoppingCache>(SHOPPING_CACHE_KEY)
   );
   useReleaseLoadingWhenUnauthenticated(ready, auth, setLoading);
+  useLoadingTimeout(loading, setLoading);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', quantity: '' });
   const [localUser, setLocalUser] = useState<typeof dbUser>(null);

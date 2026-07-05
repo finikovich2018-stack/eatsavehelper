@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { dataApi } from '@/lib/client-api';
-import { useAuthReady, useReleaseLoadingWhenUnauthenticated } from '@/lib/use-data-auth';
+import { useAuthReady, useReleaseLoadingWhenUnauthenticated, useLoadingTimeout } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_AI_RECIPES_PER_MONTH } from '@/lib/constants';
@@ -80,6 +80,7 @@ export default function RecipesPage() {
     () => !readSessionCache<RecipesCache>(RECIPES_CACHE_KEY)
   );
   useReleaseLoadingWhenUnauthenticated(ready, auth, setLoading);
+  useLoadingTimeout(loading, setLoading);
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [selectedSaved, setSelectedSaved] = useState<SavedRecipe | null>(null);
   const [showAI, setShowAI] = useState(false);

@@ -40,3 +40,16 @@ export function useReleaseLoadingWhenUnauthenticated(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, auth]);
 }
+
+/** Never leave a page spinner running forever (slow network / auth edge cases). */
+export function useLoadingTimeout(
+  loading: boolean,
+  setLoading: (value: boolean) => void,
+  timeoutMs = 18_000
+) {
+  useEffect(() => {
+    if (!loading) return;
+    const timer = window.setTimeout(() => setLoading(false), timeoutMs);
+    return () => window.clearTimeout(timer);
+  }, [loading, setLoading, timeoutMs]);
+}

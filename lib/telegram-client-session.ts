@@ -47,6 +47,7 @@ export function clearTelegramSession() {
     try {
       storage.removeItem(INIT_KEY);
       storage.removeItem(USER_KEY);
+      storage.removeItem('launchParams');
     } catch {
       /* ignore */
     }

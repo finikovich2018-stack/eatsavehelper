@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import TopBar from '@/components/layout/TopBar';
 import { dataApi } from '@/lib/client-api';
-import { useAuthReady, useReleaseLoadingWhenUnauthenticated } from '@/lib/use-data-auth';
+import { useAuthReady, useReleaseLoadingWhenUnauthenticated, useLoadingTimeout } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { FREE_FRIDGE_ITEMS } from '@/lib/constants';
@@ -149,6 +149,7 @@ function FridgePageContent() {
   const [historyFilter, setHistoryFilter] = useState<'all' | 'eaten' | 'wasted'>('all');
   const [loading, setLoading] = useState(false);
   useReleaseLoadingWhenUnauthenticated(ready, auth, setLoading);
+  useLoadingTimeout(loading, setLoading);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<CategoryKey>('all');

@@ -173,6 +173,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
     let alive = true;
     let attempts = 0;
     const maxAttempts = 300;
+    const slowPollLimit = 540;
 
     try {
       initTelegramSdk();
@@ -180,9 +181,17 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
       /* optional outside Telegram */
     }
 
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      const snap = getTelegramAuthSnapshot();
+      if (!snap) return;
+      void applySnapshot(snap);
+    };
+
     const applySnapshot = async (snap: NonNullable<ReturnType<typeof getTelegramAuthSnapshot>>) => {
       setUser(snap.user);
       setInitData(snap.initData);
+      setAuthFailed(false);
       setLoading(false);
 
       try {
@@ -216,6 +225,10 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
 
       attempts += 1;
       if (attempts >= maxAttempts) {
+        if (isTelegramWebView() && attempts < slowPollLimit) {
+          window.setTimeout(tick, 500);
+          return;
+        }
         if (IS_DEV) setUser(DEV_USER);
         setAuthFailed(!IS_DEV && isTelegramWebView());
         setLoading(false);
@@ -225,9 +238,11 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
       window.setTimeout(tick, 100);
     };
 
+    document.addEventListener('visibilitychange', onVisible);
     tick();
     return () => {
       alive = false;
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, []);
 

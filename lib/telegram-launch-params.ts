@@ -58,3 +58,13 @@ export function getInitDataAuthAgeSeconds(initData: string): number | null {
   if (!Number.isFinite(ts)) return null;
   return Math.max(0, Math.floor(Date.now() / 1000 - ts));
 }
+
+/** Match server-side verifyApiUser expiry window. */
+export const MAX_INIT_DATA_AGE_SEC = 86_400;
+
+export function isInitDataFresh(initData: string, maxAgeSec = MAX_INIT_DATA_AGE_SEC): boolean {
+  if (!initData?.trim()) return false;
+  const age = getInitDataAuthAgeSeconds(initData);
+  if (age === null) return true;
+  return age <= maxAgeSec;
+}

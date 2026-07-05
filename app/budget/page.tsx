@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { dataApi } from '@/lib/client-api';
-import { useAuthReady, useReleaseLoadingWhenUnauthenticated } from '@/lib/use-data-auth';
+import { useAuthReady, useReleaseLoadingWhenUnauthenticated, useLoadingTimeout } from '@/lib/use-data-auth';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 import { formatLocalDate } from '@/lib/utils';
 import { readSessionCache, writeSessionCache } from '@/lib/session-cache';
@@ -83,6 +83,7 @@ export default function BudgetPage() {
   const [budgetForm, setBudgetForm] = useState({ amount: '15000', currency: 'RUB' });
 
   useReleaseLoadingWhenUnauthenticated(ready, auth, setLoading);
+  useLoadingTimeout(loading, setLoading);
 
   const monthStart = getCurrentMonth();
 

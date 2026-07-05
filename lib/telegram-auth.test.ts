@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   getInitDataAuthAgeSeconds,
+  isInitDataFresh,
   parseLaunchAuthFromSources,
   parseLaunchAuthFromUrl,
   parseUserFromInitData,
@@ -59,6 +60,14 @@ describe('telegram-launch-params', () => {
     const age = getInitDataAuthAgeSeconds(initData);
     expect(age).toBeGreaterThanOrEqual(119);
     expect(age).toBeLessThanOrEqual(121);
+  });
+
+  it('rejects expired initData client-side', () => {
+    const now = Math.floor(Date.now() / 1000);
+    const fresh = `auth_date=${now - 60}&user=${encodeURIComponent(JSON.stringify({ id: 1, first_name: 'A' }))}`;
+    const stale = `auth_date=${now - 90_000}&user=${encodeURIComponent(JSON.stringify({ id: 1, first_name: 'A' }))}`;
+    expect(isInitDataFresh(fresh)).toBe(true);
+    expect(isInitDataFresh(stale)).toBe(false);
   });
 });
 

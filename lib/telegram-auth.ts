@@ -1,6 +1,12 @@
 import { retrieveLaunchParams } from '@telegram-apps/sdk';
-import { readTelegramSession, writeTelegramSession, type StoredTelegramUser } from '@/lib/telegram-client-session';
 import {
+  clearTelegramSession,
+  readTelegramSession,
+  writeTelegramSession,
+  type StoredTelegramUser,
+} from '@/lib/telegram-client-session';
+import {
+  isInitDataFresh,
   parseLaunchAuthFromSources,
   parseUserFromInitData,
   type ParsedLaunchAuth,
@@ -78,9 +84,23 @@ function authFromTelegramSdk(): TelegramAuthSnapshot | null {
   return null;
 }
 
+function isValidSnapshot(auth: TelegramAuthSnapshot | null | undefined): auth is TelegramAuthSnapshot {
+  return Boolean(auth?.initData?.trim() && auth.user?.id && isInitDataFresh(auth.initData));
+}
+
 function persistAuth(auth: TelegramAuthSnapshot) {
   window.__EATSAVE_TG__ = auth;
   writeTelegramSession(auth.initData, auth.user);
+}
+
+function clearStaleAuthCaches() {
+  clearTelegramSession();
+  delete window.__EATSAVE_TG__;
+  try {
+    sessionStorage.removeItem('launchParams');
+  } catch {
+    /* ignore */
+  }
 }
 
 /** Read Telegram auth from every source available in the WebView. */
@@ -89,15 +109,27 @@ export function getTelegramAuthSnapshot(): TelegramAuthSnapshot | null {
 
   window.__EATSAVE_CAPTURE_TG__?.();
 
-  const cached =
-    window.__EATSAVE_TG__ ||
-    authFromTelegramSdk() ||
-    authFromWebApp() ||
-    authFromLaunchUrl() ||
-    readTelegramSession();
+  // Live WebApp data first — stale sessionStorage/SDK must not override fresh initData.
+  const candidates: Array<TelegramAuthSnapshot | null> = [
+    authFromWebApp(),
+    authFromLaunchUrl(),
+    authFromTelegramSdk(),
+    window.__EATSAVE_TG__ ?? null,
+    readTelegramSession(),
+  ];
 
-  if (cached) persistAuth(cached);
-  return cached;
+  for (const auth of candidates) {
+    if (isValidSnapshot(auth)) {
+      persistAuth(auth);
+      return auth;
+    }
+  }
+
+  if (candidates.some((auth) => auth?.initData && !isInitDataFresh(auth.initData))) {
+    clearStaleAuthCaches();
+  }
+
+  return null;
 }
 
 export function isTelegramWebView(): boolean {

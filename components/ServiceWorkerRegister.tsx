@@ -18,6 +18,14 @@ export default function ServiceWorkerRegister() {
       return;
     }
 
+    const hasWebApp = Boolean(
+      (window as { Telegram?: { WebApp?: unknown } }).Telegram?.WebApp
+    );
+    if (hasWebApp) {
+      void purgeServiceWorkersAndCaches();
+      return;
+    }
+
     const BUILD_ID = process.env.NEXT_PUBLIC_APP_BUILD_ID || '0';
 
     void (async () => {

@@ -9,6 +9,8 @@
     "lint": "next lint",
     "test": "vitest run",
     "check:auth": "node scripts/check-api-auth.mjs && node scripts/check-capture-script.mjs",
+    "check:deploy": "node scripts/check-deploy-target.mjs",
+    "deploy": "node scripts/deploy-prod.mjs",
     "setup:check": "node -e \"fetch(process.env.NEXT_PUBLIC_APP_URL?process.env.NEXT_PUBLIC_APP_URL.replace(/\\\\/home$/,'')+'/api/setup':'http://localhost:3000/api/setup').then(r=>r.json()).then(j=>console.log(JSON.stringify(j,null,2))).catch(e=>console.error(e))\"",
     "promo:export": "node scripts/export-promo-video.mjs",
     "marketing:screenshots": "node scripts/capture-app-screenshots.mjs"

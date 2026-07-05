@@ -28,7 +28,7 @@ yarn-error.log*
 # env files
 .env*.local
 
-# vercel
+# vercel (local link; use deploy.config.json + npm run deploy)
 .vercel
 
 # typescript

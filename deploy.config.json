@@ -1,0 +1,6 @@
+{
+  "vercelProject": "eatsavehelper-m6hl",
+  "productionUrl": "https://eatsavehelper-m6hl.vercel.app",
+  "forbiddenProjects": ["eatsave"],
+  "vercelignoreRequired": ["docs/", "eatsavehelper/", ".next/", "node_modules/"]
+}

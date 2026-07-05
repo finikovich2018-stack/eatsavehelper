@@ -82,6 +82,16 @@ npm run dev
 
 Обязательно в Vercel: `ADMIN_TELEGRAM_IDS=ваш_telegram_id` для страницы `/admin`
 
+**Проект Vercel:** `eatsavehelper-m6hl` → https://eatsavehelper-m6hl.vercel.app (бот и Mini App).
+
+В аккаунте есть второй проект `eatsave` — он **не** используется ботом. Деплой **только** через:
+
+```bash
+npm run deploy
+```
+
+Не запускайте `npx vercel --prod` вручную: можно случайно выкатить не туда. Целевой проект зафиксирован в `deploy.config.json`, проверка — `npm run check:deploy`.
+
 
 
 После деплоя:

@@ -12,6 +12,7 @@ import { ACHIEVEMENT_BONUS_DAYS, computeAchievements } from '@/lib/achievements'
 import { hasPremiumAccess, isPremiumActive } from '@/lib/user-utils';
 import { formatLocalDate } from '@/lib/utils';
 import { readSessionCache, writeSessionCache } from '@/lib/session-cache';
+import { readHomeCache } from '@/lib/home-cache';
 import type { TranslationKey } from '@/lib/i18n/translations';
 
 type ReceiptRow = {
@@ -162,46 +163,66 @@ export default function ProfilePage() {
     try {
       const monthStart = formatLocalDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
 
-      const [fridgeRes, receiptRes, aiRes, expensesRes, budgetsRes, receiptsListRes] =
-        await Promise.all([
-          dataApi.fridge.count(auth),
-          dataApi.receipts.count(auth),
-          dataApi.recipes.count(auth, 'ai'),
-          dataApi.expenses.list(auth, { monthStart }),
-          dataApi.budgets.list(auth, monthStart),
-          dataApi.receipts.list(auth, 7),
-        ]);
+      const [homeResult, receiptCountResult, receiptsListResult] = await Promise.allSettled([
+        dataApi.home.summary(auth, monthStart),
+        dataApi.receipts.count(auth),
+        dataApi.receipts.list(auth, 7),
+      ]);
 
-      const expensesData = (expensesRes.items || []) as {
-        amount: number;
-        currency?: string;
-        date: string;
-      }[];
+      let fridgeCount = 0;
+      let byCurrency: Record<string, number> = {};
+      let receiptCount = 0;
+      let aiRecipeCount = 0;
+      let budgetLimit = DEFAULT_STATS.budgetLimit;
+      let primaryCurrency = DEFAULT_STATS.primaryCurrency;
+      let expenses: Stats['expenses'] = [];
 
-      const byCurrency: Record<string, number> = {};
-      expensesData.forEach((e) => {
-        const cur = e.currency || 'RUB';
-        byCurrency[cur] = (byCurrency[cur] || 0) + (Number(e.amount) || 0);
-      });
+      if (homeResult.status === 'fulfilled') {
+        const home = homeResult.value;
+        fridgeCount = home.productCount || 0;
+        aiRecipeCount = home.recipeCount || 0;
 
-      const primaryCurrency = Object.keys(byCurrency)[0] || 'RUB';
-      const budgetRows = (budgetsRes.items || []) as { amount: number; currency: string }[];
-      const budgetRow = budgetRows.find((b) => b.currency === primaryCurrency);
-      const budgetLimit = Number(budgetRow?.amount || (primaryCurrency === 'RUB' ? 15000 : 500));
+        const nextByCurrency: Record<string, number> = {};
+        (home.expenses || []).forEach((e) => {
+          const cur = e.currency || 'RUB';
+          nextByCurrency[cur] = (nextByCurrency[cur] || 0) + (Number(e.amount) || 0);
+        });
+        byCurrency = nextByCurrency;
 
-      setRecentReceipts((receiptsListRes.items || []) as ReceiptRow[]);
-      setStats({
-        fridgeCount: fridgeRes.count || 0,
-        byCurrency,
-        receiptCount: receiptRes.count || 0,
-        aiRecipeCount: aiRes.count || 0,
-        budgetLimit,
-        primaryCurrency,
-        expenses: expensesData.map((e) => ({
+        primaryCurrency = Object.keys(byCurrency)[0] || 'RUB';
+        const budgetRows = (home.budgets || []) as { amount: number; currency: string }[];
+        const budgetRow = budgetRows.find((b) => b.currency === primaryCurrency);
+        budgetLimit = Number(budgetRow?.amount || (primaryCurrency === 'RUB' ? 15000 : 500));
+
+        expenses = (home.expenses || []).map((e) => ({
           amount: Number(e.amount) || 0,
           date: e.date,
           currency: e.currency || 'RUB',
-        })),
+        }));
+      } else {
+        console.error('profile home summary:', homeResult.reason);
+      }
+
+      if (receiptCountResult.status === 'fulfilled') {
+        receiptCount = receiptCountResult.value.count || 0;
+      } else {
+        console.error('profile receipt count:', receiptCountResult.reason);
+      }
+
+      if (receiptsListResult.status === 'fulfilled') {
+        setRecentReceipts((receiptsListResult.value.items || []) as ReceiptRow[]);
+      } else {
+        console.error('profile receipts list:', receiptsListResult.reason);
+      }
+
+      setStats({
+        fridgeCount,
+        byCurrency,
+        receiptCount,
+        aiRecipeCount,
+        budgetLimit,
+        primaryCurrency,
+        expenses,
       });
     } catch (error) {
       console.error(error);
@@ -349,6 +370,27 @@ export default function ProfilePage() {
     loadHousehold();
     loadReferral();
   }, [ready, auth, loadUserProfile, loadStats, loadHousehold, loadReferral]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const cached = readHomeCache(user.id);
+    if (!cached) return;
+    setStats((prev) => ({
+      ...prev,
+      fridgeCount: cached.stats.products,
+      aiRecipeCount: cached.stats.recipes,
+      byCurrency: { [cached.budget.currency]: cached.budget.spent },
+      budgetLimit: cached.budget.limit,
+      primaryCurrency: cached.budget.currency,
+    }));
+    setLoading(false);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!loading) return;
+    const timer = window.setTimeout(() => setLoading(false), 18_000);
+    return () => window.clearTimeout(timer);
+  }, [loading]);
 
   useEffect(() => {
     if (loading || householdLoading || referralLoading) return;
@@ -721,17 +763,17 @@ export default function ProfilePage() {
             <div className="grid grid-cols-2 gap-4">
               <Link
                 href="/fridge"
-                className="bg-surface border border-border rounded-2xl p-5 text-center anim-rise-in anim-delay-1 active:scale-[0.97] transition hover:border-accent/40"
+                className="bg-surface border border-border rounded-2xl p-5 text-center active:scale-[0.97] transition hover:border-accent/40"
               >
-                <div className="text-3xl mb-2 home-action-icon home-action-icon-1">❄️</div>
+                <div className="text-3xl mb-2">❄️</div>
                 <div className="text-3xl font-bold text-accent mb-1">{stats.fridgeCount}</div>
                 <div className="text-xs text-muted">{t('profile.products')}</div>
               </Link>
               <Link
                 href="/budget"
-                className="bg-surface border border-border rounded-2xl p-5 text-center anim-rise-in anim-delay-2 active:scale-[0.97] transition hover:border-accent/40"
+                className="bg-surface border border-border rounded-2xl p-5 text-center active:scale-[0.97] transition hover:border-accent/40"
               >
-                <div className="text-3xl mb-2 home-action-icon home-action-icon-2">💰</div>
+                <div className="text-3xl mb-2">💰</div>
                 {Object.keys(stats.byCurrency).length === 0 ? (
                   <div className="text-3xl font-bold text-accent mb-1">0 ₽</div>
                 ) : (
@@ -750,17 +792,17 @@ export default function ProfilePage() {
               </Link>
               <a
                 href="#profile-receipts"
-                className="bg-surface border border-border rounded-2xl p-5 text-center anim-rise-in anim-delay-3 active:scale-[0.97] transition hover:border-accent/40"
+                className="bg-surface border border-border rounded-2xl p-5 text-center active:scale-[0.97] transition hover:border-accent/40"
               >
-                <div className="text-3xl mb-2 home-action-icon home-action-icon-3">🧾</div>
+                <div className="text-3xl mb-2">🧾</div>
                 <div className="text-3xl font-bold text-accent mb-1">{stats.receiptCount}</div>
                 <div className="text-xs text-muted">{t('profile.receiptsCount')}</div>
               </a>
               <Link
                 href="/recipes"
-                className="bg-surface border border-border rounded-2xl p-5 text-center anim-rise-in anim-delay-4 active:scale-[0.97] transition hover:border-accent/40"
+                className="bg-surface border border-border rounded-2xl p-5 text-center active:scale-[0.97] transition hover:border-accent/40"
               >
-                <div className="text-3xl mb-2 home-action-icon home-action-icon-4">🍳</div>
+                <div className="text-3xl mb-2">🍳</div>
                 <div className="text-3xl font-bold text-accent mb-1">{stats.aiRecipeCount}</div>
                 <div className="text-xs text-muted">{t('profile.aiRecipesCount')}</div>
               </Link>

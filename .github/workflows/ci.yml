@@ -20,6 +20,8 @@ jobs:
 
       - run: npm run check:auth
 
+      - run: npm run check:deploy
+
       - run: npm run test
 
       - run: npm run lint

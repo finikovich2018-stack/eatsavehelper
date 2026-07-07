@@ -45,6 +45,9 @@ interface TelegramData {
   initData: string;
   loading: boolean;
   authFailed: boolean;
+  /** True once we've been waiting a few seconds without a Telegram auth
+   * snapshot — lets the UI show an early hint instead of a silent skeleton. */
+  waitingLong: boolean;
   refreshUser: () => Promise<DbUser | null>;
 }
 
@@ -54,6 +57,7 @@ const TgCtx = createContext<TelegramData>({
   initData: "",
   loading: true,
   authFailed: false,
+  waitingLong: false,
   refreshUser: async () => null,
 });
 
@@ -157,6 +161,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   const [initData, setInitData] = useState("");
   const [loading, setLoading] = useState(true);
   const [authFailed, setAuthFailed] = useState(false);
+  const [waitingLong, setWaitingLong] = useState(false);
   const bootstrappedUserId = useRef<number | null>(null);
 
   const refreshUser = useCallback(async () => {
@@ -172,8 +177,16 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let alive = true;
     let attempts = 0;
-    const maxAttempts = 300;
-    const slowPollLimit = 540;
+    // Telegram's WebApp bridge is either available almost immediately on a
+    // real launch, or it never arrives this session — there's no benefit to
+    // polling for minutes. Previously this waited up to ~150s before saying
+    // anything, which left users staring at a blank/pulsing screen thinking
+    // the app had frozen. Now: ~5s fast poll, then a slower poll up to ~25s
+    // total inside Telegram before giving up, with an early "still waiting"
+    // signal at ~3s so the UI can show a hint well before that.
+    const maxAttempts = 50; // 50 * 100ms = 5s
+    const earlyHintAttempts = 30; // 30 * 100ms = 3s
+    const slowPollLimit = 90; // + (90-50) * 500ms = +20s (~25s total)
 
     try {
       initTelegramSdk();
@@ -192,6 +205,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
       setUser(snap.user);
       setInitData(snap.initData);
       setAuthFailed(false);
+      setWaitingLong(false);
       setLoading(false);
 
       try {
@@ -224,6 +238,11 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
       }
 
       attempts += 1;
+
+      if (attempts === earlyHintAttempts) {
+        setWaitingLong(true);
+      }
+
       if (attempts === maxAttempts && !IS_DEV) {
         setLoading(false);
       }
@@ -250,7 +269,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <TgCtx.Provider value={{ user, dbUser, initData, loading, authFailed, refreshUser }}>
+    <TgCtx.Provider value={{ user, dbUser, initData, loading, authFailed, waitingLong, refreshUser }}>
       {children}
     </TgCtx.Provider>
   );

@@ -32,7 +32,7 @@ function formatPremiumLine(premium: boolean, premiumUntil: string | null | undef
 const MESSAGES = {
   ru: {
     start: (name: string) =>
-      `${greetingWithName(name, 'ru')} 👋\n\nЯ EatSave — умный холодильник и бюджет на продукты.\n\n📱 Откройте приложение или выберите кнопку меню внизу 👇`,
+      `${greetingWithName(name, 'ru')} 👋\n\nЯ EatSave — умный холодильник и бюджет на продукты.\n\n📱 «Открыть EatSave» — приложение или выбрать кнопку меню 👇`,
     premiumActivated:
       '⭐ Premium активирован на 30 дней! Спасибо за поддержку EatSave.',
     premiumGranted: (days: number, until: string, extended?: boolean) =>

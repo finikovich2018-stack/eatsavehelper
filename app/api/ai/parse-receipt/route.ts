@@ -8,6 +8,7 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import {
   consumeScanSlot,
   getUserWithLimits,
+  refundScanSlot,
   UsageLimitError,
 } from '@/lib/usage-limits';
 import { isPremiumActive } from '@/lib/user-utils';
@@ -83,18 +84,26 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseAdmin();
     const scansThisMonth = await consumeScanSlot(supabase, auth.userId);
 
-    const user = await getUserWithLimits(supabase, auth.userId);
-    const isPremium = isPremiumActive(user || {});
-    const { mediaType, base64Data } = parseImageDataUrl(image);
-    const message = buildVisionMessage(base64Data, mediaType, PARSE_PROMPT);
-    const text = await callClaudeForReceipt(message, auth.userId, isPremium);
-    const parsed = parseReceiptJson(text);
+    try {
+      const user = await getUserWithLimits(supabase, auth.userId);
+      const isPremium = isPremiumActive(user || {});
+      const { mediaType, base64Data } = parseImageDataUrl(image);
+      const message = buildVisionMessage(base64Data, mediaType, PARSE_PROMPT);
+      const text = await callClaudeForReceipt(message, auth.userId, isPremium);
+      const parsed = parseReceiptJson(text);
 
-    return NextResponse.json({
-      items: parsed.items,
-      currency: parsed.currency,
-      scans_this_month: scansThisMonth,
-    });
+      return NextResponse.json({
+        items: parsed.items,
+        currency: parsed.currency,
+        scans_this_month: scansThisMonth,
+      });
+    } catch (innerError: unknown) {
+      // The slot was already consumed above, but the scan didn't actually
+      // produce a result — refund it so a transient AI/network failure
+      // doesn't cost the user one of their limited free scans.
+      await refundScanSlot(supabase, auth.userId);
+      throw innerError;
+    }
   } catch (error: unknown) {
     if (error instanceof UsageLimitError) {
       return NextResponse.json(

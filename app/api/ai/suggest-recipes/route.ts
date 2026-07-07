@@ -3,7 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { callClaudeViaWorker } from '@/lib/ai';
 import { getClaudeModel } from '@/lib/ai-model';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
-import { consumeRecipeSlot, getUserWithLimits, UsageLimitError } from '@/lib/usage-limits';
+import {
+  consumeRecipeSlot,
+  getUserWithLimits,
+  refundRecipeSlot,
+  UsageLimitError,
+} from '@/lib/usage-limits';
 import { isPremiumActive } from '@/lib/user-utils';
 import { verifyApiUser } from '@/lib/verify-api-user';
 
@@ -65,56 +70,64 @@ export async function POST(req: NextRequest) {
     }
 
     const aiRecipesThisMonth = await consumeRecipeSlot(supabase, auth.userId);
-    const user = await getUserWithLimits(supabase, auth.userId);
 
-    let text = '';
+    try {
+      const user = await getUserWithLimits(supabase, auth.userId);
 
-    const prompt = buildRecipePrompt(finalIngredients, { budget, locale });
+      let text = '';
 
-    if (process.env.NEXT_PUBLIC_WORKER_URL) {
-      text = await callClaudeViaWorker({
-        userId: auth.userId,
-        isPremium: isPremiumActive(user || {}),
-        messages: [{ role: 'user', content: prompt }],
-      });
-    } else {
-      const anthropic = getAnthropic();
-      const response = await anthropic.messages.create({
-        model: getClaudeModel(),
-        max_tokens: 1500,
-        messages: [{ role: 'user', content: prompt }],
-      });
+      const prompt = buildRecipePrompt(finalIngredients, { budget, locale });
 
-      text = response.content
-        .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-        .map((block) => block.text)
-        .join('');
+      if (process.env.NEXT_PUBLIC_WORKER_URL) {
+        text = await callClaudeViaWorker({
+          userId: auth.userId,
+          isPremium: isPremiumActive(user || {}),
+          messages: [{ role: 'user', content: prompt }],
+        });
+      } else {
+        const anthropic = getAnthropic();
+        const response = await anthropic.messages.create({
+          model: getClaudeModel(),
+          max_tokens: 1500,
+          messages: [{ role: 'user', content: prompt }],
+        });
+
+        text = response.content
+          .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+          .map((block) => block.text)
+          .join('');
+      }
+
+      const cleaned = text.replace(/```json|```/g, '').trim();
+      const match = cleaned.match(/\[[\s\S]*\]/);
+      if (!match) throw new Error('No JSON');
+      const recipes = JSON.parse(match[0]);
+
+      if (save && Array.isArray(recipes)) {
+        const rows = recipes.map((recipe: {
+          name: string;
+          icon?: string;
+          ingredients?: string[];
+          steps?: string;
+          usesFromFridge?: string[];
+        }) => ({
+          telegram_user_id: auth.userId,
+          name: recipe.name,
+          icon: recipe.icon || '🍳',
+          ingredients: recipe.ingredients || recipe.usesFromFridge || [],
+          steps: recipe.steps ? [recipe.steps] : [],
+          source: 'ai',
+        }));
+        await supabase.from('saved_recipes').insert(rows);
+      }
+
+      return NextResponse.json({ recipes, ai_recipes_this_month: aiRecipesThisMonth });
+    } catch (innerError: unknown) {
+      // Slot already consumed above; refund it since no recipes were
+      // actually produced (transient AI failure, bad JSON, etc.).
+      await refundRecipeSlot(supabase, auth.userId);
+      throw innerError;
     }
-
-    const cleaned = text.replace(/```json|```/g, '').trim();
-    const match = cleaned.match(/\[[\s\S]*\]/);
-    if (!match) throw new Error('No JSON');
-    const recipes = JSON.parse(match[0]);
-
-    if (save && Array.isArray(recipes)) {
-      const rows = recipes.map((recipe: {
-        name: string;
-        icon?: string;
-        ingredients?: string[];
-        steps?: string;
-        usesFromFridge?: string[];
-      }) => ({
-        telegram_user_id: auth.userId,
-        name: recipe.name,
-        icon: recipe.icon || '🍳',
-        ingredients: recipe.ingredients || recipe.usesFromFridge || [],
-        steps: recipe.steps ? [recipe.steps] : [],
-        source: 'ai',
-      }));
-      await supabase.from('saved_recipes').insert(rows);
-    }
-
-    return NextResponse.json({ recipes, ai_recipes_this_month: aiRecipesThisMonth });
   } catch (error: unknown) {
     if (error instanceof UsageLimitError) {
       return NextResponse.json(

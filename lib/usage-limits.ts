@@ -194,34 +194,68 @@ export async function consumeRecipeSlot(
   throw new UsageLimitError('recipe_limit');
 }
 
-export async function incrementScanCount(
+/**
+ * Refund a previously consumed scan slot (CAS-safe). Call this when the
+ * paid-for work (e.g. the AI call) fails AFTER consumeScanSlot succeeded,
+ * so a transient error doesn't silently burn the user's free quota.
+ */
+export async function refundScanSlot(
   supabase: SupabaseClient,
-  telegramUserId: number,
-  user: UserRow
-): Promise<number> {
-  if (await hasEffectivePremium(supabase, telegramUserId)) {
-    return user.scans_this_month || 0;
+  telegramUserId: number
+): Promise<void> {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { data: user } = await supabase
+      .from('users')
+      .select('scans_this_month')
+      .eq('telegram_user_id', telegramUserId)
+      .maybeSingle();
+
+    const current = user?.scans_this_month || 0;
+    if (current <= 0) return;
+    const next = current - 1;
+
+    const { data } = await supabase
+      .from('users')
+      .update({ scans_this_month: next })
+      .eq('telegram_user_id', telegramUserId)
+      .eq('scans_this_month', current)
+      .select('scans_this_month')
+      .maybeSingle();
+
+    if (data) return;
   }
-  const newCount = (user.scans_this_month || 0) + 1;
-  await supabase
-    .from('users')
-    .update({ scans_this_month: newCount })
-    .eq('telegram_user_id', telegramUserId);
-  return newCount;
 }
 
-export async function incrementRecipeCount(
+/** Refund a previously consumed AI recipe slot (CAS-safe). See refundScanSlot. */
+export async function refundRecipeSlot(
   supabase: SupabaseClient,
-  telegramUserId: number,
-  user: UserRow
-): Promise<number> {
-  if (await hasEffectivePremium(supabase, telegramUserId)) {
-    return user.ai_recipes_this_month || 0;
+  telegramUserId: number
+): Promise<void> {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { data: user } = await supabase
+      .from('users')
+      .select('ai_recipes_this_month')
+      .eq('telegram_user_id', telegramUserId)
+      .maybeSingle();
+
+    const current = user?.ai_recipes_this_month || 0;
+    if (current <= 0) return;
+    const next = current - 1;
+
+    const { data } = await supabase
+      .from('users')
+      .update({ ai_recipes_this_month: next })
+      .eq('telegram_user_id', telegramUserId)
+      .eq('ai_recipes_this_month', current)
+      .select('ai_recipes_this_month')
+      .maybeSingle();
+
+    if (data) return;
   }
-  const newCount = (user.ai_recipes_this_month || 0) + 1;
-  await supabase
-    .from('users')
-    .update({ ai_recipes_this_month: newCount })
-    .eq('telegram_user_id', telegramUserId);
-  return newCount;
 }
+
+// NOTE: incrementScanCount/incrementRecipeCount (plain read-then-write,
+// no compare-and-swap) were removed after a review found they could race
+// under parallel requests, letting the free quota be bypassed or an
+// increment silently lost. Use consumeScanSlot / consumeRecipeSlot instead
+// — they perform an atomic CAS update and are safe under concurrency.

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
-import { assertCanScan, incrementScanCount, UsageLimitError } from '@/lib/usage-limits';
-import { isPremiumActive } from '@/lib/user-utils';
+import { consumeScanSlot, UsageLimitError } from '@/lib/usage-limits';
 import { verifyApiUser } from '@/lib/verify-api-user';
 
 export const runtime = 'nodejs';
@@ -17,13 +16,7 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
-    const user = await assertCanScan(supabase, auth.userId);
-
-    if (isPremiumActive(user)) {
-      return NextResponse.json({ scans_this_month: user.scans_this_month || 0, unlimited: true });
-    }
-
-    const newCount = await incrementScanCount(supabase, auth.userId, user);
+    const newCount = await consumeScanSlot(supabase, auth.userId);
     return NextResponse.json({ scans_this_month: newCount });
   } catch (error) {
     if (error instanceof UsageLimitError) {

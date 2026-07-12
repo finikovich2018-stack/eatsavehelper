@@ -47,41 +47,31 @@ export async function POST(req: NextRequest) {
         ownerId = household?.owner_telegram_user_id ?? userId;
       }
 
-      const existingQuery = applyDataScope(
-        supabase.from('budgets').select('id'),
-        scope
-      )
-        .eq('month', month)
-        .eq('currency', currency);
-      const { data: existing } = await existingQuery.maybeSingle();
+      const baseRow = {
+        telegram_user_id: ownerId,
+        month,
+        amount: Number(amount),
+        currency,
+      };
+      const row = scope.householdId ? { ...baseRow, household_id: scope.householdId } : baseRow;
 
-      if (existing?.id) {
-        const { error } = await supabase
+      // Single atomic upsert keyed on the table's UNIQUE (telegram_user_id,
+      // month, currency) constraint — avoids the select-then-insert-or-update
+      // race where two parallel saves (double tap, two tabs) could both see
+      // "no existing row" and both insert, creating duplicate budget rows.
+      const { error } = await supabase
+        .from('budgets')
+        .upsert(row, { onConflict: 'telegram_user_id,month,currency' });
+
+      if (error && scope.householdId && error.message.includes('household_id')) {
+        const { error: retry } = await supabase
           .from('budgets')
-          .update({ amount: Number(amount) })
-          .eq('id', existing.id);
-        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      } else {
-        const row: Record<string, unknown> = {
-          telegram_user_id: ownerId,
-          month,
-          amount: Number(amount),
-          currency,
-        };
-        if (scope.householdId) row.household_id = scope.householdId;
-        const { error } = await supabase.from('budgets').insert(row);
-        if (error && scope.householdId && error.message.includes('household_id')) {
-          const { error: retry } = await supabase.from('budgets').insert({
-            telegram_user_id: ownerId,
-            month,
-            amount: Number(amount),
-            currency,
-          });
-          if (retry) return NextResponse.json({ error: retry.message }, { status: 500 });
-        } else if (error) {
-          return NextResponse.json({ error: error.message }, { status: 500 });
-        }
+          .upsert(baseRow, { onConflict: 'telegram_user_id,month,currency' });
+        if (retry) return NextResponse.json({ error: retry.message }, { status: 500 });
+      } else if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
       }
+
       return NextResponse.json({ ok: true });
     }
 

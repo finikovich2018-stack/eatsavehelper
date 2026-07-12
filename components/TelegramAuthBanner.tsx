@@ -1,13 +1,18 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { useAuthReady } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
 
 /** Shown app-wide when Telegram bootstrap finished but initData/user is missing. */
 export default function TelegramAuthBanner() {
+  const pathname = usePathname();
   const { auth, ready } = useAuthReady();
   const { authFailed } = useTelegram();
 
+  // /web-login has its own explanation + the Telegram Login Widget itself —
+  // showing this banner there is redundant and confusing.
+  if (pathname === '/web-login') return null;
   if (!ready || auth) return null;
 
   return (

@@ -528,8 +528,8 @@ export default function RecipesPage() {
         </div>
 
         {!loading && (
-          <div className="bg-surface/60 border border-accent/10 rounded-2xl p-4">
-            <p className="text-xs text-muted leading-relaxed">
+          <div className="relative overflow-hidden rounded-2xl border border-accent/30 bg-gradient-to-br from-accent/15 via-accent/5 to-transparent p-4 anim-rise-in glow-pulse">
+            <p className="text-sm text-foreground/90 leading-relaxed font-medium">
               {t('recipes.tip')}
             </p>
           </div>

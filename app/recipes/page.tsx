@@ -500,13 +500,16 @@ export default function RecipesPage() {
         )}
 
         <div className="anim-rise-in anim-delay-4">
-          <h3 className="font-semibold mb-4">{t('recipes.popular')}</h3>
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <span>{t('recipes.popular')}</span>
+            <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent" />
+          </h3>
           <div className="space-y-3">
             {recipes.map((recipe, i) => (
               <button
                 key={recipe.id}
                 onClick={() => setSelected(recipe)}
-                className="w-full bg-surface border border-border rounded-2xl p-4 flex items-center gap-4 text-left active:scale-[0.98] transition anim-rise-in"
+                className="w-full bg-surface border border-accent/15 hover:border-accent/30 rounded-2xl p-4 flex items-center gap-4 text-left active:scale-[0.98] active:border-accent/40 transition anim-rise-in"
                 style={{ animationDelay: `${0.08 + i * 0.06}s` }}
               >
                 <span className="text-5xl home-action-icon" style={{ animationDelay: `${i * 0.3}s` }}>
@@ -521,7 +524,7 @@ export default function RecipesPage() {
                     <span>⏱ {recipe.time}</span>
                   </div>
                 </div>
-                <span className="text-muted">›</span>
+                <span className="text-accent/60">›</span>
               </button>
             ))}
           </div>

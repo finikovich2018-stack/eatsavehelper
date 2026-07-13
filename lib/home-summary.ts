@@ -58,18 +58,66 @@ export function buildHomeState(data: {
   return { expiring, stats, budget };
 }
 
-/** Start loading home data before the home page mounts. */
-export function prefetchHomeSummary(initData: string, telegramUserId: number) {
-  const monthStart = getMonthStart();
-  void fetch('/api/home', {
+export type RawHomeSummary = {
+  expiringItems: { id: string; name: string; icon?: string | null; expiry_date?: string | null; quantity?: string | null }[];
+  productCount: number;
+  expiringSoonCount: number;
+  expenses: { amount: number; currency: string }[];
+  budgets: { amount: number; currency: string }[];
+  recipeCount: number;
+  shoppingCount: number;
+};
+
+// Dedupe concurrent /api/home requests for the same user+month. The
+// TelegramProvider kicks off a prefetch as soon as auth is known, and the
+// home page independently wants the same data as soon as it mounts. Without
+// this, both fire their own network round trip to the same endpoint, which
+// is what caused the extra pause on cold start. Now whichever caller asks
+// second just awaits the first caller's in-flight promise.
+const inflight = new Map<string, Promise<RawHomeSummary | null>>();
+
+function requestHomeSummary(
+  initData: string,
+  telegramUserId: number,
+  monthStart: string
+): Promise<RawHomeSummary | null> {
+  const key = `${telegramUserId}:${monthStart}`;
+  const existing = inflight.get(key);
+  if (existing) return existing;
+
+  const promise = fetch('/api/home', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ initData, telegram_user_id: telegramUserId, monthStart }),
   })
     .then((res) => (res.ok ? res.json() : null))
-    .then((data) => {
-      if (!data || data.error) return;
-      writeHomeCache(telegramUserId, buildHomeState(data));
-    })
-    .catch(() => undefined);
+    .then((data) => (data && !data.error ? (data as RawHomeSummary) : null))
+    .catch(() => null)
+    .finally(() => {
+      inflight.delete(key);
+    });
+
+  inflight.set(key, promise);
+  return promise;
+}
+
+/** Start loading home data before the home page mounts. */
+export function prefetchHomeSummary(initData: string, telegramUserId: number) {
+  const monthStart = getMonthStart();
+  void requestHomeSummary(initData, telegramUserId, monthStart).then((data) => {
+    if (!data) return;
+    writeHomeCache(telegramUserId, buildHomeState(data));
+  });
+}
+
+/**
+ * Fetch home summary data, reusing an in-flight prefetch request if one is
+ * already running for this user+month instead of firing a second one.
+ */
+export function fetchHomeSummary(
+  initData: string,
+  telegramUserId: number,
+  monthStart: string
+): Promise<RawHomeSummary | null> {
+  return requestHomeSummary(initData, telegramUserId, monthStart);
 }

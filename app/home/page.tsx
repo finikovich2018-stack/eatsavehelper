@@ -6,7 +6,7 @@ import Link from 'next/link';
 import TopBar from '@/components/layout/TopBar';
 import { dataApi } from '@/lib/client-api';
 import { readHomeCache, writeHomeCache } from '@/lib/home-cache';
-import { buildHomeState, getMonthStart } from '@/lib/home-summary';
+import { buildHomeState, fetchHomeSummary, getMonthStart } from '@/lib/home-summary';
 import { useAuthReady } from '@/lib/use-data-auth';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
 
@@ -70,7 +70,7 @@ export default function HomePage() {
     // Fetch summary and monthly stats together so the whole page renders in one
     // pass (no late-appearing "monthly summary" card / layout shift).
     const [summaryRes, statsRes] = await Promise.all([
-      dataApi.home.summary(auth, getMonthStart()).catch((error) => {
+      fetchHomeSummary(auth.initData, auth.telegram_user_id, getMonthStart()).catch((error) => {
         console.error('Home load error:', error);
         return null;
       }),

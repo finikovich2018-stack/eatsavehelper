@@ -154,10 +154,36 @@ export async function POST(req: NextRequest) {
       const now = new Date();
       const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
 
-      const { data, error } = await applyDataScope(
-        supabase.from('fridge_log').select('action').gte('logged_at', monthStart),
-        scope
-      );
+      // These four queries are independent of each other (none depends on
+      // another's result), so run them concurrently instead of one after
+      // another. Sequentially these were 4 extra round trips on the critical
+      // path of the home screen's cold-start load.
+      const [
+        { data, error },
+        { data: lastWasted },
+        { data: firstLog },
+        { data: moneyRows, error: moneyError },
+      ] = await Promise.all([
+        applyDataScope(
+          supabase.from('fridge_log').select('action').gte('logged_at', monthStart),
+          scope
+        ),
+        applyDataScope(
+          supabase.from('fridge_log').select('logged_at').eq('action', 'wasted')
+            .order('logged_at', { ascending: false }).limit(1),
+          scope
+        ).maybeSingle(),
+        applyDataScope(
+          supabase.from('fridge_log').select('logged_at')
+            .order('logged_at', { ascending: true }).limit(1),
+          scope
+        ).maybeSingle(),
+        applyDataScope(
+          supabase.from('fridge_log').select('price, currency')
+            .eq('action', 'wasted').gte('logged_at', monthStart),
+          scope
+        ),
+      ]);
 
       if (error) {
         return NextResponse.json({ eaten: 0, wasted: 0, wasteFreeDays: 0, wastedMoney: [], available: false });
@@ -169,17 +195,6 @@ export async function POST(req: NextRequest) {
 
       // "No waste" streak: days since the last wasted item (all-time). If nothing
       // was ever wasted, count from the first logged action instead.
-      const { data: lastWasted } = await applyDataScope(
-        supabase.from('fridge_log').select('logged_at').eq('action', 'wasted')
-          .order('logged_at', { ascending: false }).limit(1),
-        scope
-      ).maybeSingle();
-      const { data: firstLog } = await applyDataScope(
-        supabase.from('fridge_log').select('logged_at')
-          .order('logged_at', { ascending: true }).limit(1),
-        scope
-      ).maybeSingle();
-
       let wasteFreeDays = 0;
       const ref = lastWasted?.logged_at || firstLog?.logged_at;
       if (ref) {
@@ -189,11 +204,6 @@ export async function POST(req: NextRequest) {
       // Money thrown away this month (best-effort: requires the price/currency
       // columns on fridge_log; returns an empty list if they're missing).
       let wastedMoney: { currency: string; amount: number }[] = [];
-      const { data: moneyRows, error: moneyError } = await applyDataScope(
-        supabase.from('fridge_log').select('price, currency')
-          .eq('action', 'wasted').gte('logged_at', monthStart),
-        scope
-      );
       if (!moneyError && moneyRows) {
         const byCurrency: Record<string, number> = {};
         for (const r of moneyRows as { price: number | null; currency: string | null }[]) {

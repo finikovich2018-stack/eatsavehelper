@@ -12,26 +12,21 @@ export async function resolveDataScope(
   supabase: SupabaseClient,
   userId: number
 ): Promise<DataScope> {
-  const { data: user } = await supabase
-    .from('users')
-    .select('household_id')
-    .eq('telegram_user_id', userId)
-    .maybeSingle();
-
-  let householdId = user?.household_id ?? null;
-
-  if (!householdId) {
-    const { data: membership } = await supabase
+  // These two lookups are independent (different tables, same userId), so run
+  // them in parallel instead of only querying household_members after users
+  // comes back empty. For the common case (a solo user, no household) that
+  // previously meant two sequential round trips before any of the home
+  // screen's real queries could even start.
+  const [{ data: user }, { data: membership }] = await Promise.all([
+    supabase.from('users').select('household_id').eq('telegram_user_id', userId).maybeSingle(),
+    supabase
       .from('household_members')
       .select('household_id')
       .eq('telegram_user_id', userId)
-      .maybeSingle();
-    householdId = membership?.household_id ?? null;
-  }
+      .maybeSingle(),
+  ]);
 
-  if (!householdId) {
-    return { householdId: null, memberIds: [userId], userId };
-  }
+  const householdId = user?.household_id ?? membership?.household_id ?? null;
 
   return { householdId, memberIds: [userId], userId };
 }

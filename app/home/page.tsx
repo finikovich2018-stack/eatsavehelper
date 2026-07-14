@@ -49,6 +49,7 @@ export default function HomePage() {
   const [expiring, setExpiring] = useState<FridgeItem[]>([]);
   const [budget, setBudget] = useState<BudgetSummary>({ spent: 0, limit: 15000, currency: 'RUB' });
   const [stats, setStats] = useState({ products: 0, expiringSoon: 0, recipes: 0, shopping: 0 });
+  const [dataReady, setDataReady] = useState(false);
   const [consumeStats, setConsumeStats] = useState<{
     eaten: number;
     wasted: number;
@@ -65,6 +66,9 @@ export default function HomePage() {
     if (cached) {
       applySnapshot(cached, setExpiring, setStats, setBudget);
       if (cached.consumeStats !== undefined) setConsumeStats(cached.consumeStats);
+      // Cached numbers are real (if slightly stale) data, not placeholder
+      // zeros -- safe to reveal immediately instead of showing a skeleton.
+      setDataReady(true);
     }
 
     // Fetch summary and monthly stats together so the whole page renders in one
@@ -95,6 +99,7 @@ export default function HomePage() {
     } else {
       setConsumeStats(nextConsume);
     }
+    setDataReady(true);
   }, [auth]);
 
   useEffect(() => {
@@ -118,7 +123,20 @@ export default function HomePage() {
     <main className="bg-background text-foreground">
       <TopBar title={t('home.title')} />
       <div className="max-w-mobile mx-auto px-4 py-3 space-y-4">
-        {auth ? (
+        {auth && !dataReady ? (
+          <div className="rounded-3xl p-5 border border-border bg-surface anim-rise-in" aria-hidden="true">
+            <div className="flex justify-between items-start mb-3">
+              <div className="space-y-2">
+                <div className="h-3 w-24 rounded-full bg-border/70 animate-pulse" />
+                <div className="h-7 w-36 rounded-lg bg-border/70 animate-pulse" />
+              </div>
+            </div>
+            <div className="bg-background/60 rounded-full h-3 mb-2 overflow-hidden">
+              <div className="h-3 w-1/3 rounded-full bg-border/70 animate-pulse" />
+            </div>
+            <div className="h-3 w-40 rounded-full bg-border/50 animate-pulse" />
+          </div>
+        ) : auth ? (
         <Link
           href="/budget"
           className={`block rounded-3xl p-5 border active:scale-[0.99] transition anim-rise-in ${budgetCardTone}`}
@@ -182,7 +200,24 @@ export default function HomePage() {
             <h2 className="font-semibold">{t('home.expiringSoon')}</h2>
             <Link href="/fridge" className="text-xs text-accent">{t('common.all')}</Link>
           </div>
-          {expiring.length === 0 ? (
+          {!dataReady ? (
+            <div className="space-y-2" aria-hidden="true">
+              {[0, 1].map((i) => (
+                <div
+                  key={i}
+                  className="bg-surface border border-border rounded-2xl p-4 flex items-center gap-3 anim-rise-in"
+                  style={{ animationDelay: `${0.12 + i * 0.06}s` }}
+                >
+                  <div className="h-8 w-8 rounded-full bg-border/70 animate-pulse" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3.5 w-28 rounded-full bg-border/70 animate-pulse" />
+                    <div className="h-2.5 w-16 rounded-full bg-border/50 animate-pulse" />
+                  </div>
+                  <div className="h-3 w-10 rounded-full bg-border/50 animate-pulse" />
+                </div>
+              ))}
+            </div>
+          ) : expiring.length === 0 ? (
             <div className="bg-surface border border-border rounded-2xl p-5 text-center text-muted text-sm">
               <div className="text-3xl mb-2 float-soft inline-block">✅</div>
               {t('home.noExpiring')}
@@ -243,7 +278,11 @@ export default function HomePage() {
             className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition anim-rise-in"
             style={{ animationDelay: '0.28s' }}
           >
-            <div className="text-xl font-bold text-accent">{stats.products}</div>
+            {dataReady ? (
+              <div className="text-xl font-bold text-accent">{stats.products}</div>
+            ) : (
+              <div className="h-6 w-6 mx-auto rounded-md bg-border/70 animate-pulse" aria-hidden="true" />
+            )}
             <div className="text-[10px] leading-tight text-muted mt-0.5">{t('home.products')}</div>
           </Link>
           <Link
@@ -251,7 +290,11 @@ export default function HomePage() {
             className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition anim-rise-in"
             style={{ animationDelay: '0.34s' }}
           >
-            <div className="text-xl font-bold text-yellow-400">{stats.expiringSoon}</div>
+            {dataReady ? (
+              <div className="text-xl font-bold text-yellow-400">{stats.expiringSoon}</div>
+            ) : (
+              <div className="h-6 w-6 mx-auto rounded-md bg-border/70 animate-pulse" aria-hidden="true" />
+            )}
             <div className="text-[10px] leading-tight text-muted mt-0.5">{t('home.expiringCount')}</div>
           </Link>
           <Link
@@ -259,7 +302,11 @@ export default function HomePage() {
             className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition anim-rise-in"
             style={{ animationDelay: '0.4s' }}
           >
-            <div className="text-xl font-bold text-accent">{stats.recipes}</div>
+            {dataReady ? (
+              <div className="text-xl font-bold text-accent">{stats.recipes}</div>
+            ) : (
+              <div className="h-6 w-6 mx-auto rounded-md bg-border/70 animate-pulse" aria-hidden="true" />
+            )}
             <div className="text-[10px] leading-tight text-muted mt-0.5">{t('home.recipesCount')}</div>
           </Link>
           <Link
@@ -267,7 +314,11 @@ export default function HomePage() {
             className="bg-surface border border-border rounded-2xl p-3 text-center active:scale-[0.97] transition anim-rise-in"
             style={{ animationDelay: '0.46s' }}
           >
-            <div className="text-xl font-bold text-accent">{stats.shopping}</div>
+            {dataReady ? (
+              <div className="text-xl font-bold text-accent">{stats.shopping}</div>
+            ) : (
+              <div className="h-6 w-6 mx-auto rounded-md bg-border/70 animate-pulse" aria-hidden="true" />
+            )}
             <div className="text-[10px] leading-tight text-muted mt-0.5">{t('home.shoppingCount')}</div>
           </Link>
           </div>

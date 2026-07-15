@@ -3,6 +3,7 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import TopBar from '@/components/layout/TopBar';
 import { CAT_LABELS, DEMO_FRIDGE, daysLeft } from '@/lib/marketing-demo-data';
 
@@ -85,7 +86,7 @@ function TutorialContent() {
       <main className="min-h-screen bg-[#17212b] text-white pb-24">
         <TutorialBanner step={1} />
         <div className="max-w-mobile mx-auto px-4 pt-10 text-center">
-          <img
+          <Image
             src="/eatsave-logo.png"
             alt="EatSave"
             width={96}

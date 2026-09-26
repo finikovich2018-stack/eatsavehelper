@@ -1,10 +1,31 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import TopBar from '@/components/layout/TopBar';
 import { userDisplayLabel } from '@/lib/sync-user-profile';
 import { useDataAuth } from '@/lib/use-data-auth';
 import { useTelegram } from '@/components/TelegramProvider';
+
+/** Shows Telegram's native chrome back button while this page is mounted,
+ *  and routes it to `fallback` (or browser back if there's in-app history). */
+function useTelegramBackButton(onBack: () => void) {
+  useEffect(() => {
+    const tg = (window as {
+      Telegram?: { WebApp?: { BackButton?: { show(): void; hide(): void; onClick(cb: () => void): void; offClick(cb: () => void): void } } };
+    }).Telegram?.WebApp;
+    const backButton = tg?.BackButton;
+    if (!backButton) return;
+
+    backButton.onClick(onBack);
+    backButton.show();
+
+    return () => {
+      backButton.offClick(onBack);
+      backButton.hide();
+    };
+  }, [onBack]);
+}
 
 type AdminStats = {
   totalUsers: number;
@@ -27,6 +48,7 @@ type RecentUser = {
 };
 
 export default function AdminPage() {
+  const router = useRouter();
   const auth = useDataAuth();
   const { user, loading: tgLoading } = useTelegram();
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -34,6 +56,15 @@ export default function AdminPage() {
   const [status, setStatus] = useState<'loading' | 'forbidden' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
   const [grantBusy, setGrantBusy] = useState<number | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const [allLoading, setAllLoading] = useState(false);
+
+  useTelegramBackButton(
+    useCallback(() => {
+      if (window.history.length > 1) router.back();
+      else router.push('/profile');
+    }, [router])
+  );
 
   const grantPremium = async (
     telegramUserId: number,
@@ -73,15 +104,16 @@ export default function AdminPage() {
     }
   };
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (all = false) => {
     if (!auth) return;
-    setStatus('loading');
+    if (all) setAllLoading(true);
+    else setStatus('loading');
     setError('');
     try {
       const res = await fetch('/api/admin/stats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData: auth.initData, telegram_user_id: auth.telegram_user_id }),
+        body: JSON.stringify({ initData: auth.initData, telegram_user_id: auth.telegram_user_id, all }),
       });
       const data = await res.json();
       if (res.status === 403) {
@@ -96,9 +128,12 @@ export default function AdminPage() {
       setStats(data.stats);
       setRecentUsers(data.recentUsers || []);
       setStatus('ready');
+      if (all) setShowAll(true);
     } catch {
       setStatus('error');
       setError('Network error');
+    } finally {
+      if (all) setAllLoading(false);
     }
   }, [auth]);
 
@@ -166,21 +201,44 @@ export default function AdminPage() {
       <TopBar title="EatSave Admin" />
       <div className="p-4 space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          {cards.map((c) => (
-            <div key={c.label} className="bg-surface border border-border rounded-xl p-3">
-              <div className="text-2xl mb-1">{c.icon}</div>
-              <div className="text-2xl font-bold text-accent">{c.value}</div>
-              <div className="text-xs text-muted mt-1">{c.label}</div>
-            </div>
-          ))}
+          {cards.map((c) => {
+            const clickable = c.label === 'Всего пользователей';
+            return (
+              <button
+                key={c.label}
+                type="button"
+                disabled={!clickable || allLoading}
+                onClick={clickable ? () => load(true) : undefined}
+                className={`bg-surface border border-border rounded-xl p-3 text-left ${clickable ? 'active:opacity-70' : ''}`}
+              >
+                <div className="text-2xl mb-1">{c.icon}</div>
+                <div className="text-2xl font-bold text-accent">{c.value}</div>
+                <div className="text-xs text-muted mt-1">{c.label}</div>
+              </button>
+            );
+          })}
         </div>
 
         <div className="bg-surface border border-border rounded-xl p-4">
-          <h2 className="font-semibold text-foreground mb-3">Последние пользователи</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-foreground">
+              {showAll ? `Все пользователи (${recentUsers.length})` : 'Последние пользователи'}
+            </h2>
+            {!showAll && (
+              <button
+                type="button"
+                disabled={allLoading}
+                onClick={() => load(true)}
+                className="text-accent text-xs underline"
+              >
+                {allLoading ? 'Загрузка…' : 'Показать всех'}
+              </button>
+            )}
+          </div>
           {recentUsers.length === 0 ? (
             <p className="text-sm text-muted">Пока никого нет</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className={`space-y-2 ${showAll ? 'max-h-[70vh] overflow-y-auto' : ''}`}>
               {recentUsers.map((u) => (
                 <li
                   key={u.telegram_user_id}
@@ -252,7 +310,7 @@ export default function AdminPage() {
 
         <button
           type="button"
-          onClick={load}
+          onClick={() => load(showAll)}
           className="w-full py-3 rounded-xl bg-accent text-background font-semibold"
         >
           Обновить

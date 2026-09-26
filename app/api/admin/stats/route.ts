@@ -19,6 +19,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const wantsAll = body.all === true;
+    const recentLimit = wantsAll ? 1000 : 15;
+
     const supabase = getSupabaseAdmin();
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
     const todayStart = new Date();
@@ -46,7 +49,7 @@ export async function POST(req: NextRequest) {
         .from('users')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(15),
+        .limit(recentLimit),
       supabase
         .from('users')
         .select('is_premium, premium_until')
